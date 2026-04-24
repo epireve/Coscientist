@@ -39,6 +39,17 @@ If `--project-id` is set, also inserts a row into that project's `artifact_index
 
 Deterministic: `<slug-of-title>_<6-char-blake2s>` where the hash is over the source file's content. Re-ingesting the same file with the same title gets the same ID. Changing either produces a new ID.
 
+## What else happens with `--project-id` (v0.8 + v0.9)
+
+- Inline citations are parsed (LaTeX, pandoc, numeric, author-year) and recorded in `manuscript_citations` with source-location metadata
+- The bibliography section (`## References` / `## Bibliography` / `## Works Cited`) is parsed into `manuscript_references` with extracted DOIs, years, and inferred entry keys
+- Graph: a `manuscript:<mid>` node is created with `cites` edges to placeholder `paper:unresolved:<key>` nodes
+
+## Related scripts
+
+- `scripts/resolve_citations.py` — map raw citation keys → canonical_ids; migrates graph edges from placeholder → resolved paper nodes
+- `scripts/validate_citations.py` (v0.9) — cross-checks in-text citations vs bibliography. Reports `dangling-citation`, `orphan-reference`, `unresolved-citation`, `broken-reference`. Writes `validation_report.json` + populates `manuscript_audit_findings` so the author sees issues alongside other audit findings. Add `--fail-on-major` for CI gating.
+
 ## Guarantees
 
 - Original source at `--source` is never modified

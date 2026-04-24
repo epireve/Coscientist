@@ -129,6 +129,41 @@ Tests (17 new, 141 total; 0 failing):
 - Resolve citations: table update + edge migration + placeholder cleanup; invalid source rejected
 - Schema: table + indexes + UNIQUE constraint on (manuscript_id, citation_key, location)
 
+### v0.9 — citation validation completeness
+
+Answers the question "what happens when we can't resolve references, or a citation isn't in the ref list?" Before v0.9 the answer was "nothing is flagged". Now every failure mode is detected, persisted, and surfaced to the author.
+
+Schema (+1 table, 26 total):
+- `manuscript_references` — parsed bibliography entries with ordinal, entry_key, raw_text, doi, year, resolved_canonical_id; UNIQUE on `(manuscript_id, ordinal)`
+
+Enhanced `manuscript-ingest`:
+- Bibliography parser detects `## References` / `## Bibliography` / `## Works Cited` sections
+- Handles three bib styles: numbered `[1]`, markdown bullets `-`, and BibTeX blocks `@article{key, ...}`
+- Extracts DOI, year, title (BibTeX), and infers `entry_key` from Author+Year patterns when not explicit
+- Writes every bib entry into `manuscript_references`
+
+New script `manuscript-ingest/scripts/validate_citations.py`:
+- Four cross-checks:
+  - **dangling-citation** (major): in-text key with no matching bib entry
+  - **orphan-reference** (minor): bib entry never cited
+  - **unresolved-citation** (minor): citation_key with NULL resolved_canonical_id
+  - **broken-reference** (major): canonical_id set but paper artifact missing on disk
+- Fuzzy matching: exact key, numeric ordinal, and author-year heuristic
+- Writes `validation_report.json` to the manuscript artifact
+- Populates `manuscript_audit_findings` with `claim_id='citation-validator:<key>'` so findings surface alongside audit results
+- `--fail-on-major` for CI gating (exits 2 on dangling or broken)
+
+Audit gate: `VALID_KINDS` extended to accept the four new kinds, so the manuscript-auditor sub-agent can also emit them directly.
+
+Sub-agent persona update: `manuscript-auditor.md` now runs `validate_citations.py` first and reports dangling/broken findings to the author in the summary — these are flagged as **integrity issues** that need fixing before submission.
+
+Tests (17 new, 158 total; 0 failing):
+- Bib parser: numbered, bullet, BibTeX-block styles; no-bib-section case; entry_key inference
+- Ingest writes references: manuscript_references populated with correct ordinals and years
+- Validation: clean manuscript passes; each of the 4 failure modes detected independently; `--fail-on-major` exits 2; findings land in manuscript_audit_findings
+- Audit gate: accepts `dangling-citation` and `broken-reference` kinds
+- Schema: table + UNIQUE constraint on (manuscript_id, ordinal) enforced
+
 ## Inspirations and what we take from them
 
 | Source | Pattern we adopt |

@@ -3,8 +3,8 @@
 
 When --project-id is given, this also:
 - Creates a manuscript node in the project graph
-- Parses inline citations from the source
-- Populates manuscript_citations (raw citation keys + locations, unresolved)
+- Parses inline citations from the source → manuscript_citations
+- Parses the bibliography section (v0.9) → manuscript_references
 - Creates placeholder paper nodes + `cites` edges from the manuscript
 
 No LLM calls, no network. Pure filesystem + SQLite.
@@ -41,6 +41,142 @@ CITATION_PATTERNS = [
     # (Author, Year) / (Author et al., Year)
     (re.compile(r"\(([A-Z][a-zA-Z]+(?:\s+et\s+al\.?)?,?\s+\d{4}[a-z]?)\)"), "author-year"),
 ]
+
+
+BIB_HEADERS = re.compile(
+    r"^#{1,3}\s*(References|Bibliography|Works\s+Cited|Literature\s+Cited)\b",
+    re.IGNORECASE | re.MULTILINE,
+)
+BIB_NUMBERED = re.compile(r"^\s*(?:\[(\d+)\]|\((\d+)\)|(\d+)\.)\s+(.+)$")
+BIB_BULLET = re.compile(r"^\s*[-*]\s+(.+)$")
+BIBTEX_ENTRY = re.compile(
+    r"@(?:article|inproceedings|book|misc|phdthesis|mastersthesis|techreport|"
+    r"incollection|conference|proceedings|unpublished|manual)\s*\{([^,]+),",
+    re.IGNORECASE,
+)
+DOI_RX = re.compile(r"\b(10\.\d{4,9}/[-._;()/:A-Za-z0-9]+)\b")
+YEAR_RX = re.compile(r"\b(19\d{2}|20\d{2})\b")
+# Heuristic: infer a BibTeX-style key from "Author (Year)" or "Author, Year"
+KEY_AUTHOR_YEAR = re.compile(r"^([A-Z][A-Za-z-]+).*?(\b(?:19|20)\d{2}\b)")
+
+
+def extract_bibliography(text: str) -> list[dict]:
+    """Extract bibliography entries from a markdown manuscript's reference list.
+
+    Handles three common styles:
+    1. Numbered: `[1] Smith, J. (2020). Title...`
+    2. Markdown bullets: `- Smith, J. (2020). Title...`
+    3. BibTeX blocks: `@article{smith2020, ...}`
+
+    Returns a list of dicts: {entry_key, raw_text, ordinal, doi, year, title}.
+    If no bibliography section is found, returns [].
+    """
+    m = BIB_HEADERS.search(text)
+    if not m:
+        return []
+    bib_text = text[m.end():]
+
+    # Chop at the next top-level header if any (e.g., an appendix after refs)
+    next_hdr = re.search(r"^\s*#{1,3}\s+\w+", bib_text, re.MULTILINE)
+    if next_hdr and next_hdr.start() > 10:
+        bib_text = bib_text[:next_hdr.start()]
+
+    entries: list[dict] = []
+
+    # Try BibTeX-style blocks first (unambiguous)
+    bibtex_hits = list(BIBTEX_ENTRY.finditer(bib_text))
+    if bibtex_hits:
+        for i, hit in enumerate(bibtex_hits, start=1):
+            start = hit.start()
+            end = bibtex_hits[i].start() if i < len(bibtex_hits) else len(bib_text)
+            block = bib_text[start:end].strip()
+            entries.append({
+                "entry_key": hit.group(1).strip(),
+                "raw_text": block,
+                "ordinal": i,
+                "doi": _extract_doi(block),
+                "year": _extract_year(block),
+                "title": _extract_bibtex_title(block),
+            })
+        return entries
+
+    # Fall back to numbered / bullet style — parse line by line
+    ordinal = 0
+    pending_text: list[str] = []
+    pending_ordinal: int | None = None
+    for raw_line in bib_text.splitlines():
+        line = raw_line.rstrip()
+        if not line.strip():
+            # Blank separates entries; flush
+            if pending_text:
+                ordinal += 1 if pending_ordinal is None else 0
+                entries.append(_make_entry(pending_text, pending_ordinal or ordinal))
+                pending_text = []
+                pending_ordinal = None
+            continue
+        nm = BIB_NUMBERED.match(line)
+        if nm:
+            if pending_text:
+                # Flush the previous entry before starting new one
+                ordinal = pending_ordinal or (ordinal + 1)
+                entries.append(_make_entry(pending_text, ordinal))
+                pending_text = []
+            pending_ordinal = int(nm.group(1) or nm.group(2) or nm.group(3))
+            pending_text = [nm.group(4)]
+            continue
+        bm = BIB_BULLET.match(line)
+        if bm:
+            if pending_text:
+                ordinal = pending_ordinal or (ordinal + 1)
+                entries.append(_make_entry(pending_text, ordinal))
+                pending_text = []
+                pending_ordinal = None
+            pending_text = [bm.group(1)]
+            continue
+        # Continuation of the previous entry
+        if pending_text:
+            pending_text.append(line.strip())
+
+    if pending_text:
+        ordinal = pending_ordinal or (ordinal + 1)
+        entries.append(_make_entry(pending_text, ordinal))
+
+    return entries
+
+
+def _make_entry(lines: list[str], ordinal: int) -> dict:
+    raw = " ".join(lines).strip()
+    return {
+        "entry_key": _infer_entry_key(raw),
+        "raw_text": raw,
+        "ordinal": ordinal,
+        "doi": _extract_doi(raw),
+        "year": _extract_year(raw),
+        "title": None,
+    }
+
+
+def _extract_doi(text: str) -> str | None:
+    m = DOI_RX.search(text)
+    return m.group(1) if m else None
+
+
+def _extract_year(text: str) -> int | None:
+    m = YEAR_RX.search(text)
+    return int(m.group(1)) if m else None
+
+
+def _extract_bibtex_title(block: str) -> str | None:
+    m = re.search(r"title\s*=\s*\{+([^}]+)\}+", block, re.IGNORECASE)
+    return m.group(1).strip() if m else None
+
+
+def _infer_entry_key(raw: str) -> str | None:
+    """Produce a BibTeX-style key from Author+Year if inferrable."""
+    m = KEY_AUTHOR_YEAR.match(raw.strip())
+    if m:
+        return f"{m.group(1).lower()}{m.group(2)}"
+    return None
 
 
 def _slugify(s: str) -> str:
@@ -143,15 +279,17 @@ def _project_db(project_id: str) -> Path:
 def populate_graph_and_citations(
     mid: str,
     citations: list[dict],
+    bib_entries: list[dict],
     project_id: str,
 ) -> dict:
-    """Write manuscript_citations rows + graph nodes + cites edges.
+    """Write manuscript_citations + manuscript_references + graph nodes/edges.
 
     Returns counts for the caller's summary.
     """
     now = datetime.now(UTC).isoformat()
     con = sqlite3.connect(_project_db(project_id))
     citations_recorded = 0
+    references_recorded = 0
     placeholder_nodes = 0
     cites_edges = 0
 
@@ -214,9 +352,25 @@ def populate_graph_and_citations(
                     )
                     cites_edges += 1
 
+        # Bibliography entries
+        for entry in bib_entries:
+            cur = con.execute(
+                "INSERT OR IGNORE INTO manuscript_references "
+                "(manuscript_id, entry_key, raw_text, ordinal, doi, title, year, at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    mid, entry.get("entry_key"), entry["raw_text"],
+                    entry["ordinal"], entry.get("doi"), entry.get("title"),
+                    entry.get("year"), now,
+                ),
+            )
+            if cur.rowcount:
+                references_recorded += 1
+
     con.close()
     return {
         "citations_recorded": citations_recorded,
+        "references_recorded": references_recorded,
         "placeholder_paper_nodes": placeholder_nodes,
         "cites_edges": cites_edges,
     }
@@ -250,16 +404,20 @@ def main() -> None:
     art.save_manifest(m)
 
     citations = extract_citations(text)
+    bib_entries = extract_bibliography(text)
     summary: dict = {
         "manuscript_id": mid,
         "citations_found_in_source": len(citations),
+        "bibliography_entries_found": len(bib_entries),
     }
 
     if args.project_id:
         from lib.project import register_artifact
         register_artifact(args.project_id, mid, ArtifactKind.manuscript.value,
                           "drafted", art.root)
-        graph_stats = populate_graph_and_citations(mid, citations, args.project_id)
+        graph_stats = populate_graph_and_citations(
+            mid, citations, bib_entries, args.project_id
+        )
         summary.update(graph_stats)
 
     # Print the mid on the first line for backward-compat with existing callers

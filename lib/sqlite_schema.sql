@@ -359,3 +359,23 @@ CREATE TABLE IF NOT EXISTS manuscript_citations (
 CREATE INDEX IF NOT EXISTS idx_mscites_ms   ON manuscript_citations(manuscript_id);
 CREATE INDEX IF NOT EXISTS idx_mscites_key  ON manuscript_citations(citation_key);
 CREATE INDEX IF NOT EXISTS idx_mscites_res  ON manuscript_citations(resolved_canonical_id);
+
+-- v0.9: bibliography entries parsed from the manuscript's reference list.
+-- Used by validate_citations.py to cross-check in-text vs bib and catch
+-- dangling/orphan references.
+CREATE TABLE IF NOT EXISTS manuscript_references (
+    ref_row_id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    manuscript_id         TEXT NOT NULL,
+    entry_key             TEXT,                  -- BibTeX-style key when inferrable (e.g. "vaswani2017")
+    raw_text              TEXT NOT NULL,         -- verbatim bib entry (may span multiple lines)
+    ordinal               INTEGER NOT NULL,      -- [1], [2], ... (numeric bib order)
+    doi                   TEXT,                  -- extracted if present
+    title                 TEXT,                  -- extracted if inferrable
+    year                  INTEGER,               -- extracted if inferrable
+    resolved_canonical_id TEXT,
+    at                    TEXT NOT NULL,
+    UNIQUE(manuscript_id, ordinal)
+);
+
+CREATE INDEX IF NOT EXISTS idx_msrefs_ms    ON manuscript_references(manuscript_id);
+CREATE INDEX IF NOT EXISTS idx_msrefs_key   ON manuscript_references(entry_key);

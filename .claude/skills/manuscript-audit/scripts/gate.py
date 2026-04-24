@@ -30,7 +30,12 @@ HEDGE_WORDS = re.compile(
     r"\b(maybe|perhaps|potentially|could\s+be|might\s+be|possibly|seems?\s+to|appears?\s+to)\b",
     re.IGNORECASE,
 )
-VALID_KINDS = {"overclaim", "uncited", "unsupported", "outdated", "retracted"}
+VALID_KINDS = {
+    "overclaim", "uncited", "unsupported", "outdated", "retracted",
+    # v0.9 citation-validator findings
+    "dangling-citation", "orphan-reference",
+    "unresolved-citation", "broken-reference",
+}
 VALID_SEVERITY = {"info", "minor", "major"}
 INLINE_CITATION = re.compile(r"(\\cite\{|\[@|\[\d+\]|\(\w+\s+\d{4}\))")
 

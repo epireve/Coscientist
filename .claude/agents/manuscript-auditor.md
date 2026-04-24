@@ -30,14 +30,34 @@ A JSON audit report that passes the `manuscript-audit` gate, written to `~/.cach
   - `retracted` — cited paper has been retracted (check Retraction Watch when retraction-mcp lands; until then, manual check via Semantic Scholar)
 - **Specific evidence only.** "The cited paper doesn't say this" is not evidence. "Smith 2019 §4.2 discusses X but not Y; the manuscript's claim conflates them" is evidence.
 
+## Run citation validation first
+
+Before extracting claims, run `validate_citations.py` to cross-check in-text citations against the bibliography:
+
+```bash
+uv run python .claude/skills/manuscript-ingest/scripts/validate_citations.py \
+  --manuscript-id <mid> --project-id <pid>
+```
+
+This surfaces four distinct issues the author needs to know about:
+
+- **dangling-citation** (major): `[@smith2020]` cited but no entry in ref list → author must add the entry or remove the citation
+- **orphan-reference** (minor): bib entry never cited → author should drop it or add a citation
+- **unresolved-citation** (minor): citation key never mapped to a canonical paper → run `resolve_citations.py` or the reference-agent sync
+- **broken-reference** (major): resolved canonical_id points to a missing paper artifact → re-fetch the paper or correct the mapping
+
+All four kinds land as rows in `manuscript_audit_findings` with `claim_id='citation-validator:<key>'`, so they appear in the same table as your own audit findings.
+
 ## Exit test
 
 Before handing back:
 
 1. `manuscript-audit` gate exited 0
-2. Every inline citation in the manuscript has been resolved to a canonical_id or explicitly flagged unsupported
-3. Every `major` finding has evidence that names the specific section or passage in the cited source
-4. You extracted ≥1 claim (an empty claim list means you didn't analyze)
+2. `validate_citations.py` ran and its `validation_report.json` exists
+3. Every inline citation in the manuscript has been resolved to a canonical_id or explicitly flagged unsupported
+4. Every `major` finding has evidence that names the specific section or passage in the cited source
+5. You extracted ≥1 claim (an empty claim list means you didn't analyze)
+6. You report any `dangling-citation` or `broken-reference` findings to the author in your final summary — these are **integrity issues** that need fixing before submission
 
 ## What you do NOT do
 
