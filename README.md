@@ -67,6 +67,19 @@ Ingest your own drafts and analyze them with the same discipline used for extern
 
 Associated sub-agents: `manuscript-auditor`, `manuscript-critic`, `manuscript-reflector`.
 
+### Reference agent (v0.5)
+
+Zotero ↔ Coscientist bridge + graph-layer ops. Uses the Zotero MCP; never speculates.
+
+| Script under `reference-agent/` | Job |
+|---|---|
+| `sync_from_zotero.py` | Ingest Zotero items → paper artifacts + author graph + default `to-read` state |
+| `export_bibtex.py` | Emit `.bib` for a manuscript's cited sources or a deep-research run's `papers_in_run` |
+| `reading_state.py` | Per-project per-paper reading state: `to-read → reading → read → annotated → cited \| skipped` |
+| `mark_retracted.py` | Record retraction flags so `manuscript-audit` catches them automatically |
+
+Associated sub-agent: `reference-agent`.
+
 ## MCP servers used
 
 Registered in `.mcp.json`:

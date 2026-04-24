@@ -21,6 +21,13 @@ from tests.test_manuscript import (
     ReflectGateTests,
 )
 from tests.test_paper_artifact import PaperArtifactTests
+from tests.test_reference_agent import (
+    BibtexTests,
+    ReadingStateTests,
+    ReferenceAgentSchemaTests,
+    RetractionTests,
+    SyncTests,
+)
 from tests.test_refactor import ArtifactTests, GraphTests, ProjectTests
 from tests.test_schema import SchemaTests
 
@@ -40,6 +47,11 @@ if __name__ == "__main__":
         CritiqueGateTests,
         ReflectGateTests,
         ManuscriptSchemaTests,
+        SyncTests,
+        BibtexTests,
+        ReadingStateTests,
+        RetractionTests,
+        ReferenceAgentSchemaTests,
         AgentFrontmatterTests,
     )
     sys.exit(failures)

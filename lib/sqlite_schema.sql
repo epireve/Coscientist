@@ -301,3 +301,38 @@ CREATE INDEX IF NOT EXISTS idx_mclaim_ms         ON manuscript_claims(manuscript
 CREATE INDEX IF NOT EXISTS idx_maudit_ms         ON manuscript_audit_findings(manuscript_id);
 CREATE INDEX IF NOT EXISTS idx_mcritique_ms      ON manuscript_critique_findings(manuscript_id, reviewer);
 CREATE INDEX IF NOT EXISTS idx_mreflect_ms       ON manuscript_reflections(manuscript_id);
+
+-- -----------------------------------------------------------------------
+-- Tier A2: reference agent (Zotero sync + reading state + retraction flags)
+-- -----------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS reading_state (
+    state_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    canonical_id    TEXT NOT NULL,
+    project_id      TEXT REFERENCES projects(project_id) ON DELETE SET NULL,
+    state           TEXT NOT NULL,   -- to-read|reading|read|annotated|cited|skipped
+    notes           TEXT,
+    updated_at      TEXT NOT NULL,
+    UNIQUE(canonical_id, project_id)
+);
+
+CREATE TABLE IF NOT EXISTS retraction_flags (
+    flag_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    canonical_id    TEXT NOT NULL UNIQUE,
+    retracted       INTEGER NOT NULL,  -- 0|1
+    source          TEXT NOT NULL,     -- semantic-scholar|retraction-watch|manual
+    detail          TEXT,
+    checked_at      TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS zotero_links (
+    link_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    canonical_id    TEXT NOT NULL UNIQUE,
+    zotero_key      TEXT NOT NULL,
+    zotero_library  TEXT,              -- library identifier
+    synced_at       TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_readstate_project  ON reading_state(project_id, state);
+CREATE INDEX IF NOT EXISTS idx_readstate_cid      ON reading_state(canonical_id);
+CREATE INDEX IF NOT EXISTS idx_zotero_key         ON zotero_links(zotero_key);

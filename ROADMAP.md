@@ -53,6 +53,19 @@ Ingest + analyze-your-own-work skills. Does not yet include draft/revise/format/
 - 4 schema tables: `manuscript_claims`, `manuscript_audit_findings`, `manuscript_critique_findings`, `manuscript_reflections`
 - 23 new tests (76 total suite); 0 failures
 
+### v0.5 — reference-agent skill (A2 first cut)
+
+Brings Zotero into the paper cache + makes the graph layer usable in practice.
+
+- 1 new skill: `reference-agent` with four scripts — `sync_from_zotero.py`, `export_bibtex.py`, `reading_state.py`, `mark_retracted.py`
+- 1 new sub-agent: `reference-agent` — orchestrates Zotero MCP calls, never speculates
+- 3 schema tables: `reading_state`, `retraction_flags`, `zotero_links`
+- Per-project per-paper reading state machine: `to-read → reading → read → annotated → cited | skipped`
+- BibTeX export with embedded `canonical_id` in `note` for round-trip traceability
+- 14 new tests (90 total; 0 failures)
+
+Graph-layer Kuzu upgrade still deferred; SQLite adjacency works and tests exercise add/walk/hubs/in_degree.
+
 ## Inspirations and what we take from them
 
 | Source | Pattern we adopt |
@@ -100,22 +113,15 @@ Retraction checking in `manuscript-audit` is currently a manual fallback via Sem
 
 Promote citations/concepts/authors from rows to a real graph.
 
-- Graph DB decision: **Kuzu** (embedded, SQL-like, zero-config) preferred; fallback is SQLite adjacency tables.
-- Four linked graphs:
-  - Citation (papers + cites/cited-by via Semantic Scholar)
-  - Concept (claims + `extends`/`refutes`/`uses`/`depends-on` edges, populated during SEEKER analysis phases)
-  - Author (collaboration edges)
-  - Personal (your reading, manuscripts, claims linked to the above)
-- NetworkX for centrality/community/path analysis
-- `reference-agent` skill features:
-  - Bidirectional Zotero sync (discovery → Zotero; manual adds → agent sees them)
-  - Duplicate detection across runs/collections
-  - N-hop citation-graph walk on demand
-  - BibTeX / CSL-JSON export per manuscript
-  - Reading-state tracking: to-read, read, annotated, cited
-  - Incomplete-citation resolution ("Smith 2020" → DOI)
-  - Retraction watch integration
-- Visualization: mermaid for markdown embeds; Cytoscape.js if a web dashboard emerges
+- ✅ Graph foundation — SQLite adjacency tables + `lib/graph.py` (v0.3). Kuzu upgrade still parked.
+- ✅ `reference-agent` skill (v0.5): Zotero sync, reading-state per project, BibTeX export, retraction flags
+- ✅ Author-graph edges via Zotero sync (`authored-by`)
+- **Pending**:
+  - Citation edges (cites/cited-by) populated from Semantic Scholar `get_paper_references` / `get_paper_citations` — script should feed the graph
+  - Concept edges (extends/refutes/uses/depends-on) populated during SEEKER analysis phases
+  - CSL-JSON export (BibTeX only for now)
+  - Incomplete-citation resolution ("Smith 2020" → DOI) — sub-agent can do this today via Semantic Scholar MCP, but no dedicated skill
+  - Visualization (mermaid embed; Cytoscape.js if a web dashboard emerges)
 
 ### A3. Writing-style subsystem
 
