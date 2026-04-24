@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "TodoWrite",
+      "Bash(uv run:*)",
+      "Bash(uv sync:*)",
+      "Bash(python -m:*)",
+      "Bash(python3 -m:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(cat:*)",
+      "Bash(sqlite3:*)",
+      "mcp__consensus",
+      "mcp__paper-search",
+      "mcp__academic",
+      "mcp__semantic-scholar",
+      "mcp__playwright",
+      "mcp__browser-use",
+      "mcp__zotero"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(git push --force:*)",
+      "Bash(git reset --hard:*)"
+    ]
+  },
+  "env": {
+    "COSCIENTIST_PUBLISHER_DELAY": "10"
+  }
+}

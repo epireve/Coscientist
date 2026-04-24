@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Envs
+.venv/
+venv/
+env/
+.env
+.env.local
+
+# uv
+.uv/
+uv.lock
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Coscientist runtime state
+.coscientist/
+cache/
+node_modules/
+
+# Institutional-access secrets — never commit these
+.claude/skills/institutional-access/state/
+.claude/skills/institutional-access/scripts/**/storage_state.json
+.claude/skills/institutional-access/scripts/**/cookies.json
+
+# Claude local settings (user-specific)
+.claude/settings.local.json

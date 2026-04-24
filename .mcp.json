@@ -1,0 +1,41 @@
+{
+  "mcpServers": {
+    "consensus": {
+      "type": "http",
+      "url": "https://mcp.consensus.app/mcp"
+    },
+    "paper-search": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["paper-search-mcp"]
+    },
+    "academic": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["academic-mcp"]
+    },
+    "semantic-scholar": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["semantic-scholar-mcp"]
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    },
+    "browser-use": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["browser-use-mcp-server"]
+    },
+    "zotero": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["zotero-mcp"],
+      "env": {
+        "ZOTERO_API_HOST": "http://127.0.0.1:23119"
+      }
+    }
+  }
+}
