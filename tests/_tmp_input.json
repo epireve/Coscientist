@@ -1,1 +1,0 @@
-{"findings": [{"attack": "vibes", "severity": "pass", "evidence": "Bonferroni correction reported"}, {"attack": "underpowered", "severity": "fatal", "evidence": "n=12, claimed effect d=0.3 requires n=175", "steelman": "Authors treat this as preliminary; claims are scoped."}, {"attack": "selective-baselines", "severity": "minor", "evidence": "Omits Smith 2023 baseline"}]}
