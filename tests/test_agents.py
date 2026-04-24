@@ -21,6 +21,8 @@ EXPECTED_AGENTS = {
     "thinker", "scribe",
     # A5 critical-judgment
     "novelty-auditor", "publishability-judge", "red-team",
+    # A1 manuscript subsystem
+    "manuscript-auditor", "manuscript-critic", "manuscript-reflector",
 }
 
 

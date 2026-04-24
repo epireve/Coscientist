@@ -13,6 +13,13 @@ from tests.test_gates import (
     NoveltyGateTests,
     PublishabilityGateTests,
 )
+from tests.test_manuscript import (
+    AuditGateTests,
+    CritiqueGateTests,
+    IngestTests,
+    ManuscriptSchemaTests,
+    ReflectGateTests,
+)
 from tests.test_paper_artifact import PaperArtifactTests
 from tests.test_refactor import ArtifactTests, GraphTests, ProjectTests
 from tests.test_schema import SchemaTests
@@ -28,6 +35,11 @@ if __name__ == "__main__":
         NoveltyGateTests,
         PublishabilityGateTests,
         AttackVectorsTests,
+        IngestTests,
+        AuditGateTests,
+        CritiqueGateTests,
+        ReflectGateTests,
+        ManuscriptSchemaTests,
         AgentFrontmatterTests,
     )
     sys.exit(failures)

@@ -29,6 +29,8 @@ State flows: `discovered → triaged → acquired → extracted → read → cit
 
 ## Skills
 
+### Literature pipeline (v0.1)
+
 | Skill | Job |
 |---|---|
 | `/paper-discovery` | Multi-source search with dedup across discovery MCPs |
@@ -39,6 +41,31 @@ State flows: `discovered → triaged → acquired → extracted → read → cit
 | `/pdf-extract` | Docling extraction + Claude vision fallback |
 | `/research-eval` | Reference and claim auditing |
 | `/deep-research` | Orchestrates the 10 sub-agents end-to-end |
+
+### Critical judgment (v0.3)
+
+Gate-enforced novelty + publishability + attack-vector analysis. Each skill's gate script refuses un-grounded verdicts — no hedging, no novelty claims without 5+ anchors, no fatal attacks without steelman.
+
+| Skill | Job |
+|---|---|
+| `novelty-check` | Enforce novelty-report structure (decomposition, ≥5 anchors, committed verdict) |
+| `publishability-check` | Enforce venue verdicts with probability + kill criterion + factors |
+| `attack-vectors` | Named-attack checklist with pass/minor/fatal + evidence + steelman |
+
+Associated sub-agents: `novelty-auditor`, `publishability-judge`, `red-team`.
+
+### Manuscript subsystem (v0.4)
+
+Ingest your own drafts and analyze them with the same discipline used for external papers.
+
+| Skill | Job |
+|---|---|
+| `manuscript-ingest` | Copy a markdown draft into a `manuscript` artifact (deterministic ID, state machine, optional project registration) |
+| `manuscript-audit` | Per-claim audit against cited sources; flags overclaim / uncited / unsupported / outdated / retracted |
+| `manuscript-critique` | Four reviewer personas (methodological / theoretical / big-picture / nitpicky) with committed verdict + confidence |
+| `manuscript-reflect` | Thesis + premises + evidence chain + implicit assumptions + weakest link + one-experiment recommendation |
+
+Associated sub-agents: `manuscript-auditor`, `manuscript-critic`, `manuscript-reflector`.
 
 ## MCP servers used
 
@@ -76,11 +103,21 @@ The `institutional-access` skill enforces:
 - **Audit log**: every download recorded with DOI, timestamp, source tier
 - Sci-Hub tier disabled by default
 
+## Running tests
+
+No pytest dependency; the harness is in-repo. Run the full smoke suite:
+
+```bash
+python3 -m tests.run_all
+```
+
+Currently 53 tests across schema, artifact contract, project/artifact/graph lib, deep-research state machine, the three A5 gate scripts, and agent frontmatter.
+
 ## Where this is going
 
-See [`ROADMAP.md`](./ROADMAP.md) for the full plan — manuscript writing + versioning, reference agent with citation/concept graph, writing-style fingerprints, personal knowledge layer, tournament-ranked hypothesis evolution (Google Co-scientist pattern), PRISMA systematic review, Sakana-style experimentation loop, and more.
+See [`ROADMAP.md`](./ROADMAP.md) for the full plan — manuscript writing + versioning, reference agent with citation/concept graph, writing-style fingerprints, personal knowledge layer, tournament-ranked hypothesis evolution (Google Co-scientist pattern), PRISMA systematic review, Sakana-style experimentation loop, and more. The same file tracks what's shipped per version.
 
-See [`RESEARCHER.md`](./RESEARCHER.md) for the principles any agent should follow when doing research work inside this system. Shaped after Karpathy's composable-principle approach: every rule names a specific LLM failure mode and a test to check you followed it.
+See [`RESEARCHER.md`](./RESEARCHER.md) for the 11 principles any agent should follow when doing research work inside this system. Shaped after Karpathy's composable-principle approach: every rule names a specific LLM failure mode and a test to check you followed it.
 
 ## Credits
 

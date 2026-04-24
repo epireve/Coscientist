@@ -8,13 +8,50 @@ A personal research partner that covers the *full* research lifecycle: discoveri
 
 The current v0.1 is a literature-synthesis pipeline. The point of the roadmap is the rest.
 
-## What exists today (v0.1)
+## Shipped
+
+### v0.1 — literature-synthesis pipeline (commit c9e2ea4)
 
 - 8 atomic skills: `paper-discovery`, `paper-triage`, `paper-acquire`, `institutional-access`, `arxiv-to-markdown`, `pdf-extract`, `research-eval`, `deep-research`
 - 10 sub-agents under `deep-research`: social, grounder, historian, gaper, vision, theorist, rude, synthesizer, thinker, scribe
 - 7 MCP server registrations: consensus, paper-search, academic, semantic-scholar, playwright, browser-use, zotero
 - Paper artifact contract on disk; SQLite run log with resume
 - Guardrails: triage-gate before acquire, 10s publisher rate limit, audit log, Sci-Hub off by default
+
+### v0.2 — ROADMAP + RESEARCHER principles + Karpathy absorption (commits 4a3c8d5, bc135fa)
+
+- `ROADMAP.md` with this structure (tier A/B/C, shipped list, open decisions)
+- `RESEARCHER.md` with 11 research-agent principles: triage before acquiring, cite what you've read, doubt the extractor, narrate tension, register bias upfront, name five, commit to a number, steelman before attack, premortem, kill criteria, stop when you should
+- 4 engineering principles in `CLAUDE.md` from karpathy-skills
+- Sub-agent mapping table linking principles to each agent
+
+### v0.3 — A5 critical-judgment + Karpathy retrofit + structural refactor foundation (commit 885035b)
+
+- A5 skills: `novelty-check`, `publishability-check`, `attack-vectors` (gate-enforced discipline)
+- A5 sub-agents: `novelty-auditor`, `publishability-judge`, `red-team`
+- Karpathy retrofit on all 10 existing sub-agents (minimal-scope tools, declarative goals, exit-test clauses, RESEARCHER.md references)
+- Structural refactor foundation (non-breaking):
+  - `projects` table + `lib/project.py` — top-level research container
+  - `artifact_index` table + `lib/artifact.py` — polymorphic artifact kinds (manuscript, experiment, dataset, figure, review, grant, journal-entry, protocol) with per-kind state machines
+  - `graph_nodes` + `graph_edges` tables + `lib/graph.py` — citation/concept/author graph (SQLite adjacency; Kuzu upgrade deferred)
+  - `hypotheses` + `tournament_matches` tables — Elo-ranked hypotheses with parent lineage (schema only; Tournament ranker is Tier B)
+- Schema now 20 tables total
+
+### v0.3.1 — smoke test suite (commit 96bdeb9)
+
+- `tests/` with dependency-free harness (no pytest required)
+- 53 tests across 8 areas: schema, paper artifact regression, project/artifact/graph, deep-research state machine, A5 gates (accept + reject per condition), agent frontmatter
+- `tests/_shim.py` slugify stub lets suite run without `uv sync`
+- Caught two bugs during first run — both fixed
+
+### v0.4 — manuscript-ingest subsystem (A1 first cut)
+
+Ingest + analyze-your-own-work skills. Does not yet include draft/revise/format/version — those are a later iteration.
+
+- 4 new skills: `manuscript-ingest`, `manuscript-audit`, `manuscript-critique`, `manuscript-reflect` — each with a gate script that refuses un-grounded output
+- 3 new sub-agents: `manuscript-auditor`, `manuscript-critic` (four reviewer personas), `manuscript-reflector` ("ultrathink your own work")
+- 4 schema tables: `manuscript_claims`, `manuscript_audit_findings`, `manuscript_critique_findings`, `manuscript_reflections`
+- 23 new tests (76 total suite); 0 failures
 
 ## Inspirations and what we take from them
 
@@ -48,13 +85,16 @@ The four subsystems that most directly serve the user's stated use cases. Build 
 
 Ingest the user's own manuscripts and treat them as artifacts parallel to papers. State machine: `drafted → audited → critiqued → revised`.
 
-- `manuscript-audit` — extract every claim; verify each against its cited source (does that paper really say this?), retraction databases, and broader literature for contradicting evidence. Output annotated diff with issues flagged.
-- `manuscript-critique` — four reviewer personas (methodological, theoretical, big-picture, nitpicky) producing a NeurIPS/Nature-style review doc.
-- `manuscript-reflect` — the "ultrathink your own work" skill: expose argument structure, make implicit assumptions explicit, map evidence chains, identify weakest link, suggest the *one* experiment that would most strengthen it.
+- ✅ `manuscript-ingest` — ingest a markdown draft into an artifact (v0.4)
+- ✅ `manuscript-audit` — extract every claim; verify each against its cited source; flag overclaim/uncited/unsupported/outdated/retracted (v0.4)
+- ✅ `manuscript-critique` — four reviewer personas (methodological, theoretical, big-picture, nitpicky) with structured findings + committed overall verdict (v0.4)
+- ✅ `manuscript-reflect` — argument structure, implicit assumptions, weakest link, one-experiment recommendation (v0.4)
 - `manuscript-draft` — outline → section → revision cycle. Venue-specific templates (IMRaD, Nature, NeurIPS, ACL, thesis). Writes `\cite{key}` inline against Zotero in real time.
 - `manuscript-revise` — respond-to-reviewers mode. Takes review + current draft; produces diff + response letter keyed to each point.
 - `manuscript-format` — pandoc-driven export to venue template (LaTeX class, .docx, arXiv).
 - `manuscript-version` — git + SQLite `manuscript_versions` table. Auto-commit each iteration with semantic messages. DB layer tracks word_count, claims_added/removed, reviewer_feedback_addressed per version.
+
+Retraction checking in `manuscript-audit` is currently a manual fallback via Semantic Scholar. Moves to automatic once the `retraction-mcp` lands (Tier B).
 
 ### A2. Reference agent with graph layer
 

@@ -248,3 +248,56 @@ CREATE INDEX IF NOT EXISTS idx_artifact_kind    ON artifact_index(kind);
 CREATE INDEX IF NOT EXISTS idx_artifact_project ON artifact_index(project_id);
 CREATE INDEX IF NOT EXISTS idx_edges_from       ON graph_edges(from_node, relation);
 CREATE INDEX IF NOT EXISTS idx_edges_to         ON graph_edges(to_node, relation);
+
+-- -----------------------------------------------------------------------
+-- Tier A1: manuscript subsystem
+-- -----------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS manuscript_claims (
+    mclaim_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    manuscript_id   TEXT NOT NULL,
+    claim_id        TEXT NOT NULL,          -- stable within manuscript (c-1, c-2, ...)
+    text            TEXT NOT NULL,          -- verbatim from source
+    location        TEXT NOT NULL,          -- e.g. "§3.2 ¶2" or line number
+    cited_sources   TEXT NOT NULL,          -- JSON array of canonical_ids (may be [])
+    at              TEXT NOT NULL,
+    UNIQUE(manuscript_id, claim_id)
+);
+
+CREATE TABLE IF NOT EXISTS manuscript_audit_findings (
+    finding_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    manuscript_id   TEXT NOT NULL,
+    claim_id        TEXT NOT NULL,          -- FK-ish: matches manuscript_claims.claim_id
+    kind            TEXT NOT NULL,          -- overclaim|uncited|unsupported|outdated|retracted
+    severity        TEXT NOT NULL,          -- info|minor|major
+    evidence        TEXT NOT NULL,
+    at              TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS manuscript_critique_findings (
+    finding_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    manuscript_id   TEXT NOT NULL,
+    reviewer        TEXT NOT NULL,          -- methodological|theoretical|big_picture|nitpicky
+    severity        TEXT NOT NULL,          -- fatal|major|minor
+    location        TEXT NOT NULL,
+    issue           TEXT NOT NULL,
+    suggested_fix   TEXT,
+    steelman        TEXT,                   -- required when severity=fatal
+    at              TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS manuscript_reflections (
+    reflection_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    manuscript_id   TEXT NOT NULL,
+    thesis          TEXT NOT NULL,
+    weakest_link    TEXT NOT NULL,
+    one_experiment  TEXT NOT NULL,
+    report_json     TEXT NOT NULL,          -- full nested structure
+    at              TEXT NOT NULL,
+    UNIQUE(manuscript_id, at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_mclaim_ms         ON manuscript_claims(manuscript_id);
+CREATE INDEX IF NOT EXISTS idx_maudit_ms         ON manuscript_audit_findings(manuscript_id);
+CREATE INDEX IF NOT EXISTS idx_mcritique_ms      ON manuscript_critique_findings(manuscript_id, reviewer);
+CREATE INDEX IF NOT EXISTS idx_mreflect_ms       ON manuscript_reflections(manuscript_id);
