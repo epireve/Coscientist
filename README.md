@@ -76,6 +76,12 @@ The `institutional-access` skill enforces:
 - **Audit log**: every download recorded with DOI, timestamp, source tier
 - Sci-Hub tier disabled by default
 
+## Where this is going
+
+See [`ROADMAP.md`](./ROADMAP.md) for the full plan — manuscript writing + versioning, reference agent with citation/concept graph, writing-style fingerprints, personal knowledge layer, tournament-ranked hypothesis evolution (Google Co-scientist pattern), PRISMA systematic review, Sakana-style experimentation loop, and more.
+
+See [`RESEARCHER.md`](./RESEARCHER.md) for the principles any agent should follow when doing research work inside this system. Shaped after Karpathy's composable-principle approach: every rule names a specific LLM failure mode and a test to check you followed it.
+
 ## Credits
 
 Ports concepts and code from three MIT-licensed projects:
@@ -83,6 +89,13 @@ Ports concepts and code from three MIT-licensed projects:
 - [anvix9/basis_research_agents](https://github.com/anvix9/basis_research_agents) — the 10-agent SEEKER pipeline
 - [timf34/arxiv2md](https://github.com/timf34/arxiv2md) — arXiv HTML to Markdown
 - [openags/paper-search-mcp](https://github.com/openags/paper-search-mcp) — multi-source academic search
+
+Design patterns and principles borrowed from:
+
+- [Sakana AI Scientist](https://sakana.ai/ai-scientist/) — fixed-budget experimentation loops, code-execute iteration, automated self-review
+- [Google AI Co-scientist](https://research.google/blog/accelerating-scientific-breakthroughs-with-an-ai-co-scientist/) — tournament/Elo hypothesis ranking, evolution agent, hierarchical supervisor
+- [karpathy/autoresearch](https://github.com/karpathy/autoresearch) — fixed-time comparable experiments, minimal-scope file edits, `program.md` as canonical instruction file
+- [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) — principle-as-antidote prose, "the test" verification, declarative over imperative
 
 ## License
 

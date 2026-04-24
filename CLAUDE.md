@@ -2,6 +2,10 @@
 
 This is an academic-research-agent toolkit built as atomic skills. Read this file before working on anything in `.claude/`.
 
+**Companion docs**:
+- [`RESEARCHER.md`](./RESEARCHER.md) — principles for any research agent (sub-agents especially). Karpathy-style principle-as-antidote.
+- [`ROADMAP.md`](./ROADMAP.md) — where this project is going, what's in flight, what's parked.
+
 ## The contract: paper artifact
 
 Every skill reads/writes one canonical artifact layout. Never invent new fields — extend this:
@@ -72,6 +76,34 @@ Add `.claude/skills/institutional-access/scripts/adapters/<publisher>.py` implem
 - [timf34/arxiv2md](https://github.com/timf34/arxiv2md) (MIT) — used as a dependency (`arxiv2markdown` on PyPI)
 - [openags/paper-search-mcp](https://github.com/openags/paper-search-mcp) (MIT) — used as an MCP, not vendored
 - [LinXueyuanStdio/academic-mcp](https://github.com/LinXueyuanStdio/academic-mcp) (MIT) — used as an MCP, not vendored
+
+## Working principles (for code in this repo)
+
+Shaped after [karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills). These govern how we *build* Coscientist. The sibling `RESEARCHER.md` governs how sub-agents *do* research.
+
+### 1. Think Before Coding
+
+Don't silently assume. When a task is ambiguous (which MCP? which publisher adapter? which artifact field?) name the assumption or ask. Multiple interpretations usually exist; pick explicitly.
+
+*The test*: before a non-trivial edit, can you state the assumption you made and where someone else would reasonably have chosen differently?
+
+### 2. Simplicity First
+
+No speculative abstractions. No "maybe we'll want this later" generalizations. Three similar adapters are better than a premature `AdapterBase`. Every layer of indirection is paid for in debugging.
+
+*The test*: would a senior engineer reading this diff say "this is overcomplicated for what it does"?
+
+### 3. Surgical Changes
+
+When a task is "fix X", fix X. Don't refactor adjacent code, rename unrelated vars, or tidy imports that weren't yours. Match existing style. Remove only code the current change itself orphaned.
+
+*The test*: does every line of this diff serve the requested change, or did you sweep in improvements?
+
+### 4. Goal-Driven Execution
+
+Prefer declarative success criteria over procedural steps. Sub-agent prompts should tell the agent *what done looks like* so it can loop until true, not *do step 1, then step 2*. Applies to `SKILL.md` files too.
+
+*The test*: if the agent got interrupted mid-task, could it self-diagnose how close to done it is from what's on disk — or does it need to retrace your steps?
 
 ## Git
 
