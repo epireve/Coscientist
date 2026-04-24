@@ -20,8 +20,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from lib.cache import run_db_path  # noqa: E402
-from lib.paper_artifact import PaperArtifact  # noqa: E402
+from lib.cache import paper_dir, run_db_path  # noqa: E402
 
 KNOWN_ATTACKS = {
     "p-hacking",
@@ -67,8 +66,7 @@ def validate(report: dict) -> list[str]:
 
 
 def persist(report: dict, target_cid: str, run_id: str | None) -> Path:
-    art = PaperArtifact(target_cid)
-    out = art.root / "attack_findings.json"
+    out = paper_dir(target_cid) / "attack_findings.json"
     out.write_text(json.dumps(report, indent=2))
 
     if run_id:
