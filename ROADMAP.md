@@ -97,6 +97,38 @@ Pure deterministic text analysis — no LLM, no external deps beyond stdlib. Pro
 
 A3 done. Pair with future `manuscript-draft` (v0.9+) for drafting-time enforcement.
 
+### v0.8 — manuscript auditability (closes a real gap)
+
+Before v0.8, ingesting a manuscript didn't record its citations anywhere queryable, audits wrote only to the run DB (lost outside deep-research runs), and nothing from the user's own drafts landed in the project graph. v0.8 closes these gaps so every manuscript operation leaves a durable, queryable trail.
+
+Schema (+1 table, 25 total):
+- `manuscript_citations` — every raw citation key extracted from the source, keyed on (manuscript_id, citation_key, location), with optional `resolved_canonical_id` + `resolution_source`
+
+`manuscript-ingest` (significantly enhanced):
+- Inline citation parser handles `\cite{key1,key2}`, `\citep{}`, pandoc `[@key]`, numeric `[1,2,3]`, and `(Author et al., Year)` styles
+- Location tracking by section header + paragraph index
+- With `--project-id`: writes every citation to `manuscript_citations`, creates `manuscript:<mid>` graph node, creates `paper:unresolved:<key>` placeholder nodes, adds `cites` edges from manuscript to each placeholder
+
+`manuscript-audit`, `manuscript-critique`, `manuscript-reflect` gates:
+- Each gate now accepts `--project-id` in addition to (or instead of) `--run-id`
+- When both given, writes to both DBs; when only project given, persists cross-session
+- `manuscript-audit` additionally creates `concept:<slug>-<hash>` nodes for each claim and adds `about` edges from manuscript → concept and concept → cited_sources, so the concept graph reflects what each manuscript asserts
+
+New script `manuscript-ingest/scripts/resolve_citations.py`:
+- Takes a JSON list of `{citation_key, canonical_id, source}` mappings
+- Updates `manuscript_citations.resolved_canonical_id`
+- Migrates graph edges: `paper:unresolved:<key>` → `paper:<canonical_id>`; deletes placeholder nodes once no edges reference them
+- Accepts `source` ∈ {manual, zotero, semantic-scholar, audit}
+
+Tests (17 new, 141 total; 0 failing):
+- Citation parser: 6 tests covering all 4 inline styles + location tracking
+- Ingest graph integration: project-id path populates tables + graph; no-project path still works silently
+- Audit gate project-DB: writes claims, findings, concept nodes, and 2 about edges per claim (ms→concept + concept→paper); dual-write with both run-id + project-id
+- Critique gate project-DB: findings persisted
+- Reflect gate project-DB: reflection persisted
+- Resolve citations: table update + edge migration + placeholder cleanup; invalid source rejected
+- Schema: table + indexes + UNIQUE constraint on (manuscript_id, citation_key, location)
+
 ## Inspirations and what we take from them
 
 | Source | Pattern we adopt |

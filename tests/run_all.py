@@ -28,6 +28,14 @@ from tests.test_manuscript import (
     ManuscriptSchemaTests,
     ReflectGateTests,
 )
+from tests.test_manuscript_auditability import (
+    AuditGateProjectDbTests,
+    CitationParserTests,
+    CritiqueReflectProjectDbTests,
+    IngestGraphIntegrationTests,
+    ManuscriptCitationsSchemaTests,
+    ResolveCitationsTests,
+)
 from tests.test_paper_artifact import PaperArtifactTests
 from tests.test_reference_agent import (
     BibtexTests,
@@ -63,6 +71,12 @@ if __name__ == "__main__":
         CritiqueGateTests,
         ReflectGateTests,
         ManuscriptSchemaTests,
+        CitationParserTests,
+        IngestGraphIntegrationTests,
+        AuditGateProjectDbTests,
+        CritiqueReflectProjectDbTests,
+        ResolveCitationsTests,
+        ManuscriptCitationsSchemaTests,
         SyncTests,
         BibtexTests,
         ReadingStateTests,

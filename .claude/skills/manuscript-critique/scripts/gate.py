@@ -79,36 +79,47 @@ def validate(report: dict) -> list[str]:
     return errors
 
 
-def persist(report: dict, manuscript_id: str, run_id: str | None) -> Path:
+def _write_findings(con: sqlite3.Connection, manuscript_id: str,
+                    reviewers: dict, now: str) -> None:
+    with con:
+        for name, r in reviewers.items():
+            for f in r.get("findings") or []:
+                con.execute(
+                    "INSERT INTO manuscript_critique_findings "
+                    "(manuscript_id, reviewer, severity, location, issue, "
+                    "suggested_fix, steelman, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        manuscript_id, name,
+                        f["severity"], f["location"], f["issue"],
+                        f.get("suggested_fix"), f.get("steelman"), now,
+                    ),
+                )
+
+
+def persist(report: dict, manuscript_id: str,
+            run_id: str | None, project_id: str | None) -> Path:
     out_dir = cache_root() / "manuscripts" / manuscript_id
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / "critique_report.json"
     out.write_text(json.dumps(report, indent=2))
 
+    now = datetime.now(UTC).isoformat()
+    reviewers = report["reviewers"]
+
     if run_id:
         db = run_db_path(run_id)
         if db.exists():
             con = sqlite3.connect(db)
-            now = datetime.now(UTC).isoformat()
-            with con:
-                for name, r in report["reviewers"].items():
-                    for f in r.get("findings") or []:
-                        con.execute(
-                            "INSERT INTO manuscript_critique_findings "
-                            "(manuscript_id, reviewer, severity, location, issue, "
-                            "suggested_fix, steelman, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                            (
-                                manuscript_id,
-                                name,
-                                f["severity"],
-                                f["location"],
-                                f["issue"],
-                                f.get("suggested_fix"),
-                                f.get("steelman"),
-                                now,
-                            ),
-                        )
+            _write_findings(con, manuscript_id, reviewers, now)
             con.close()
+
+    if project_id:
+        proj_db = cache_root() / "projects" / project_id / "project.db"
+        if proj_db.exists():
+            con = sqlite3.connect(proj_db)
+            _write_findings(con, manuscript_id, reviewers, now)
+            con.close()
+
     return out
 
 
@@ -117,6 +128,7 @@ def main() -> None:
     p.add_argument("--input", required=True)
     p.add_argument("--manuscript-id", required=True)
     p.add_argument("--run-id", default=None)
+    p.add_argument("--project-id", default=None)
     args = p.parse_args()
 
     report = json.loads(Path(args.input).read_text())
@@ -127,7 +139,7 @@ def main() -> None:
             print(f"  - {e}", file=sys.stderr)
         sys.exit(2)
 
-    out = persist(report, args.manuscript_id, args.run_id)
+    out = persist(report, args.manuscript_id, args.run_id, args.project_id)
     n_fatal = sum(
         1 for r in report["reviewers"].values()
         for f in (r.get("findings") or []) if f.get("severity") == "fatal"

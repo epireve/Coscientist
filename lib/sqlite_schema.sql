@@ -336,3 +336,26 @@ CREATE TABLE IF NOT EXISTS zotero_links (
 CREATE INDEX IF NOT EXISTS idx_readstate_project  ON reading_state(project_id, state);
 CREATE INDEX IF NOT EXISTS idx_readstate_cid      ON reading_state(canonical_id);
 CREATE INDEX IF NOT EXISTS idx_zotero_key         ON zotero_links(zotero_key);
+
+-- -----------------------------------------------------------------------
+-- v0.8: manuscript citation tracking for full auditability
+-- -----------------------------------------------------------------------
+
+-- Every raw citation key found in a manuscript's source, with its location
+-- and optional resolution to a canonical paper. Populated at manuscript-ingest
+-- time; resolved_canonical_id filled in later by resolve_citations.py or by
+-- manuscript-audit when the agent matches keys to canonical_ids.
+CREATE TABLE IF NOT EXISTS manuscript_citations (
+    citation_row_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    manuscript_id         TEXT NOT NULL,
+    citation_key          TEXT NOT NULL,        -- raw key as written, e.g. "vaswani2017"
+    location              TEXT,                 -- §3 ¶2 or line number
+    resolved_canonical_id TEXT,                 -- NULL until resolved
+    resolution_source     TEXT,                 -- audit|semantic-scholar|manual
+    at                    TEXT NOT NULL,
+    UNIQUE(manuscript_id, citation_key, location)
+);
+
+CREATE INDEX IF NOT EXISTS idx_mscites_ms   ON manuscript_citations(manuscript_id);
+CREATE INDEX IF NOT EXISTS idx_mscites_key  ON manuscript_citations(citation_key);
+CREATE INDEX IF NOT EXISTS idx_mscites_res  ON manuscript_citations(resolved_canonical_id);

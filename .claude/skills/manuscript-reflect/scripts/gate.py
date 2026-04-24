@@ -85,31 +85,47 @@ def validate(report: dict) -> list[str]:
     return errors
 
 
-def persist(report: dict, manuscript_id: str, run_id: str | None) -> Path:
+def _write_reflection(con: sqlite3.Connection, manuscript_id: str,
+                       report: dict, now: str) -> None:
+    with con:
+        con.execute(
+            "INSERT OR REPLACE INTO manuscript_reflections "
+            "(manuscript_id, thesis, weakest_link, one_experiment, report_json, at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                manuscript_id,
+                report["argument_structure"]["thesis"],
+                json.dumps(report["weakest_link"]),
+                json.dumps(report["one_experiment"]),
+                json.dumps(report),
+                now,
+            ),
+        )
+
+
+def persist(report: dict, manuscript_id: str,
+            run_id: str | None, project_id: str | None) -> Path:
     out_dir = cache_root() / "manuscripts" / manuscript_id
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / "reflect_report.json"
     out.write_text(json.dumps(report, indent=2))
 
+    now = datetime.now(UTC).isoformat()
+
     if run_id:
         db = run_db_path(run_id)
         if db.exists():
             con = sqlite3.connect(db)
-            with con:
-                con.execute(
-                    "INSERT OR REPLACE INTO manuscript_reflections "
-                    "(manuscript_id, thesis, weakest_link, one_experiment, report_json, at) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (
-                        manuscript_id,
-                        report["argument_structure"]["thesis"],
-                        json.dumps(report["weakest_link"]),
-                        json.dumps(report["one_experiment"]),
-                        json.dumps(report),
-                        datetime.now(UTC).isoformat(),
-                    ),
-                )
+            _write_reflection(con, manuscript_id, report, now)
             con.close()
+
+    if project_id:
+        proj_db = cache_root() / "projects" / project_id / "project.db"
+        if proj_db.exists():
+            con = sqlite3.connect(proj_db)
+            _write_reflection(con, manuscript_id, report, now)
+            con.close()
+
     return out
 
 
@@ -118,6 +134,7 @@ def main() -> None:
     p.add_argument("--input", required=True)
     p.add_argument("--manuscript-id", required=True)
     p.add_argument("--run-id", default=None)
+    p.add_argument("--project-id", default=None)
     args = p.parse_args()
 
     report = json.loads(Path(args.input).read_text())
@@ -128,7 +145,7 @@ def main() -> None:
             print(f"  - {e}", file=sys.stderr)
         sys.exit(2)
 
-    out = persist(report, args.manuscript_id, args.run_id)
+    out = persist(report, args.manuscript_id, args.run_id, args.project_id)
     print(f"[manuscript-reflect] OK → {out}")
 
 
