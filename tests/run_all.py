@@ -13,6 +13,14 @@ from tests.test_gates import (
     NoveltyGateTests,
     PublishabilityGateTests,
 )
+from tests.test_integration import (
+    CompilationMetaTests,
+    ConfigValidationTests,
+    CrossSkillArtifactContractTests,
+    LayoutRegressionTests,
+    ResearchFlowIntegrationTests,
+    SchemaRegressionTests,
+)
 from tests.test_manuscript import (
     AuditGateTests,
     CritiqueGateTests,
@@ -53,5 +61,12 @@ if __name__ == "__main__":
         RetractionTests,
         ReferenceAgentSchemaTests,
         AgentFrontmatterTests,
+        # Integration + regression
+        ResearchFlowIntegrationTests,
+        CrossSkillArtifactContractTests,
+        SchemaRegressionTests,
+        CompilationMetaTests,
+        ConfigValidationTests,
+        LayoutRegressionTests,
     )
     sys.exit(failures)

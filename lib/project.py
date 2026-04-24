@@ -19,20 +19,23 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
-
-from slugify import slugify
 
 from lib.cache import cache_root
 
 SCHEMA_PATH = Path(__file__).resolve().parent / "sqlite_schema.sql"
 
 
+def _slug(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", (s or "").lower()).strip("-")
+
+
 def project_id_for(name: str) -> str:
     """Deterministic project_id: <slug>_<4-char hash>."""
-    slug = slugify(name)[:50]
+    slug = _slug(name)[:50]
     h = hashlib.blake2s(name.lower().encode(), digest_size=2).hexdigest()
     return f"{slug}_{h}"
 
