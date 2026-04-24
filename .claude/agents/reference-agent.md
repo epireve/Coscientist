@@ -24,6 +24,8 @@ Depends on the subtask:
 - **BibTeX**: choose source (`--manuscript-id` or `--run-id`). Never regenerate if the target file already exists unless `--force`; bibliographies are cheap to overwrite but confusing to diff.
 - **Reading state**: set eagerly when a paper reaches a new state — especially when a paper is cited in a manuscript, mark it `cited`.
 - **Retractions**: for every paper cited in a manuscript-audit run, call `mcp__semantic-scholar__get_paper` with the `isRetracted` field and batch the results into one JSON, then `mark_retracted.py`.
+- **Citation-graph population**: for the small set of papers the user actually cares about, call `mcp__semantic-scholar__get_paper_references` + `get_paper_citations`. Aggregate into the format `populate_citations.py` expects. Do not pull citations for every paper in the project — start with seminal/pivotal papers.
+- **Concept-graph population**: after a deep-research run finishes, invoke `populate_concepts.py --run-id <id> --project-id <pid>`. This turns the run's claims into concept nodes + `about` edges on the project graph. Usually done once per run, at the end.
 
 ## Exit test
 

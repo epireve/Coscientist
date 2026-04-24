@@ -31,6 +31,8 @@ from tests.test_manuscript import (
 from tests.test_paper_artifact import PaperArtifactTests
 from tests.test_reference_agent import (
     BibtexTests,
+    PopulateCitationsTests,
+    PopulateConceptsTests,
     ReadingStateTests,
     ReferenceAgentSchemaTests,
     RetractionTests,
@@ -60,6 +62,8 @@ if __name__ == "__main__":
         ReadingStateTests,
         RetractionTests,
         ReferenceAgentSchemaTests,
+        PopulateCitationsTests,
+        PopulateConceptsTests,
         AgentFrontmatterTests,
         # Integration + regression
         ResearchFlowIntegrationTests,

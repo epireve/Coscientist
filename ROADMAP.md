@@ -66,6 +66,23 @@ Brings Zotero into the paper cache + makes the graph layer usable in practice.
 
 Graph-layer Kuzu upgrade still deferred; SQLite adjacency works and tests exercise add/walk/hubs/in_degree.
 
+### v0.5.1 — integration + regression test suite
+
+- `tests/test_integration.py` with 14 tests across: end-to-end research flow, cross-skill artifact contract, schema regression (column checks, UNIQUE constraints, CASCADE semantics), compilation meta, config validation, layout regression
+- Caught + fixed: gratuitous `slugify` dependency in `lib/project.py` that broke `manuscript-ingest` under `--project-id`; replaced with inline `_slug()` — `lib/project.py` now has zero external-package deps
+- 104 tests total; 0 failures
+
+### v0.6 — citation + concept graph population (A2 completion)
+
+Fills in the two remaining A2 items. The graph layer now has actual data flowing into it.
+
+- 2 new scripts in `reference-agent/`:
+  - `populate_citations.py` — takes JSON from Semantic Scholar refs/citations; creates `cites` + `cited-by` edges in the project graph. Idempotent, creates paper nodes on demand
+  - `populate_concepts.py` — scans a run's `claims` table; creates `concept` nodes + `about` edges to each claim's `canonical_id` + `supporting_ids`. Idempotent, no MCP calls needed
+- Reference-agent SKILL.md + sub-agent persona updated with new capabilities
+- 6 new tests (110 total; 0 failures) — edge creation, idempotency on re-run, empty-run handling, records missing from_canonical_id skipped
+- A2 fully complete. Kuzu migration still parked.
+
 ## Inspirations and what we take from them
 
 | Source | Pattern we adopt |
@@ -116,12 +133,13 @@ Promote citations/concepts/authors from rows to a real graph.
 - ✅ Graph foundation — SQLite adjacency tables + `lib/graph.py` (v0.3). Kuzu upgrade still parked.
 - ✅ `reference-agent` skill (v0.5): Zotero sync, reading-state per project, BibTeX export, retraction flags
 - ✅ Author-graph edges via Zotero sync (`authored-by`)
-- **Pending**:
-  - Citation edges (cites/cited-by) populated from Semantic Scholar `get_paper_references` / `get_paper_citations` — script should feed the graph
-  - Concept edges (extends/refutes/uses/depends-on) populated during SEEKER analysis phases
+- ✅ Citation edges — `populate_citations.py` (v0.6): Semantic Scholar refs/citations → `cites` + `cited-by` edges
+- ✅ Concept edges — `populate_concepts.py` (v0.6): run claims → `concept` nodes + `about` edges
+- **Still pending** (nice-to-have, not blocking):
   - CSL-JSON export (BibTeX only for now)
-  - Incomplete-citation resolution ("Smith 2020" → DOI) — sub-agent can do this today via Semantic Scholar MCP, but no dedicated skill
+  - Dedicated "resolve incomplete citation" skill ("Smith 2020" → DOI) — sub-agent can do this today via Semantic Scholar MCP directly
   - Visualization (mermaid embed; Cytoscape.js if a web dashboard emerges)
+  - Kuzu backend migration (deferred until volume demands it)
 
 ### A3. Writing-style subsystem
 

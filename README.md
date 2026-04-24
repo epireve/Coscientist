@@ -67,7 +67,7 @@ Ingest your own drafts and analyze them with the same discipline used for extern
 
 Associated sub-agents: `manuscript-auditor`, `manuscript-critic`, `manuscript-reflector`.
 
-### Reference agent (v0.5)
+### Reference agent (v0.5 + v0.6)
 
 Zotero ↔ Coscientist bridge + graph-layer ops. Uses the Zotero MCP; never speculates.
 
@@ -77,6 +77,8 @@ Zotero ↔ Coscientist bridge + graph-layer ops. Uses the Zotero MCP; never spec
 | `export_bibtex.py` | Emit `.bib` for a manuscript's cited sources or a deep-research run's `papers_in_run` |
 | `reading_state.py` | Per-project per-paper reading state: `to-read → reading → read → annotated → cited \| skipped` |
 | `mark_retracted.py` | Record retraction flags so `manuscript-audit` catches them automatically |
+| `populate_citations.py` | Turn Semantic Scholar refs/citations into `cites` / `cited-by` edges in the project graph |
+| `populate_concepts.py` | Promote run-log claims into `concept` nodes + `about` edges |
 
 Associated sub-agent: `reference-agent`.
 

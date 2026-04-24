@@ -293,8 +293,187 @@ class ReferenceAgentSchemaTests(TestCase):
             self.assertIn(t, names)
 
 
+# ---------------- populate_citations ----------------
+
+POPULATE_CITATIONS = _ROOT / ".claude/skills/reference-agent/scripts/populate_citations.py"
+
+
+class PopulateCitationsTests(TestCase):
+    def test_adds_cites_and_cited_by_edges(self):
+        with isolated_cache() as cache_dir:
+            pid = _seed_project(cache_dir)
+            records = [{
+                "from_canonical_id": "vaswani_2017_attn_aaa",
+                "references": [
+                    {"canonical_id": "bahdanau_2014_mt_bbb",
+                     "title": "Neural MT by jointly learning to align and translate",
+                     "year": 2014}
+                ],
+                "citations": [
+                    {"canonical_id": "devlin_2019_bert_ccc",
+                     "title": "BERT: Pre-training", "year": 2019}
+                ],
+            }]
+            inp = cache_dir / "citations.json"
+            inp.write_text(json.dumps(records))
+            r = _run(POPULATE_CITATIONS, "--input", str(inp), "--project-id", pid)
+            assert r.returncode == 0, f"stderr={r.stderr}"
+            result = json.loads(r.stdout)
+            self.assertEqual(result["edges_added"], 4)  # 2 cites + 2 cited-by
+
+            # Verify edges
+            db = cache_dir / "projects" / pid / "project.db"
+            con = sqlite3.connect(db)
+            cites = con.execute(
+                "SELECT from_node, to_node FROM graph_edges WHERE relation='cites'"
+            ).fetchall()
+            cited_by = con.execute(
+                "SELECT from_node, to_node FROM graph_edges WHERE relation='cited-by'"
+            ).fetchall()
+            con.close()
+            self.assertEqual(len(cites), 2)
+            self.assertEqual(len(cited_by), 2)
+
+    def test_idempotent_on_rerun(self):
+        with isolated_cache() as cache_dir:
+            pid = _seed_project(cache_dir)
+            records = [{
+                "from_canonical_id": "p1",
+                "references": [{"canonical_id": "p2", "title": "P2", "year": 2020}],
+                "citations": [],
+            }]
+            inp = cache_dir / "cits.json"
+            inp.write_text(json.dumps(records))
+            _run(POPULATE_CITATIONS, "--input", str(inp), "--project-id", pid)
+            r = _run(POPULATE_CITATIONS, "--input", str(inp), "--project-id", pid)
+            assert r.returncode == 0
+            result = json.loads(r.stdout)
+            self.assertEqual(result["edges_added"], 0)  # no new edges on re-run
+
+    def test_skips_records_without_from_cid(self):
+        with isolated_cache() as cache_dir:
+            pid = _seed_project(cache_dir)
+            records = [
+                {"from_canonical_id": "p1", "references": [
+                    {"canonical_id": "p2", "title": "X", "year": 2020}
+                ]},
+                {"references": [{"canonical_id": "p3", "title": "Y", "year": 2021}]},
+            ]
+            inp = cache_dir / "cits.json"
+            inp.write_text(json.dumps(records))
+            r = _run(POPULATE_CITATIONS, "--input", str(inp), "--project-id", pid)
+            result = json.loads(r.stdout)
+            self.assertEqual(result["skipped"], 1)
+
+
+# ---------------- populate_concepts ----------------
+
+POPULATE_CONCEPTS = _ROOT / ".claude/skills/reference-agent/scripts/populate_concepts.py"
+
+
+def _seed_run_with_claims(cache_dir: Path, run_id: str = "testrun") -> str:
+    d = cache_dir / "runs"
+    d.mkdir(parents=True, exist_ok=True)
+    db = d / f"run-{run_id}.db"
+    schema = (_ROOT / "lib" / "sqlite_schema.sql").read_text()
+    con = sqlite3.connect(db)
+    con.executescript(schema)
+    con.execute(
+        "INSERT INTO runs (run_id, question, started_at) VALUES (?, ?, ?)",
+        (run_id, "test q", "2026-04-24T00:00:00Z"),
+    )
+    # 3 claims: 1 with canonical_id + supporting, 1 synthesized, 1 tension
+    con.execute(
+        "INSERT INTO claims (run_id, canonical_id, agent_name, text, kind, supporting_ids) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (run_id, "vaswani_2017", "grounder",
+         "Transformers outperform CNNs at scale",
+         "finding", json.dumps(["vaswani_2017", "dosovitskiy_2020"])),
+    )
+    con.execute(
+        "INSERT INTO claims (run_id, agent_name, text, kind, supporting_ids) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (run_id, "synthesizer",
+         "Scale is the key driver, not architecture choice",
+         "finding", json.dumps(["vaswani_2017", "kaplan_2020", "hoffmann_2022"])),
+    )
+    con.execute(
+        "INSERT INTO claims (run_id, agent_name, text, kind, supporting_ids) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (run_id, "synthesizer",
+         "Disagreement on whether scale is sufficient",
+         "tension", json.dumps(["kaplan_2020", "hoffmann_2022"])),
+    )
+    con.commit()
+    con.close()
+    return run_id
+
+
+class PopulateConceptsTests(TestCase):
+    def test_creates_concepts_and_edges(self):
+        with isolated_cache() as cache_dir:
+            pid = _seed_project(cache_dir)
+            run_id = _seed_run_with_claims(cache_dir)
+            r = _run(POPULATE_CONCEPTS, "--run-id", run_id, "--project-id", pid)
+            assert r.returncode == 0, f"stderr={r.stderr}"
+            result = json.loads(r.stdout)
+            self.assertEqual(result["claims_processed"], 3)
+            self.assertEqual(result["concepts_added"], 3)
+            # 2 + 3 + 2 = 7 `about` edges (one per unique supporting cid per claim)
+            self.assertEqual(result["edges_added"], 7)
+
+            # Verify concept nodes are distinct by kind
+            db = cache_dir / "projects" / pid / "project.db"
+            con = sqlite3.connect(db)
+            n_concepts = con.execute(
+                "SELECT COUNT(*) FROM graph_nodes WHERE kind='concept'"
+            ).fetchone()[0]
+            n_about = con.execute(
+                "SELECT COUNT(*) FROM graph_edges WHERE relation='about'"
+            ).fetchone()[0]
+            con.close()
+            self.assertEqual(n_concepts, 3)
+            self.assertEqual(n_about, 7)
+
+    def test_empty_run_no_op(self):
+        with isolated_cache() as cache_dir:
+            pid = _seed_project(cache_dir)
+            # Create empty run DB
+            d = cache_dir / "runs"
+            d.mkdir(parents=True, exist_ok=True)
+            db = d / "run-empty.db"
+            schema = (_ROOT / "lib" / "sqlite_schema.sql").read_text()
+            con = sqlite3.connect(db)
+            con.executescript(schema)
+            con.execute(
+                "INSERT INTO runs (run_id, question, started_at) "
+                "VALUES ('empty', 'q', '2026-04-24T00:00:00Z')"
+            )
+            con.commit()
+            con.close()
+
+            r = _run(POPULATE_CONCEPTS, "--run-id", "empty", "--project-id", pid)
+            assert r.returncode == 0
+            result = json.loads(r.stdout)
+            self.assertEqual(result["claims_processed"], 0)
+            self.assertEqual(result["concepts_added"], 0)
+            self.assertEqual(result["edges_added"], 0)
+
+    def test_idempotent(self):
+        with isolated_cache() as cache_dir:
+            pid = _seed_project(cache_dir)
+            run_id = _seed_run_with_claims(cache_dir)
+            _run(POPULATE_CONCEPTS, "--run-id", run_id, "--project-id", pid)
+            r = _run(POPULATE_CONCEPTS, "--run-id", run_id, "--project-id", pid)
+            assert r.returncode == 0
+            result = json.loads(r.stdout)
+            self.assertEqual(result["concepts_added"], 0)
+            self.assertEqual(result["edges_added"], 0)
+
+
 if __name__ == "__main__":
     sys.exit(run_tests(
         SyncTests, BibtexTests, ReadingStateTests,
         RetractionTests, ReferenceAgentSchemaTests,
+        PopulateCitationsTests, PopulateConceptsTests,
     ))

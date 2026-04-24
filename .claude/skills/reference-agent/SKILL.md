@@ -6,7 +6,7 @@ when_to_use: You need to sync Zotero; export citations for a manuscript; know wh
 
 # reference-agent
 
-Small, focused skill with four jobs, each one mechanical script:
+Small, focused skill with six jobs, each one mechanical script:
 
 | Job | Script |
 |---|---|
@@ -14,6 +14,8 @@ Small, focused skill with four jobs, each one mechanical script:
 | Export BibTeX for a manuscript or run | `scripts/export_bibtex.py` |
 | Get / set reading state per paper per project | `scripts/reading_state.py` |
 | Record retraction flags (from Semantic Scholar or manual) | `scripts/mark_retracted.py` |
+| Populate citation edges (cites / cited-by) from Semantic Scholar | `scripts/populate_citations.py` |
+| Populate concept edges (about) from run-log claims | `scripts/populate_concepts.py` |
 
 No Zotero HTTP calls live in these scripts — that's the `zotero` MCP's job. The scripts consume structured JSON that the calling agent has already fetched via the MCP.
 
@@ -112,6 +114,44 @@ Input shape:
 ```
 
 The script populates `retraction_flags`. `manuscript-audit` reads from this table when checking citations.
+
+## populate-citations
+
+Populate `cites` + `cited-by` edges in the project graph from Semantic Scholar references/citations.
+
+Flow: agent calls `mcp__semantic-scholar__get_paper_references` and `get_paper_citations` for each paper of interest, packages the results as a flat list, pipes to the script.
+
+```bash
+uv run python .claude/skills/reference-agent/scripts/populate_citations.py \
+  --input /tmp/citation-records.json \
+  --project-id <pid>
+```
+
+Input shape:
+
+```json
+[
+  {
+    "from_canonical_id": "vaswani_2017_attention_abc123",
+    "references": [{"canonical_id": "...", "title": "...", "year": 2014, "doi": "..."}],
+    "citations": [{"canonical_id": "...", "title": "...", "year": 2019}]
+  }
+]
+```
+
+Idempotent: re-running doesn't duplicate edges. Creates paper nodes on demand for referenced papers that aren't yet in the project.
+
+## populate-concepts
+
+Promote run-log claims into the project graph. For every row in a run's `claims` table, creates a `concept` node and `about` edges from it to each supporting paper.
+
+```bash
+uv run python .claude/skills/reference-agent/scripts/populate_concepts.py \
+  --run-id <run_id> \
+  --project-id <pid>
+```
+
+Scans the run DB directly — no MCP calls, no input JSON needed. Makes `graph.hubs(project_id, kind='paper', relation='about')` return the papers most attached to findings/tensions/hypotheses in the run, which is the actual "key papers in this research question" view.
 
 ## Sub-agent
 
