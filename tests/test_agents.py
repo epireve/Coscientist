@@ -25,6 +25,8 @@ EXPECTED_AGENTS = {
     "manuscript-auditor", "manuscript-critic", "manuscript-reflector",
     # A2 reference agent
     "reference-agent",
+    # A3 writing style
+    "writing-style",
 }
 
 

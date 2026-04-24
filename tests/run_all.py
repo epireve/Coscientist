@@ -40,6 +40,12 @@ from tests.test_reference_agent import (
 )
 from tests.test_refactor import ArtifactTests, GraphTests, ProjectTests
 from tests.test_schema import SchemaTests
+from tests.test_writing_style import (
+    ApplyTests,
+    AuditTests,
+    FingerprintTests,
+    TextstatsUnitTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -64,6 +70,10 @@ if __name__ == "__main__":
         ReferenceAgentSchemaTests,
         PopulateCitationsTests,
         PopulateConceptsTests,
+        FingerprintTests,
+        AuditTests,
+        ApplyTests,
+        TextstatsUnitTests,
         AgentFrontmatterTests,
         # Integration + regression
         ResearchFlowIntegrationTests,

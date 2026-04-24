@@ -82,6 +82,18 @@ Zotero ↔ Coscientist bridge + graph-layer ops. Uses the Zotero MCP; never spec
 
 Associated sub-agent: `reference-agent`.
 
+### Writing-style subsystem (v0.7)
+
+Pure deterministic voice-matching — no LLM, no external deps. Fingerprints your academic voice from prior manuscripts and flags drift in new drafts.
+
+| Script under `writing-style/` | Job |
+|---|---|
+| `fingerprint.py` | Aggregate lexical + syntactic + structural stats from ≥2 prior manuscripts → `style_profile.json` |
+| `audit.py` | Per-paragraph deviation report against the profile; severities via z-score + rate ratios |
+| `apply.py` | Paragraph-level critique via stdin for drafting-time feedback |
+
+Associated sub-agent: `writing-style`.
+
 ## MCP servers used
 
 Registered in `.mcp.json`:

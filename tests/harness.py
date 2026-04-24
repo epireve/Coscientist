@@ -32,6 +32,10 @@ class TestCase:
         if needle not in haystack:
             raise AssertionError(f"{msg}: {needle!r} not in {haystack!r}")
 
+    def assertNotIn(self, needle, haystack, msg: str = ""):
+        if needle in haystack:
+            raise AssertionError(f"{msg}: {needle!r} unexpectedly in {haystack!r}")
+
     def assertTrue(self, x, msg: str = ""):
         if not x:
             raise AssertionError(f"{msg}: {x!r} is not truthy")

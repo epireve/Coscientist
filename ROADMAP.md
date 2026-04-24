@@ -83,6 +83,20 @@ Fills in the two remaining A2 items. The graph layer now has actual data flowing
 - 6 new tests (110 total; 0 failures) — edge creation, idempotency on re-run, empty-run handling, records missing from_canonical_id skipped
 - A2 fully complete. Kuzu migration still parked.
 
+### v0.7 — writing-style subsystem (A3)
+
+Pure deterministic text analysis — no LLM, no external deps beyond stdlib. Produces a per-project style profile and numerical deviation audits.
+
+- New skill `writing-style` with three scripts + a shared `_textstats.py`:
+  - `fingerprint.py` — extract lexical + syntactic + structural stats from N prior manuscripts; writes `style_profile.json`; updates `projects.style_profile_path`
+  - `audit.py` — per-paragraph deviation report against the profile; severity via z-scores + rate ratios (info / minor / major)
+  - `apply.py` — paragraph-level critique via stdin for drafting-time feedback
+- New sub-agent `writing-style` — refuses to fingerprint from <2 samples, reports with numbers not vibes
+- Style profile captures: top content terms, hedge density, first-person rate, British/American spelling, sentence length mean + std, passive voice rate, paragraph length mean + std, signpost phrases
+- 14 new tests (124 total; 0 failures)
+
+A3 done. Pair with future `manuscript-draft` (v0.9+) for drafting-time enforcement.
+
 ## Inspirations and what we take from them
 
 | Source | Pattern we adopt |
@@ -143,9 +157,10 @@ Promote citations/concepts/authors from rows to a real graph.
 
 ### A3. Writing-style subsystem
 
-- `writing-style fingerprint` — extract your voice from N prior manuscripts: lexical (terminology, hedge density, first-person, British/American), syntactic (sentence length, passive rate, clause depth), structural (paragraph length, signposting, section openings).
-- `writing-style apply` — drafting-time enforcement that coaches `manuscript-draft`.
-- `writing-style audit` — flag deviations in a new draft against your profile + against venue norms (word limits, section conventions, voice expectations like "we show" vs "it was demonstrated").
+- ✅ `writing-style fingerprint` — extract your voice from N prior manuscripts (v0.7)
+- ✅ `writing-style audit` — per-paragraph numeric deviation audit (v0.7)
+- ✅ `writing-style apply` — paragraph-level critique via stdin (v0.7)
+- **Still pending**: venue-style overlays ("NeurIPS expects 'we show'", "clinical expects passive voice") — handled by future `manuscript-format`
 
 ### A4. Personal knowledge layer (journal + dashboard + cross-project memory)
 
