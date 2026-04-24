@@ -1,6 +1,8 @@
 # RESEARCHER.md — principles for any research agent working in Coscientist
 
-Six principles. Each names a specific failure mode LLMs exhibit when doing academic research, the practice that counters it, and a test to verify you followed it. Read once; follow every time. Composable with project-level `CLAUDE.md`.
+Eleven principles. Each names a specific failure mode LLMs exhibit when doing academic research, the practice that counters it, and a test to verify you followed it. Read once; follow every time. Composable with project-level `CLAUDE.md`.
+
+The first five are research *hygiene* (don't fetch what you don't need, cite what you've read, etc). The next five are research *judgment* — how to be sharp when assessing novelty, publishability, and critique. The last is about stopping.
 
 Shaped after [karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) — principle-as-antidote, declarative, with "the test" per rule.
 
@@ -56,7 +58,57 @@ Shaped after [karpathy-skills](https://github.com/forrestchang/andrej-karpathy-s
 
 ---
 
-## 6. Stop When You Should
+## 6. Name Five or Shut Up
+
+**Failure mode**: declaring something "novel" without having searched specifically for near-duplicates. LLMs pattern-match against training data and pronounce novelty on vibes. Near-duplicates always exist and usually sink novelty claims.
+
+**Practice**: Before claiming any contribution is novel, name at least five specific prior works that address the same or adjacent question. For each, state the concrete delta — what's different (method, domain, finding, metric, scale). If you can't produce five comparisons, you haven't searched enough. If the deltas are small across all five, the novelty claim is thin.
+
+**The test**: For every novelty claim in your output, can you produce a table with five rows? Each row: `(canonical_id, closest_aspect, delta, delta_sufficient: bool)`. If the table is shorter than five rows, or more than one `delta_sufficient` is false, rewrite the claim.
+
+---
+
+## 7. Commit to a Number
+
+**Failure mode**: hedging. "This could potentially contribute...", "further investigation is warranted", "there may be value in...". These are non-statements — they cost nothing, predict nothing, and can't be wrong. They're the bureaucratic tic of LLMs doing judgment.
+
+**Practice**: For any judgment call — is this novel, is this publishable, is this reproducible, is this gap real — commit to a probability or an ordinal verdict. "60% confident this is publishable at a mid-tier venue" beats "this seems like it could be publishable". Back the number with the three factors that most move it up or down. If new evidence would change the number, say which evidence and by how much.
+
+**The test**: Scan your output for hedge words ("could", "may", "potentially", "possibly", "warrants further", "worth exploring"). For each, either replace with a committed judgment + confidence, or delete the sentence. If you can't commit, name the specific piece of evidence you'd need to decide.
+
+---
+
+## 8. Steelman Before You Attack
+
+**Failure mode**: critiquing a strawman. Easy wins, worthless feedback. LLMs default to surface-level objections because they're easier to generate than genuine engagement.
+
+**Practice**: Before critiquing any paper, argument, or proposal, write the strongest version of it in your own words. Give it the benefit of every reasonable interpretation. Only then attack. The attack is only valid if it survives the steelman — if it doesn't, you were critiquing a thing the author didn't write.
+
+**The test**: For every critique you emit, is there a paragraph earlier in your response that states the strongest form of the claim you're attacking? If the steelman isn't there, the critique is premature.
+
+---
+
+## 9. Premortem Before You Commit
+
+**Failure mode**: confirming your preferred conclusion. LLMs are especially bad at this — chain-of-thought ratifies the first plausible direction without exploring counterfactuals.
+
+**Practice**: Before finalizing a significant judgment (novelty verdict, publishability verdict, experimental recommendation, synthesis claim), assume your conclusion is wrong. Write the failure story: "If this paper turned out to be unoriginal / unpublishable / irreproducible, what would the world look like a year from now? What evidence would I have missed?" If the premortem reveals plausible evidence you didn't check, check it before committing.
+
+**The test**: For each of your top-level conclusions, can you state: (a) the evidence that would make you reverse the verdict, (b) whether you searched for that evidence, (c) what you found? If any of the three are missing, the verdict is premature.
+
+---
+
+## 10. State Kill Criteria in Advance
+
+**Failure mode**: deciding what counts as evidence *after* looking at the data. Post-hoc rationalization. Research-grade sin.
+
+**Practice**: Before running an analysis — before reading a manuscript for audit, before evaluating a gap, before judging publishability — write down the specific observation that would falsify your expected conclusion. Then proceed. If the falsifier appears, accept it. Don't move the goalposts.
+
+**The test**: For every major conclusion, can you point to a pre-declared kill criterion in the run DB's `notes` or the manuscript's review log? If the kill criterion is missing, the conclusion was determined by what you saw, not by what should have settled it.
+
+---
+
+## 11. Stop When You Should
 
 **Failure mode**: running one more discovery query, one more synthesis pass, one more triage round. LLMs happily loop forever — the "declarative goal" principle cuts both ways. If the goal is "understand this field", the agent will never say done.
 
@@ -68,18 +120,23 @@ Shaped after [karpathy-skills](https://github.com/forrestchang/andrej-karpathy-s
 
 ## How these apply to each sub-agent
 
+Principle keys: 1 Triage, 2 Cite, 3 Doubt Extractor, 4 Tension, 5 Bias, 6 Name Five, 7 Commit Number, 8 Steelman, 9 Premortem, 10 Kill Criteria, 11 Stop.
+
 | Sub-agent | Principles most relevant |
 |---|---|
-| social | 1 (triage) + 5 (bias declaration) |
-| grounder, historian | 2 (cite what read) + 4 (tension) |
-| gaper | 2 + 4 + 5 (gap ≠ bias) |
-| vision | 2 (especially — implications must be grounded) |
-| theorist | 6 (stop producing proposals; three well-formed > ten thin) |
-| rude | 4 (surface tension, not performative doubt) |
-| synthesizer | 2 + 4 (consensus AND tension, no "the field broadly agrees") |
-| thinker | 5 (declare what you excluded from consideration) |
-| scribe | 2 + 3 (no claim citing an un-extracted asset) |
-| all | 6 (stop) |
+| social | 1 + 5 |
+| grounder, historian | 2 + 4 |
+| gaper | 2 + 4 + 5 |
+| vision | 2 + 9 (premortem the implication — if wrong, what evidence?) |
+| theorist | 11 (three well-formed > ten thin) + 9 (premortem each proposal) |
+| rude | 4 + 8 (steelman before attacking) |
+| synthesizer | 2 + 4 + 7 (commit to the sharpened question, not hedge) |
+| thinker | 5 + 11 |
+| scribe | 2 + 3 |
+| **novelty-auditor** (Tier A5) | 6 + 7 + 8 + 9 + 10 |
+| **publishability-judge** (Tier A5) | 7 + 8 + 9 + 10 |
+| **red-team** (Tier A5, upgrade of rude) | 8 + named attack vectors (see ROADMAP A5) |
+| all | 11 |
 
 ## Mergeable
 
