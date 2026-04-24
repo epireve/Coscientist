@@ -117,3 +117,134 @@ CREATE INDEX IF NOT EXISTS idx_phases_run    ON phases(run_id, ordinal);
 CREATE INDEX IF NOT EXISTS idx_papers_run    ON papers_in_run(run_id);
 CREATE INDEX IF NOT EXISTS idx_claims_run    ON claims(run_id);
 CREATE INDEX IF NOT EXISTS idx_audit_run     ON audit(run_id, at);
+
+-- -----------------------------------------------------------------------
+-- Tier A5: critical-judgment tables
+-- -----------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS novelty_assessments (
+    assessment_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id              TEXT REFERENCES runs(run_id) ON DELETE SET NULL,
+    target_canonical_id TEXT NOT NULL,        -- paper or manuscript ID being assessed
+    contribution_id     TEXT NOT NULL,        -- contrib-1, contrib-2, ...
+    verdict             TEXT NOT NULL,        -- novel|incremental|not-novel
+    confidence          REAL NOT NULL,
+    anchor_count        INTEGER NOT NULL,
+    report_json         TEXT NOT NULL,        -- full per-contribution structure
+    at                  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS publishability_verdicts (
+    verdict_id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id              TEXT REFERENCES runs(run_id) ON DELETE SET NULL,
+    manuscript_id       TEXT NOT NULL,
+    venue               TEXT NOT NULL,
+    verdict             TEXT NOT NULL,        -- accept|borderline-with-revisions|reject
+    probability         REAL NOT NULL,
+    kill_criterion      TEXT NOT NULL,
+    report_json         TEXT NOT NULL,        -- full per-venue structure incl factors
+    at                  TEXT NOT NULL,
+    UNIQUE(manuscript_id, venue, at)
+);
+
+CREATE TABLE IF NOT EXISTS attack_findings (
+    finding_id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id              TEXT REFERENCES runs(run_id) ON DELETE SET NULL,
+    target_canonical_id TEXT NOT NULL,
+    attack              TEXT NOT NULL,        -- p-hacking|harking|...
+    severity            TEXT NOT NULL,        -- pass|minor|fatal
+    evidence            TEXT,
+    steelman            TEXT,                 -- required for fatal
+    at                  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS hypotheses (
+    hyp_id              TEXT PRIMARY KEY,     -- e.g. hyp-<short-uuid>
+    run_id              TEXT REFERENCES runs(run_id) ON DELETE CASCADE,
+    agent_name          TEXT NOT NULL,        -- theorist|thinker|evolver
+    gap_ref             TEXT,                 -- id of a gap this addresses
+    parent_hyp_id       TEXT REFERENCES hypotheses(hyp_id) ON DELETE SET NULL,
+    statement           TEXT NOT NULL,
+    method_sketch       TEXT,
+    predicted_observables TEXT,               -- JSON array
+    falsifiers          TEXT,                 -- JSON array
+    supporting_ids      TEXT,                 -- JSON array of canonical_ids
+    elo                 REAL DEFAULT 1200.0,
+    n_matches           INTEGER DEFAULT 0,
+    n_wins              INTEGER DEFAULT 0,
+    n_losses            INTEGER DEFAULT 0,
+    created_at          TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tournament_matches (
+    match_id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id              TEXT REFERENCES runs(run_id) ON DELETE CASCADE,
+    hyp_a               TEXT NOT NULL REFERENCES hypotheses(hyp_id),
+    hyp_b               TEXT NOT NULL REFERENCES hypotheses(hyp_id),
+    winner              TEXT NOT NULL,        -- hyp_id of winner, or 'draw'
+    judge_reasoning     TEXT,
+    at                  TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_novelty_target   ON novelty_assessments(target_canonical_id);
+CREATE INDEX IF NOT EXISTS idx_publish_ms       ON publishability_verdicts(manuscript_id);
+CREATE INDEX IF NOT EXISTS idx_attack_target    ON attack_findings(target_canonical_id);
+CREATE INDEX IF NOT EXISTS idx_hyp_run          ON hypotheses(run_id);
+CREATE INDEX IF NOT EXISTS idx_hyp_elo          ON hypotheses(elo DESC);
+
+-- -----------------------------------------------------------------------
+-- Structural refactor: project container + polymorphic artifacts + graph
+-- -----------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS projects (
+    project_id          TEXT PRIMARY KEY,     -- slugified name + short hash
+    name                TEXT NOT NULL,
+    question            TEXT,                 -- overarching research question
+    description         TEXT,
+    style_profile_path  TEXT,                 -- writing-style fingerprint file
+    calibration_path    TEXT,                 -- calibration set location
+    zotero_collection   TEXT,                 -- Zotero collection key
+    created_at          TEXT NOT NULL,
+    archived_at         TEXT
+);
+
+-- Projects → runs. A run optionally belongs to a project (nullable).
+ALTER TABLE runs ADD COLUMN project_id TEXT REFERENCES projects(project_id) ON DELETE SET NULL;
+
+-- Polymorphic artifact index. The paper-artifact directory contract stays
+-- on disk at ~/.cache/coscientist/<kind>/<id>/. This table indexes every
+-- known artifact regardless of kind for cross-project queries.
+CREATE TABLE IF NOT EXISTS artifact_index (
+    artifact_id         TEXT PRIMARY KEY,     -- canonical_id or manuscript_id or experiment_id
+    kind                TEXT NOT NULL,        -- paper|manuscript|experiment|dataset|figure|review|grant|journal-entry|protocol
+    project_id          TEXT REFERENCES projects(project_id) ON DELETE SET NULL,
+    state               TEXT NOT NULL,        -- kind-specific state machine value
+    path                TEXT NOT NULL,        -- filesystem path to artifact root
+    created_at          TEXT NOT NULL,
+    updated_at          TEXT NOT NULL
+);
+
+-- Graph adjacency layer. Nodes reference artifacts (or free-standing
+-- concepts / authors). Edges have a label that identifies the semantics.
+CREATE TABLE IF NOT EXISTS graph_nodes (
+    node_id             TEXT PRIMARY KEY,     -- typed: paper:<cid> | concept:<slug> | author:<s2_id> | manuscript:<mid>
+    kind                TEXT NOT NULL,        -- paper|concept|author|manuscript|experiment|topic
+    label               TEXT NOT NULL,        -- human-readable
+    data_json           TEXT,                 -- optional structured payload
+    created_at          TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS graph_edges (
+    edge_id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_node           TEXT NOT NULL REFERENCES graph_nodes(node_id) ON DELETE CASCADE,
+    to_node             TEXT NOT NULL REFERENCES graph_nodes(node_id) ON DELETE CASCADE,
+    relation            TEXT NOT NULL,        -- cites|cited-by|extends|refutes|uses|depends-on|coauthored|about|authored-by|in-project
+    weight              REAL DEFAULT 1.0,
+    data_json           TEXT,                 -- context snippet, quote, etc.
+    created_at          TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_artifact_kind    ON artifact_index(kind);
+CREATE INDEX IF NOT EXISTS idx_artifact_project ON artifact_index(project_id);
+CREATE INDEX IF NOT EXISTS idx_edges_from       ON graph_edges(from_node, relation);
+CREATE INDEX IF NOT EXISTS idx_edges_to         ON graph_edges(to_node, relation);

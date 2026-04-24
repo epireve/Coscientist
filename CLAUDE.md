@@ -6,12 +6,33 @@ This is an academic-research-agent toolkit built as atomic skills. Read this fil
 - [`RESEARCHER.md`](./RESEARCHER.md) — principles for any research agent (sub-agents especially). Karpathy-style principle-as-antidote.
 - [`ROADMAP.md`](./ROADMAP.md) — where this project is going, what's in flight, what's parked.
 
-## The contract: paper artifact
+## The contract: polymorphic artifacts
 
-Every skill reads/writes one canonical artifact layout. Never invent new fields — extend this:
+Every skill reads/writes one of several kinds of artifact, each with its own state machine but a shared directory layout and manifest structure.
 
 ```
-~/.cache/coscientist/papers/<paper_id>/
+~/.cache/coscientist/
+  papers/<paper_id>/           # kind=paper         — lib.paper_artifact.PaperArtifact
+  manuscripts/<mid>/           # kind=manuscript    — lib.artifact.ManuscriptArtifact
+  experiments/<eid>/           # kind=experiment    — lib.artifact.ExperimentArtifact
+  datasets/<did>/              # kind=dataset
+  figures/<fid>/               # kind=figure
+  reviews/<rid>/                # kind=review
+  grants/<gid>/                 # kind=grant
+  journal/<jid>/                # kind=journal-entry
+  protocols/<pid>/              # kind=protocol
+  runs/run-<run_id>.db          # deep-research run logs (SQLite)
+  projects/<project_id>/        # project-level container
+    project.db                  # project-scoped SQLite (tables: projects,
+                                # artifact_index, graph_nodes, graph_edges, etc.)
+```
+
+### Paper artifact layout (canonical)
+
+The pattern all other kinds follow:
+
+```
+papers/<paper_id>/
   manifest.json       # canonical_id, doi, arxiv_id, state, sources_tried[]
   metadata.json       # title, authors, venue, year, abstract, tldr, claims[]
   content.md          # structured markdown (post-extract)
@@ -23,17 +44,39 @@ Every skill reads/writes one canonical artifact layout. Never invent new fields 
   references.json     # parsed bibliography, DOIs resolved
   raw/                # original pdf/html
   extraction.log
+  novelty_assessment.json   # when novelty-auditor has run
+  attack_findings.json      # when red-team has run
 ```
 
-`paper_id` format: slugified `<first_author_last>_<year>_<short_title>` with a 6-char hash suffix for uniqueness. Use `lib.cache.paper_dir(canonical_id)` — never hand-build paths.
+`paper_id` format: slugified `<first_author_last>_<year>_<short_title>` with a 6-char hash suffix. Use `lib.cache.paper_dir(canonical_id)` — never hand-build paths.
 
-Per-paper state machine: `discovered → triaged → acquired → extracted → read → cited`. Stored in `manifest.json["state"]`. Only skills move papers between states.
+### Per-kind state machines (in `lib.artifact.STATES`)
 
-## The contract: run log
+- paper: `discovered → triaged → acquired → extracted → read → cited`
+- manuscript: `drafted → audited → critiqued → revised → submitted → published`
+- experiment: `designed → preregistered → running → completed → analyzed → reproduced`
+- dataset: `registered → deposited → versioned`
+- figure: `drafted → styled → finalized`
+- review: `drafted → submitted`
+- grant: `drafted → submitted → awarded|rejected`
+- protocol: `drafted → approved → executed`
 
-Deep research runs persist to SQLite at `.coscientist/run-<run_id>.db`. Schema in `lib/sqlite_schema.sql`. Tables: `runs`, `phases`, `agents`, `queries`, `papers_in_run`, `claims`, `citations`, `breaks`, `notes`, `artifacts`, `audit`.
+Only skills move artifacts between states. Kind-specific helpers live in `lib.artifact` (new kinds) and `lib.paper_artifact` (existing PaperArtifact — kept stable, not migrated).
 
-Resume works by replaying phases whose `completed_at IS NULL`. Never write directly — use `.claude/skills/deep-research/scripts/db.py` helpers.
+## The contract: run log + project DB
+
+Two SQLite scopes, both using the same schema at `lib/sqlite_schema.sql`:
+
+- **Per-run DB**: `~/.cache/coscientist/runs/run-<run_id>.db` — one deep-research run. Tables driving the pipeline: `runs`, `phases`, `agents`, `queries`, `papers_in_run`, `claims`, `citations`, `breaks`, `notes`, `artifacts`, `audit`. Plus the A5 judgment tables: `novelty_assessments`, `publishability_verdicts`, `attack_findings`, `hypotheses`, `tournament_matches`.
+- **Per-project DB**: `~/.cache/coscientist/projects/<project_id>/project.db` — cross-run container. Tables `projects`, `artifact_index`, `graph_nodes`, `graph_edges`.
+
+Resume works by replaying run phases whose `completed_at IS NULL`. Never write directly to either DB — use `.claude/skills/deep-research/scripts/db.py` (runs), `lib/project.py` (projects), or `lib/graph.py` (graph edges).
+
+## The graph layer
+
+Citations, concepts, authors, manuscripts — stored as typed nodes + labeled edges in the project DB. Node IDs: `paper:<cid>`, `concept:<slug>`, `author:<s2_id>`, `manuscript:<mid>`. Edge relations: `cites | cited-by | extends | refutes | uses | depends-on | coauthored | about | authored-by | in-project`.
+
+API is deliberately small (`lib/graph.py`): `add_node`, `add_edge`, `neighbors`, `walk`, `in_degree`, `hubs`. Kuzu is the planned upgrade when volume demands it — the surface here is designed to map cleanly.
 
 ## Skill composition rules
 
@@ -51,13 +94,27 @@ Resume works by replaying phases whose `completed_at IS NULL`. Never write direc
 
 ## Sub-agents (under `deep-research`)
 
-10 personas live in `.claude/agents/`. Each has its own context window. The orchestrator invokes them in order:
+13 personas live in `.claude/agents/`. Each has its own context window and a minimal `tools:` restriction. The orchestrator invokes the deep-research pipeline in order:
 
 `social → grounder → historian → gaper → [BREAK 1] → vision → theorist → rude → synthesizer → [BREAK 2] → thinker → scribe`
 
 Break 0 happens after `social`. The 3 breaks are hard stops that ask the user to confirm/redirect before continuing.
 
-Sub-agents consume artifacts + the run DB as their context. They never touch raw PDFs or publisher websites — they call the atomic skills.
+Three additional agents are invoked by other workflows (not the deep-research pipeline):
+
+- `novelty-auditor` — structured novelty assessment via the `novelty-check` gate
+- `publishability-judge` — venue-calibrated publishability verdict via `publishability-check`
+- `red-team` — named-attack-vector critique of finished work via `attack-vectors`
+
+These are used by future manuscript-audit / manuscript-critique workflows, and by the tournament/evolution subsystem when it lands.
+
+All sub-agents:
+
+- Follow `RESEARCHER.md` principles
+- Declare their `tools:` restrictively in frontmatter (minimal-scope)
+- Describe **what done looks like**, not procedural steps
+- End with an **Exit test** clause they must pass before handing back
+- Consume artifacts + DB state — they never touch raw PDFs or publisher websites directly
 
 ## When adding a new skill
 
