@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """paper-triage: record per-paper triage verdicts on the manifest.
 
-Enforces: a paper cannot be marked `sufficient=true` without at least one of
-{abstract, tldr, claims}. Prevents lazy "skip this" verdicts that would hide
-missing data.
+Enforces:
+- A paper cannot be marked `sufficient=true` without at least one of
+  {abstract, tldr, claims}. Prevents lazy "skip this" verdicts that would
+  hide missing data.
+- v0.17: state monotonicity. Re-triaging a paper that has already moved
+  past `triaged` (acquired / extracted / read / cited) refuses by
+  default — silently demoting state was a real bug surfaced by the
+  per-paper state-machine harness. Pass `--force` if you really mean to
+  reset (e.g. corrupted PDF needs a re-fetch decision).
 """
 
 from __future__ import annotations
@@ -22,7 +28,13 @@ from lib.lockfile import artifact_lock  # noqa: E402  v0.14
 from lib.paper_artifact import PaperArtifact, State  # noqa: E402
 
 
-def record_one(cid: str, sufficient: bool, rationale: str) -> None:
+_DOWNSTREAM_STATES = {
+    State.acquired, State.extracted, State.read, State.cited,
+}
+
+
+def record_one(cid: str, sufficient: bool, rationale: str,
+               force: bool = False) -> None:
     art = PaperArtifact(cid)
     # v0.14: serialize against concurrent paper-acquire / paper-discovery
     # writes on the same paper artifact.
@@ -35,6 +47,15 @@ def record_one(cid: str, sufficient: bool, rationale: str) -> None:
                     "Fetch or override explicitly."
                 )
         manifest = art.load_manifest()
+        # v0.17: refuse to silently demote state from acquired/extracted/...
+        # back to triaged. Re-running triage on a paper that's already
+        # downstream is almost always an orchestrator bug.
+        if manifest.state in _DOWNSTREAM_STATES and not force:
+            raise SystemExit(
+                f"[{cid}] refusing to re-triage: state is "
+                f"{manifest.state.value!r}. Re-triaging would silently "
+                "demote progress. Pass --force if you really mean to reset."
+            )
         manifest.triage = {
             "sufficient": bool(sufficient),
             "rationale": rationale,
@@ -50,6 +71,8 @@ def main() -> None:
     p.add_argument("--sufficient", choices=["true", "false"])
     p.add_argument("--rationale", default="")
     p.add_argument("--batch", help="JSON file with a list of verdicts")
+    p.add_argument("--force", action="store_true",
+                   help="Allow re-triage even when state is past triaged")
     args = p.parse_args()
 
     if args.batch:
@@ -59,11 +82,13 @@ def main() -> None:
                 item["canonical_id"],
                 bool(item["sufficient"]),
                 item.get("rationale", ""),
+                force=bool(item.get("force", args.force)),
             )
     else:
         if not args.canonical_id or args.sufficient is None:
             raise SystemExit("--canonical-id and --sufficient required (or use --batch)")
-        record_one(args.canonical_id, args.sufficient == "true", args.rationale)
+        record_one(args.canonical_id, args.sufficient == "true",
+                   args.rationale, force=args.force)
 
     # Print insufficient papers for downstream piping
     # (only meaningful for --batch; for single, print this cid if insufficient)

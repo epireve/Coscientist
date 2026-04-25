@@ -6,6 +6,9 @@ Writes the PDF into raw/, advances state, appends to the audit log.
 v0.12.1: integrity check (magic bytes + min size) before accepting a PDF.
 v0.14: artifact_lock around manifest mutations so concurrent
     paper-acquire / paper-triage runs against the same paper serialize.
+v0.17: integrity-rejected fetches now produce an `action=rejected` audit
+    line before the SystemExit raises, so we keep forensic evidence of
+    publishers serving paywall HTML or truncated payloads.
 """
 
 from __future__ import annotations
@@ -40,6 +43,7 @@ def main() -> None:
 
     # v0.14: serialize manifest writes against any other concurrent writer
     # for this paper (e.g. paper-triage running in parallel).
+    integrity_error: str | None = None
     with artifact_lock(art.root, timeout=30.0):
         manifest = art.load_manifest()
 
@@ -61,31 +65,49 @@ def main() -> None:
             src = Path(args.pdf_path)
             if not src.exists():
                 raise SystemExit(f"pdf not found: {src}")
-            # v0.12.1: integrity check — magic bytes + minimum size
+
+            # v0.12.1 integrity check — magic bytes + minimum size.
+            # v0.17: rejections still produce an audit line so we keep
+            # forensic evidence (publisher served HTML, file truncated, …).
             size = src.stat().st_size
             if size < 200:
-                raise SystemExit(
+                integrity_error = (
                     f"file too small to be a real PDF ({size} bytes): {src}"
                 )
-            with src.open("rb") as fh:
-                head = fh.read(8)
-            if not head.startswith(b"%PDF-"):
-                raise SystemExit(
-                    f"file is not a PDF (magic bytes: {head[:5]!r}): {src}. "
-                    "Likely a paywall HTML page or login redirect."
+            else:
+                with src.open("rb") as fh:
+                    head = fh.read(8)
+                if not head.startswith(b"%PDF-"):
+                    integrity_error = (
+                        f"file is not a PDF (magic bytes: {head[:5]!r}): {src}. "
+                        "Likely a paywall HTML page or login redirect."
+                    )
+
+            if integrity_error:
+                entry["action"] = "rejected"
+                entry["detail"] = integrity_error
+                entry["bytes"] = size
+                art.record_source_attempt(
+                    args.source, "rejected",
+                    {"reason": integrity_error, "bytes": size},
                 )
-            dst = art.raw_dir / f"{args.source}.pdf"
-            shutil.copy2(src, dst)
-            entry["pdf"] = str(dst)
-            entry["bytes"] = size
-            art.record_source_attempt(
-                args.source, "ok",
-                {"pdf": str(dst), "bytes": size},
-            )
-            art.set_state(State.acquired)
+            else:
+                dst = art.raw_dir / f"{args.source}.pdf"
+                shutil.copy2(src, dst)
+                entry["pdf"] = str(dst)
+                entry["bytes"] = size
+                art.record_source_attempt(
+                    args.source, "ok",
+                    {"pdf": str(dst), "bytes": size},
+                )
+                art.set_state(State.acquired)
 
         with audit_log_path().open("a") as f:
             f.write(json.dumps(entry) + "\n")
+
+    # Lock released. Raise after the audit line lands so forensics survive.
+    if integrity_error:
+        raise SystemExit(integrity_error)
 
     print(json.dumps(entry))
 

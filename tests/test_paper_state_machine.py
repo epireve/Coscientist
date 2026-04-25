@@ -350,10 +350,11 @@ class AuditLogTests(TestCase):
             self.assertEqual(len(m.sources_tried), 1)
             self.assertEqual(m.sources_tried[0]["outcome"], "failed")
 
-    def test_rejected_pdf_still_writes_no_audit_line(self):
-        """When integrity check fails, record.py raises SystemExit BEFORE
-        appending to the audit log. Documents this — if it ever changes
-        we want to know."""
+    def test_rejected_pdf_writes_audit_line_then_raises(self):
+        """v0.17 fix: integrity rejections now produce an `action=rejected`
+        audit line BEFORE record.py raises SystemExit. Forensic evidence
+        survives even when the publisher served paywall HTML or a tiny
+        truncated payload."""
         with isolated_cache() as cache_dir:
             cid = "anon_2025_rejected_777777"
             _seed_paper(cid)
@@ -367,39 +368,59 @@ class AuditLogTests(TestCase):
             r = _run(ACQUIRE, "--canonical-id", cid,
                      "--source", "oa-fallback",
                      "--pdf-path", str(tiny))
-            self.assertTrue(r.returncode != 0)
+            self.assertTrue(r.returncode != 0,
+                            "integrity rejection must still exit non-zero")
 
-            # CRACK (documented, not fixed): integrity rejection currently
-            # writes nothing to the audit log — no record of the
-            # publisher having served us junk. The audit log is meant to
-            # be append-only for ALL fetch attempts; rejected payloads
-            # are still attempts. If you decide failed integrity should
-            # produce a `action=rejected` line, this assertion will fail
-            # and you'll need to flip it.
             lines = _audit_lines(cache_dir)
             self.assertEqual(
-                len(lines), 0,
-                "current behavior: integrity-rejected fetch leaves no audit trail",
+                len(lines), 1,
+                "integrity-rejected fetch must leave exactly one audit line",
             )
+            entry = lines[0]
+            self.assertEqual(entry["action"], "rejected")
+            self.assertEqual(entry["canonical_id"], cid)
+            self.assertEqual(entry["source"], "oa-fallback")
+            self.assertIn("too small", entry["detail"])
+            self.assertEqual(entry["bytes"], 10)
+
+            # State must NOT have advanced to acquired
+            from lib.paper_artifact import State
+            self.assertEqual(_load_manifest(cid).state, State.triaged)
+
+    def test_rejected_html_payload_writes_audit_line(self):
+        """HTML masquerading as a PDF (paywall redirect) also gets logged."""
+        with isolated_cache() as cache_dir:
+            cid = "anon_2025_paywall_999999"
+            _seed_paper(cid)
+            _run(TRIAGE, "--canonical-id", cid, "--sufficient", "false",
+                 "--rationale", "fetch")
+
+            html = cache_dir / "downloads" / "paywall.pdf"
+            html.parent.mkdir(parents=True, exist_ok=True)
+            html.write_bytes(
+                b"<!DOCTYPE html><html><body>"
+                + b"Login required " * 50
+                + b"</body></html>"
+            )
+
+            r = _run(ACQUIRE, "--canonical-id", cid,
+                     "--source", "institutional",
+                     "--pdf-path", str(html))
+            self.assertTrue(r.returncode != 0)
+            lines = _audit_lines(cache_dir)
+            self.assertEqual(len(lines), 1)
+            entry = lines[0]
+            self.assertEqual(entry["action"], "rejected")
+            self.assertIn("not a PDF", entry["detail"])
 
 
 # ---------------- state monotonicity (current behavior) ----------------
 
 class StateMonotonicityTests(TestCase):
-    def test_triage_after_acquire_overwrites_state_back_to_triaged(self):
-        """Document current behavior: re-running triage on an already
-        acquired paper rolls state BACK to triaged. record_one writes
-        manifest.state = State.triaged unconditionally — no monotonicity
-        check.
-
-        # CRACK (documented, not fixed): paper-triage record_one has no
-        # check that the current state is `discovered` or earlier. A
-        # second triage call after acquire (e.g. an orchestrator bug that
-        # re-loops over the shortlist) silently demotes the paper. The
-        # manifest.triage block is also overwritten. If this is intended
-        # as idempotency, it's surprising; if not, record_one should
-        # refuse when state is acquired/extracted/read/cited.
-        """
+    def test_triage_after_acquire_refuses_to_demote(self):
+        """v0.17 fix: re-triaging an already-acquired paper now refuses
+        with a clear error rather than silently rolling state back. The
+        manifest.triage block is preserved as-is."""
         with isolated_cache() as cache_dir:
             from lib.paper_artifact import State
             cid = "anon_2025_remix_888888"
@@ -413,17 +434,43 @@ class StateMonotonicityTests(TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual(_load_manifest(cid).state, State.acquired)
 
-            # Re-triage this acquired paper — currently allowed
+            # Re-triage this acquired paper — must now refuse
             r = _run(TRIAGE, "--canonical-id", cid, "--sufficient", "false",
                      "--rationale", "second")
-            self.assertEqual(r.returncode, 0,
-                             f"current behavior: re-triage allowed; got {r.stderr}")
+            self.assertTrue(r.returncode != 0,
+                            "re-triage of acquired paper must refuse")
+            self.assertIn("refusing to re-triage", r.stderr)
+            self.assertIn("acquired", r.stderr)
 
+            # Manifest unchanged: state still acquired, triage rationale
+            # still the original "first"
+            m = _load_manifest(cid)
+            self.assertEqual(m.state, State.acquired,
+                             "state must NOT have been demoted to triaged")
+            self.assertEqual(m.triage["rationale"], "first",
+                             "triage block must NOT have been overwritten")
+
+    def test_triage_after_acquire_with_force_demotes_explicitly(self):
+        """The escape hatch: --force lets the user re-triage when they
+        really mean to (e.g. corrupted PDF needs re-fetch)."""
+        with isolated_cache() as cache_dir:
+            from lib.paper_artifact import State
+            cid = "anon_2025_force_aaaaaa"
+            _seed_paper(cid)
+            _run(TRIAGE, "--canonical-id", cid, "--sufficient", "false",
+                 "--rationale", "first")
+            pdf = _write_pdf(cache_dir / "downloads" / "x.pdf", size=1024)
+            _run(ACQUIRE, "--canonical-id", cid,
+                 "--source", "arxiv", "--pdf-path", str(pdf))
+            self.assertEqual(_load_manifest(cid).state, State.acquired)
+
+            r = _run(TRIAGE, "--canonical-id", cid, "--sufficient", "false",
+                     "--rationale", "redo", "--force")
+            self.assertEqual(r.returncode, 0, r.stderr)
             m = _load_manifest(cid)
             self.assertEqual(m.state, State.triaged,
-                             "current behavior: re-triage demoted state")
-            self.assertEqual(m.triage["rationale"], "second",
-                             "current behavior: triage block overwritten")
+                             "--force must demote state explicitly")
+            self.assertEqual(m.triage["rationale"], "redo")
 
 
 # ---------------- argparse edge cases ----------------
