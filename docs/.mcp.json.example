@@ -1,0 +1,92 @@
+{
+  "_README": "Reference template showing the env block you can drop into .mcp.json. Do NOT commit your real keys. Either copy this into .mcp.json and gitignore your local copy, or set the same vars in your shell profile and leave .mcp.json without the env blocks. See docs/MCP-SETUP.md for which keys are worth obtaining and where to get them.",
+  "mcpServers": {
+    "consensus": {
+      "type": "http",
+      "url": "https://mcp.consensus.app/mcp"
+    },
+
+    "paper-search": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["paper-search-mcp"],
+      "env": {
+        "_FREE_AND_RECOMMENDED": "the three keys below cost nothing and meaningfully improve coverage + rate limits",
+        "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL": "you@example.com",
+        "PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY": "ssk-xxxxxxxxxxxxxxxx",
+        "PAPER_SEARCH_MCP_CORE_API_KEY": "core-xxxxxxxxxxxxxxxx",
+
+        "_OPTIONAL_RATE_LIMIT_BUMPS": "free; only set if you hit rate limits on these sources",
+        "PAPER_SEARCH_MCP_DOAJ_API_KEY": "doaj-xxxxxxxxxxxxxxxx",
+        "PAPER_SEARCH_MCP_ZENODO_ACCESS_TOKEN": "zenodo-xxxxxxxxxxxxxxxx",
+        "PAPER_SEARCH_MCP_GOOGLE_SCHOLAR_PROXY_URL": "https://your-proxy.example.com",
+
+        "_PREMIUM_DATABASES": "only set if you have institutional subscriptions; usually unnecessary because institutional-access (Playwright + OpenAthens) handles paid PDFs without API keys",
+        "PAPER_SEARCH_MCP_IEEE_API_KEY": "ieee-xxxxxxxxxxxxxxxx",
+        "PAPER_SEARCH_MCP_ACM_API_KEY": "acm-xxxxxxxxxxxxxxxx"
+      }
+    },
+
+    "academic": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["academic-mcp"],
+      "env": {
+        "_REQUIRED": "default download path inside academic-mcp",
+        "ACADEMIC_MCP_DOWNLOAD_PATH": "./downloads",
+
+        "_FREE": "shared with paper-search; you can reuse the same key value for both MCPs",
+        "SEMANTIC_SCHOLAR_API_KEY": "ssk-xxxxxxxxxxxxxxxx",
+        "CORE_API_KEY": "core-xxxxxxxxxxxxxxxx",
+
+        "_PREMIUM": "set only if you have an active publisher subscription",
+        "IEEE_API_KEY": "ieee-xxxxxxxxxxxxxxxx",
+        "SCOPUS_API_KEY": "scopus-xxxxxxxxxxxxxxxx",
+        "SPRINGER_API_KEY": "springer-xxxxxxxxxxxxxxxx",
+        "SCIENCEDIRECT_API_KEY": "elsevier-xxxxxxxxxxxxxxxx"
+      }
+    },
+
+    "semantic-scholar": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["semantic-scholar-mcp"],
+      "env": {
+        "_RECOMMENDED": "anonymous tier works but rate-limits at ~1 rps; key bumps that significantly",
+        "SEMANTIC_SCHOLAR_API_KEY": "ssk-xxxxxxxxxxxxxxxx"
+      }
+    },
+
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    },
+
+    "browser-use": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["browser-use-mcp-server"],
+      "env": {
+        "_REQUIRED": "browser-use is LLM-driven; without OPENAI_API_KEY the MCP fails to start",
+        "OPENAI_API_KEY": "sk-xxxxxxxxxxxxxxxx"
+      }
+    },
+
+    "zotero": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["zotero-mcp"],
+      "env": {
+        "_LOCAL_MODE_DEFAULT": "talks to Zotero Desktop on 127.0.0.1:23119; needs 'Allow other applications to communicate with Zotero' enabled in Settings -> Advanced",
+        "ZOTERO_API_HOST": "http://127.0.0.1:23119",
+
+        "_WEB_API_MODE_ALTERNATIVE": "comment out ZOTERO_API_HOST above and uncomment these to use zotero.org web API instead — useful if you don't run the Desktop app",
+        "_ZOTERO_LOCAL": "false",
+        "_ZOTERO_API_KEY": "your-key-from-zotero.org/settings/keys",
+        "_ZOTERO_LIBRARY_ID": "your-numeric-user-id-from-the-same-page",
+        "_ZOTERO_LIBRARY_TYPE": "user"
+      }
+    }
+  }
+}

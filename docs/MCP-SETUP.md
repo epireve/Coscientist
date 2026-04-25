@@ -61,27 +61,93 @@ the actual PDF fetch goes through the institutional adapter regardless.
 
 ## Setting env vars
 
-Two ways:
+Two methods that work reliably. Pick one.
 
-1. **In `.mcp.json` per-server** — under `"env"`:
+### Method 1 — `.mcp.json` `env` blocks
 
-   ```json
-   "semantic-scholar": {
-     "type": "stdio",
-     "command": "uvx",
-     "args": ["semantic-scholar-mcp"],
-     "env": {
-       "SEMANTIC_SCHOLAR_API_KEY": "your-key-here"
-     }
-   }
-   ```
+Each MCP server in `.mcp.json` accepts an `env` block that gets passed to the
+MCP process at spawn time:
 
-2. **In your shell profile** (`~/.zshrc` / `~/.bashrc`) — exported before
-   Claude Code starts. Picked up by every MCP that reads from process env.
+```json
+"semantic-scholar": {
+  "type": "stdio",
+  "command": "uvx",
+  "args": ["semantic-scholar-mcp"],
+  "env": {
+    "SEMANTIC_SCHOLAR_API_KEY": "ssk-your-real-key-here"
+  }
+}
+```
 
-Don't commit secrets. `.mcp.json` is checked into the repo; if you put keys
-there, gitignore your local copy or use a `.mcp.local.json` (Claude Code will
-merge both).
+**Critical**: `.mcp.json` is checked into git. If you add real keys, you need
+to either:
+
+- Delete the env block before committing (annoying, easy to mess up), or
+- Stop tracking your local `.mcp.json` — `git update-index
+  --skip-worktree .mcp.json` keeps your local copy out of `git status` while
+  `.mcp.json` stays in the repo for everyone else, or
+- Use **Method 2** below and skip `env` blocks entirely
+
+### Method 2 — shell environment (recommended for keys)
+
+Set vars in `~/.zshrc` / `~/.bashrc` before Claude Code launches:
+
+```bash
+export SEMANTIC_SCHOLAR_API_KEY="ssk-..."
+export OPENAI_API_KEY="sk-..."
+export PAPER_SEARCH_MCP_UNPAYWALL_EMAIL="you@example.com"
+export PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY="$SEMANTIC_SCHOLAR_API_KEY"
+export PAPER_SEARCH_MCP_CORE_API_KEY="..."
+# ... etc
+```
+
+Each MCP process inherits these. No risk of committing secrets. The downside
+is shell env is global — every process you spawn from that shell sees the
+keys. For most personal-laptop setups that's fine.
+
+## paper-search-mcp full env block
+
+`paper-search-mcp` is the MCP with the most environment variables (up to 8).
+Here's the complete env block to drop into `.mcp.json` if you go with
+Method 1:
+
+```json
+"paper-search": {
+  "type": "stdio",
+  "command": "uvx",
+  "args": ["paper-search-mcp"],
+  "env": {
+    "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL": "you@example.com",
+    "PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY": "ssk-...",
+    "PAPER_SEARCH_MCP_CORE_API_KEY": "core-...",
+    "PAPER_SEARCH_MCP_DOAJ_API_KEY": "doaj-...",
+    "PAPER_SEARCH_MCP_ZENODO_ACCESS_TOKEN": "zenodo-...",
+    "PAPER_SEARCH_MCP_GOOGLE_SCHOLAR_PROXY_URL": "https://your-proxy.example.com",
+    "PAPER_SEARCH_MCP_IEEE_API_KEY": "ieee-...",
+    "PAPER_SEARCH_MCP_ACM_API_KEY": "acm-..."
+  }
+}
+```
+
+If you only have time to obtain three of these, the high-leverage ones are
+**Unpaywall email** (an email address you own, no key flow), **Semantic
+Scholar key** (free at https://www.semanticscholar.org/product/api), and
+**CORE key** (free at https://core.ac.uk/services/api). Those three give
+you OA-PDF resolution + the two largest open paper databases at acceptable
+rate limits. The rest are tail-risk improvements.
+
+`academic-mcp` follows the same pattern but uses unprefixed names
+(`SEMANTIC_SCHOLAR_API_KEY`, `IEEE_API_KEY`, etc.). You can reuse the same
+key values for both MCPs; just declare them under each server's `env` block
+or set them at shell level so both pick them up.
+
+## Worked example
+
+`docs/.mcp.json.example` in this repo is a complete env-aware reference for
+all 7 servers, with placeholder keys + inline comments grouping them by
+priority (free-and-recommended, optional rate-limit bumps, premium /
+institutional). Copy from there into your `.mcp.json` (or shell profile)
+rather than building each env block from scratch.
 
 ## Verification
 
