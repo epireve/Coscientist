@@ -297,6 +297,39 @@ Tests (`test_v0_14_adoption.py`, 16 new; suite at 267 passing):
 - Atomicity proof: drop the project-side target table before invoking each gate → gate exits non-zero **and** the run DB row never appears (multi_db_tx rolled back the first leg).
 - Sanity: clean dual-write still produces one row in each DB.
 
+### v0.15 — dry-run harness for the deep-research pipeline (commit 4d0ebc1)
+
+Drives `db.py` end-to-end without sub-agents or MCPs. Catches mechanical bugs in the run-pipeline state machine before they burn live session time.
+
+Surfaced one real crack: `record-phase` with an unknown phase name silently no-op'd the `UPDATE`. An orchestrator typo (e.g. `theroist` for `theorist`) would have desynced the DB from what the orchestrator believed was recorded. Fixed in the same commit — `cmd_record_phase` now rejects unknown phase names AND unknown `(run_id, phase)` pairs with explicit errors.
+
+Coverage (`tests/test_deep_research_pipeline.py`, 24 new; suite at 291): init writes 10 phases in canonical order with migrations applied; next-phase advances through every phase; BREAK_0/1/2 fire after social/gaper/synthesizer; full happy-path reaches DONE; mid-phase crash + resume reports the right current phase; record-claim persists with all field combinations; breaks are idempotent on re-resolve; out-of-order completion still flags the missing intermediate.
+
+### v0.16 — per-paper state-machine dry-run harness (commit a9d1621)
+
+Same pattern as v0.15 but for the per-paper lifecycle (`discovered → triaged → acquired → extracted → read → cited`). Drives `paper-triage/scripts/record.py`, `paper-acquire/scripts/record.py`, and `paper-acquire/scripts/gate.py` via subprocess.
+
+Surfaced two real cracks pinned with tests in current-broken-state form (then fixed in v0.17): (a) integrity-rejected fetches wrote nothing to the audit log, losing forensic evidence of publishers serving paywall HTML or truncated payloads; (b) re-running triage on an already-acquired paper silently demoted state back to `triaged` and overwrote the original triage rationale.
+
+Coverage (`tests/test_paper_state_machine.py`, 17 new; suite at 308): state transitions for every legal arc; gate.py refuses untriaged + sufficient=true papers with the right exit codes; integrity check rejects sub-200-byte and non-`%PDF-` payloads; audit log appended on every fetch outcome; argparse edge cases (missing `--canonical-id`, etc.) error cleanly.
+
+### v0.17 — closing both per-paper cracks (commit f8ffbfa)
+
+Both v0.16 cracks fixed; the two CRACK-pinning tests flipped from "documents broken behavior" to "asserts correct behavior" + 2 new tests added.
+
+- `paper-acquire/scripts/record.py`: integrity rejections now produce an `action=rejected` audit line (with detail + bytes) **before** the SystemExit raises. Forensic evidence survives the rejection. The audit-line write happens inside the artifact lock; the SystemExit raises after the lock releases so the line definitely lands.
+- `paper-triage/scripts/record.py`: refuses to re-triage when state is in `{acquired, extracted, read, cited}` unless `--force` is passed. The escape hatch is real (corrupted PDF needs re-fetch decision) but explicit. Manifest state and triage block are preserved on refusal.
+
+Tests (suite at 310; 2 CRACK-pinning tests replaced + 2 added):
+- `test_rejected_pdf_writes_audit_line_then_raises`, `test_rejected_html_payload_writes_audit_line` — exercise both magic-bytes and size-check branches.
+- `test_triage_after_acquire_refuses_to_demote`, `test_triage_after_acquire_with_force_demotes_explicitly` — cover both the safe default and the `--force` escape hatch.
+
+### v0.18 — persona output JSON specs (preventative)
+
+Acted on the persona auditor's findings from the live smoke-test session: `grounder.md`, `historian.md`, `gaper.md` had loose output specifications (`{canonical_id, title, why_seminal}` style — array? object? prose?), which the auditor predicted would fail at first invocation in the same shape-ambiguity way `social` did before its v0.16 persona fix.
+
+Each persona's `## Output` section now contains an explicit JSON schema with named fields, types, and length constraints, framed as a fenced code block the orchestrator can parse straight into `phases.output_json`. Pure prose change; no test additions needed (the existing `AgentFrontmatterTests` regression test still passes).
+
 ## Inspirations and what we take from them
 
 | Source | Pattern we adopt |

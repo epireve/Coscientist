@@ -123,6 +123,19 @@ Pairwise self-play over candidate hypotheses with Elo ranking, plus parent-track
 
 Associated sub-agents: `ranker` (pairwise judge), `evolver` (sharpen / recombine / re-aim top-K).
 
+### Infrastructure & smoke tests (v0.12.1 → v0.18)
+
+After the feature surface stabilised we did six tightening passes — five primitives + their adoption + two dry-run harnesses + the persona-quality cleanup that came out of the first live attempt:
+
+- **v0.12.1** — five hardening fixes (hedge-word context-stripping, PDF magic-byte integrity check, novelty-anchor uniqueness, Elo K-factor decay, calibration band hard-fail).
+- **v0.13** — five infrastructure primitives in `lib/`: `migrations.py` (idempotent schema migrations), `transaction.py` (multi-DB atomic writes), `lockfile.py` (concurrent-write serialisation), `retry.py` (sync + async retry-with-backoff), and journal disk-mirror drift detection.
+- **v0.14** — wired those primitives into the seven skills that needed them. Atomicity proof: dropping a target table mid-run rolls back the run-DB write too.
+- **v0.15** — dry-run harness for the deep-research run-pipeline state machine. Surfaced + fixed a silent no-op on unknown phase names.
+- **v0.16** — dry-run harness for the per-paper state machine (`discovered → … → cited`). Surfaced two cracks (audit-log gap on integrity reject; non-monotonic triage) which **v0.17** then closed with the two CRACK-pinning tests flipped to assert correct behaviour.
+- **v0.18** — persona output specs tightened on `grounder` / `historian` / `gaper` after the live smoke-test on run `aa41d0cb` exposed shape-ambiguity as the cause of `social`'s first-invocation failure.
+
+Test suite: 251 → 310 passing across the six iterations. Live deep-research smoke-test status, including resume checklist and architectural findings on sub-agent MCP propagation, is tracked in [`ROADMAP.md`](./ROADMAP.md#live-smoke-test-status-run-aa41d0cb-paused-2026-04-25).
+
 ## MCP servers used
 
 Registered in `.mcp.json`:

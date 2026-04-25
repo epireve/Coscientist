@@ -38,4 +38,38 @@ Before you exit:
 
 ## Output
 
-One-line summary + counts by gap-kind + discarded count. Then stop — orchestrator runs **Break 1**.
+Emit valid JSON in this exact shape as your final message — the orchestrator
+passes it directly to `db.py record-phase --output-json` and then triggers
+**Break 1**:
+
+```json
+{
+  "phase": "gaper",
+  "summary": "<one-sentence sketch of where the field is missing evidence>",
+  "gaps": [
+    {
+      "gap_id": "g1",
+      "kind": "evidential",
+      "claim": "<what is not there, in one sentence>",
+      "supporting_ids": ["<cid stating/implying this gap>", "<cid>"],
+      "cross_check_query": "<the targeted search you ran to confirm absence>"
+    }
+  ],
+  "counts_by_kind": {
+    "evidential": <int>,
+    "measurement": <int>,
+    "conceptual": <int>
+  },
+  "discarded": [
+    {
+      "draft_gap": "<gap you were going to record>",
+      "discarded_because_canonical_id": "<cid found in cross-check that filled it>"
+    }
+  ]
+}
+```
+
+`kind` ∈ `{evidential, measurement, conceptual}`. Every entry in `gaps`
+must have ≥2 entries in `supporting_ids` and a non-empty
+`cross_check_query`. `discarded` may be `[]`. Do not emit prose outside
+this JSON.

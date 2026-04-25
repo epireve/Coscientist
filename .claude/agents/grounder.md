@@ -39,4 +39,31 @@ If any fails, demote or remove.
 
 ## Output
 
-One-line summary + top 3 seminals: `{canonical_id, title, why_seminal}`.
+Emit valid JSON in this exact shape as your final message — the orchestrator
+passes it directly to `db.py record-phase --output-json`:
+
+```json
+{
+  "phase": "grounder",
+  "summary": "<one-sentence sketch of the field's intellectual ancestry>",
+  "seminals": [
+    {
+      "canonical_id": "<cid>",
+      "title": "<paper title>",
+      "year": 2017,
+      "in_run_citation_count": <int — how many in-run papers cite this>,
+      "why_seminal": "<one or two sentences grounded in the abstract you read>",
+      "supporting_ids": ["<cid>", "<cid>", "<cid>"]
+    }
+  ],
+  "tensions": [
+    {
+      "between_canonical_ids": ["<cid>", "<cid>"],
+      "claim": "<what they disagree on>"
+    }
+  ]
+}
+```
+
+`seminals` length is 5–15. `tensions` may be `[]` if no founder-level
+disagreements exist. Do not emit prose outside this JSON.

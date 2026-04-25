@@ -37,4 +37,40 @@ Before you exit:
 
 ## Output
 
-One-line summary + 3–5 paradigm shifts as `{from, to, year, canonical_id}`.
+Emit valid JSON in this exact shape as your final message — the orchestrator
+passes it directly to `db.py record-phase --output-json`:
+
+```json
+{
+  "phase": "historian",
+  "summary": "<one-sentence chronological arc>",
+  "timeline": [
+    {
+      "year_range": "1985-1995",
+      "event": "<what happened>",
+      "canonical_ids": ["<cid>", "<cid>"],
+      "thread_status": "established"
+    }
+  ],
+  "dead_ends": [
+    {
+      "approach": "<what was tried>",
+      "tried_year": 1990,
+      "closed_by_canonical_id": "<cid that effectively closed it>",
+      "why_closed": "<one sentence>"
+    }
+  ],
+  "paradigm_shifts": [
+    {
+      "from": "<previous dominant frame>",
+      "to": "<new frame>",
+      "year": 2017,
+      "bridge_canonical_id": "<cid of the inflection paper>"
+    }
+  ]
+}
+```
+
+`thread_status` ∈ `{established, abandoned, dormant, unresolved}`.
+`paradigm_shifts` length is 3–5. `dead_ends` may be `[]` only if the
+field is too young to have any. Do not emit prose outside this JSON.
