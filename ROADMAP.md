@@ -525,6 +525,28 @@ the orchestrator (not a sub-agent). Same `403 Forbidden` from
 place; nothing in items 2–4 is testable from this runtime. Confirms
 the constraint is environmental and persistent, not transient.
 
+**Third runtime constraint (added 2026-04-25)**: in this runtime,
+general-purpose sub-agents that need many tool calls before persisting
+**reliably die at the Claude API stream-idle timeout**. Empirical record
+this session:
+
+- `social` (first attempt) — 80 tool calls / 12 minutes / 48 MCP queries,
+  zero papers persisted before timeout. Fixed at the persona layer
+  (per-angle persistence), but the underlying timeout still applied.
+- `pdf-extract dry-run harness` sub-agent — 16 tool calls / ~2 min,
+  no test file written.
+- `manuscript dogfood` sub-agent — 22 tool calls / ~3 min,
+  no test file written.
+
+Read-only sub-agents (`Explore` subagent_type, used twice for persona
+audits) finished cleanly both times. The pattern is: **substantial
+code-writing or many-MCP-call sub-agents are unreliable here; read-only
+investigation sub-agents are fine; orchestrator-driven code writing is
+fine**. When resuming: prefer driving substantial work from the
+orchestrator and using sub-agents for read-only investigation, or
+chunk code-writing tasks small enough that each sub-agent invocation
+finishes inside the stream-idle window.
+
 **Resume plan when we move to a runtime with paper-API egress:**
 
 - [ ] **Verify external API egress** — one `mcp__semantic-scholar__search_papers`
