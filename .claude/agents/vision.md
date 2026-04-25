@@ -38,4 +38,24 @@ Before you exit:
 
 ## Output
 
-One-line summary + the strongest implication in full: `{text, supporting_ids, confidence, falsifier}`.
+Emit valid JSON in this exact shape as your final message — the orchestrator
+passes it directly to `db.py record-phase --output-json`:
+
+```json
+{
+  "phase": "vision",
+  "summary": "<one-sentence sketch of what the foundation implies>",
+  "implications": [
+    {
+      "text": "<the implication, one sentence>",
+      "supporting_ids": ["<cid>", "<cid>"],
+      "confidence": 0.7,
+      "falsifier": "<a specific kind of observation that would kill it>"
+    }
+  ]
+}
+```
+
+`implications` length is 3–10. Each entry's `supporting_ids` has ≥2
+distinct canonical_ids. `confidence` is a float in (0, 1) — commit to a
+number. Do not emit prose outside this JSON.

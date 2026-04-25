@@ -53,4 +53,29 @@ Before you exit:
 
 ## Output
 
-One-line summary + the top hypothesis in full.
+Emit valid JSON in this exact shape as your final message — the orchestrator
+passes it directly to `db.py record-phase --output-json`. The same
+hypotheses must already be recorded in the tournament table per the
+section above; this output is the orchestrator's structured record:
+
+```json
+{
+  "phase": "theorist",
+  "summary": "<one-sentence sketch of the proposed direction>",
+  "hypotheses": [
+    {
+      "hyp_id": "hyp-th-001",
+      "statement": "<the proposal in one sentence>",
+      "method_sketch": "<specific method/framework/experimental design>",
+      "predicted_observables": ["<measurable success indicator>"],
+      "falsifiers": ["<what would count as failure, specifically>"],
+      "supporting_ids": ["<cid>", "<cid>", "<cid>", "<cid>", "<cid>"],
+      "gap_ref": "<gap_id from gaper that this addresses>"
+    }
+  ]
+}
+```
+
+`hypotheses` length is 1–3 (max — more dilutes quality). Each entry has
+≥5 distinct `supporting_ids` and ≥1 `falsifier`. `hyp_id` matches the
+id you registered in the tournament. Do not emit prose outside this JSON.

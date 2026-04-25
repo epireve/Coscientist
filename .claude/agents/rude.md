@@ -48,4 +48,28 @@ Before you exit:
 
 ## Output
 
-One-line summary + per-hypothesis survival score.
+Emit valid JSON in this exact shape as your final message — the orchestrator
+passes it directly to `db.py record-phase --output-json`:
+
+```json
+{
+  "phase": "rude",
+  "summary": "<one-sentence sketch of survival across the proposals>",
+  "evaluations": [
+    {
+      "hyp_id": "<theorist hypothesis being attacked>",
+      "steelman": "<one paragraph: the strongest case for the proposal>",
+      "weakest_link": "<the load-bearing assumption that, if false, collapses it>",
+      "killer_experiment": "<the cheapest observation that would disprove it>",
+      "survival": 3,
+      "supporting_ids": ["<prior-failure cid>"]
+    }
+  ]
+}
+```
+
+Exactly one entry per Theorist hypothesis (no pile-ons, no gaps).
+`survival` is an int in 1–5 (5=no obvious flaw, 1=specific prior failure).
+For any entry with `survival < 3`, `supporting_ids` must contain ≥1
+prior-failure canonical_id. `steelman` is a real paragraph, not a
+sentence. Do not emit prose outside this JSON.

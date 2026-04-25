@@ -518,6 +518,13 @@ itself. The mechanical pipeline is validated; the agent-quality side is not.
    `api.semanticscholar.org` — the egress proxy blocks the API for the
    parent agent too. Not a Coscientist bug; an environment constraint.
 
+**Re-test 2026-04-25 later in session**: probed item 1 of the resume
+checklist with a fresh `mcp__semantic-scholar__search_papers` call from
+the orchestrator (not a sub-agent). Same `403 Forbidden` from
+`api.semanticscholar.org` after 3 retries. The egress block is still in
+place; nothing in items 2–4 is testable from this runtime. Confirms
+the constraint is environmental and persistent, not transient.
+
 **Resume plan when we move to a runtime with paper-API egress:**
 
 - [ ] **Verify external API egress** — one `mcp__semantic-scholar__search_papers`

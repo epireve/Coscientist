@@ -50,4 +50,30 @@ Before you exit:
 
 ## Output
 
-One-line summary + the strongest direction in full.
+Emit valid JSON in this exact shape as your final message — the orchestrator
+passes it directly to `db.py record-phase --output-json`. Each direction
+must also be registered in the tournament table per the section above:
+
+```json
+{
+  "phase": "thinker",
+  "summary": "<one-sentence sketch of the new directions>",
+  "directions": [
+    {
+      "hyp_id": "hyp-tk-001",
+      "statement": "<one sentence>",
+      "why_underexplored": "<non-trivial answer to 'why hasn't this been done?'>",
+      "adjacent_fields": ["<sub-field 1>", "<sub-field 2>"],
+      "first_step": "<something a researcher could do this month>",
+      "related_claims": ["<claim_id>", "<claim_id>"]
+    }
+  ],
+  "exclusions": ["<class of directions you consciously skipped>"]
+}
+```
+
+`directions` length is 2–4. Each `adjacent_fields` has ≥2 entries.
+Each `related_claims` has ≥2 existing claim_ids from the run.
+`first_step` fits on a Post-it (one concrete action this month, not a
+research program). `exclusions` may be `[]` if you didn't skip any
+class deliberately. Do not emit prose outside this JSON.

@@ -40,4 +40,35 @@ Before you exit:
 
 ## Output
 
-One-line summary + the sharpened question + a tension-consensus ratio (e.g. `5 consensus / 3 tension`). Then stop — orchestrator runs **Break 2**.
+Emit valid JSON in this exact shape as your final message — the orchestrator
+passes it directly to `db.py record-phase --output-json` and then triggers
+**Break 2**:
+
+```json
+{
+  "phase": "synthesizer",
+  "summary": "<one-sentence map of where the field stands>",
+  "sharpened_question": "<the original question, restated in light of what we know>",
+  "consensus": [
+    {
+      "claim": "<one-sentence consensus statement>",
+      "supporting_ids": ["<cid>", "<cid>", "<cid>"]
+    }
+  ],
+  "tensions": [
+    {
+      "claim": "<the genuine disagreement>",
+      "side_a_supporting_ids": ["<cid>", "<cid>"],
+      "side_b_supporting_ids": ["<cid>", "<cid>"]
+    }
+  ],
+  "open_questions": ["<question 1>", "<question 2>"]
+}
+```
+
+Each `consensus` entry has ≥3 distinct `supporting_ids`. Each `tensions`
+entry has ≥2 distinct `supporting_ids` per side. `sharpened_question`
+must be concretely narrower than the run's starting question — diff
+them. `open_questions` length is 3–8. Zero hedge words anywhere
+("interestingly", "broadly", "it seems", "may potentially"). Do not
+emit prose outside this JSON.

@@ -42,4 +42,25 @@ Before you exit:
 
 ## Output
 
-`{brief_path, map_path, claims_cited, papers_cited, eval_passed}`.
+Emit valid JSON in this exact shape as your final message — the orchestrator
+passes it directly to `db.py record-phase --output-json`:
+
+```json
+{
+  "phase": "scribe",
+  "brief_path": "/abs/path/to/brief.md",
+  "map_path": "/abs/path/to/understanding_map.md",
+  "claims_cited": <int>,
+  "papers_cited": <int>,
+  "eval_passed": true,
+  "hedge_word_hits": 0
+}
+```
+
+`brief_path` and `map_path` are absolute paths under the run directory
+that exist on disk. `claims_cited` is the count of distinct `claim_id`
+references across both artifacts; `papers_cited` is the count of
+distinct `canonical_id` references. `eval_passed` is the exit-0 status
+of `/research-eval` against this run. `hedge_word_hits` is the result
+of the hedge-word grep across both files (must be 0 to pass exit
+test 5). Do not emit prose outside this JSON.
