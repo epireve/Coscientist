@@ -46,11 +46,16 @@ def _run(*args: str) -> subprocess.CompletedProcess:
     )
 
 
-def _seed_paper(cid: str) -> "PaperArtifact":  # type: ignore  # noqa: F821
-    """Seed a paper with manifest + metadata. State stays at discovered."""
-    from lib.paper_artifact import Metadata, PaperArtifact
+def _seed_paper(cid: str, state: str = "discovered") -> "PaperArtifact":  # type: ignore  # noqa: F821
+    """Seed a paper with manifest + metadata. State defaults to discovered;
+    pass state='acquired' for tests that exercise post-acquire paths
+    (e.g. extract behavior after the v0.23 state guard)."""
+    from lib.paper_artifact import Metadata, PaperArtifact, State
     art = PaperArtifact(cid)
-    art.save_manifest(art.load_manifest())
+    m = art.load_manifest()
+    if state != "discovered":
+        m.state = getattr(State, state)
+    art.save_manifest(m)
     if art.load_metadata() is None:
         art.save_metadata(Metadata(title=f"Test paper {cid}"))
     return art
@@ -70,23 +75,25 @@ def _write_pdf(path: Path, size: int = 1024) -> Path:
 
 class PreExtractGuardTests(TestCase):
     def test_extract_without_pdf_in_raw_errors(self):
-        """A paper with state=discovered (no raw/*.pdf) cannot be extracted."""
+        """A paper at state=acquired (gate-passed) but with raw/ empty
+        errors with 'no PDF'. v0.23: this is the no-pdf-after-acquire
+        edge case — the state guard passed but the file is missing."""
         with isolated_cache():
             cid = "anon_2025_nopdf_111111"
-            _seed_paper(cid)
+            _seed_paper(cid, state="acquired")
             r = _run("--canonical-id", cid)
             self.assertTrue(r.returncode != 0,
                             "extract must refuse when no PDF exists")
             self.assertIn("no PDF", r.stderr,
                           f"expected 'no PDF' in stderr; got: {r.stderr!r}")
 
-    def test_extract_unknown_canonical_id_errors_cleanly(self):
-        """An entirely unknown cid: PaperArtifact creates the dir on the fly,
-        but no PDF is there, so the same 'no PDF' branch fires."""
+    def test_extract_unknown_canonical_id_hits_state_guard(self):
+        """An entirely unknown cid: fresh paper defaults to state=discovered.
+        v0.23: the state guard fires before the no-PDF check."""
         with isolated_cache():
             r = _run("--canonical-id", "anon_2025_notreal_222222")
             self.assertTrue(r.returncode != 0)
-            self.assertIn("no PDF", r.stderr)
+            self.assertIn("refusing to extract", r.stderr)
 
     def test_extract_invalid_engine_value_rejected_by_argparse(self):
         with isolated_cache():
@@ -107,7 +114,7 @@ class DoclingMissingTests(TestCase):
     def test_docling_missing_errors_cleanly_on_default_engine(self):
         with isolated_cache() as cache_dir:
             cid = "anon_2025_doclingmiss_444444"
-            art = _seed_paper(cid)
+            art = _seed_paper(cid, state="acquired")
             _write_pdf(art.raw_dir / "arxiv.pdf", size=1024)
 
             r = _run("--canonical-id", cid)
@@ -125,7 +132,7 @@ class DoclingMissingTests(TestCase):
     def test_explicit_engine_docling_surfaces_the_missing_dep(self):
         with isolated_cache() as cache_dir:
             cid = "anon_2025_doclingexplicit_555555"
-            art = _seed_paper(cid)
+            art = _seed_paper(cid, state="acquired")
             _write_pdf(art.raw_dir / "arxiv.pdf", size=1024)
 
             r = _run("--canonical-id", cid, "--engine", "docling")
@@ -139,11 +146,12 @@ class DoclingMissingTests(TestCase):
 
 class IdempotencyTests(TestCase):
     def test_already_extracted_short_circuits(self):
-        """If content.md exists and is non-empty, extract is a no-op
-        without --force. The caller learns nothing was redone."""
+        """A paper at state=extracted with content.md is a no-op without
+        --force. v0.23 keeps this friendly UX (state=extracted is allowed
+        to enter; has_full_text() short-circuits before doing any work)."""
         with isolated_cache() as cache_dir:
             cid = "anon_2025_alreadyext_666666"
-            art = _seed_paper(cid)
+            art = _seed_paper(cid, state="extracted")
             _write_pdf(art.raw_dir / "arxiv.pdf", size=1024)
             # Pre-write content.md so has_full_text() returns True
             art.content_path.write_text("# already extracted\n\nbody " * 50)
@@ -161,7 +169,7 @@ class IdempotencyTests(TestCase):
         which is itself the proof the skip was bypassed."""
         with isolated_cache() as cache_dir:
             cid = "anon_2025_forcerun_777777"
-            art = _seed_paper(cid)
+            art = _seed_paper(cid, state="extracted")
             _write_pdf(art.raw_dir / "arxiv.pdf", size=1024)
             art.content_path.write_text("# stale\n\nbody " * 50)
 
@@ -194,43 +202,87 @@ class CliEdgeTests(TestCase):
 
 # ---------------- crack documentation (source-grep, not behavior) ----------------
 
-class CrackDocumentationTests(TestCase):
-    """These tests assert that the *current* extract.py source has the
-    properties we identified as cracks. If any of these tests start
-    failing, it means someone fixed the crack — flip the assertion."""
+class V023FixesTests(TestCase):
+    """v0.23 fixed the three v0.20 CRACKs. These tests assert the FIXES
+    are in place via source-grep; behavioral tests below exercise them."""
 
     def _src(self) -> str:
         return EXTRACT.read_text()
 
-    def test_CRACK_A_no_state_acquired_guard(self):
-        """No `state == acquired` check before extracting. extract.py only
-        guards against missing PDF, not against running on a paper that
-        hasn't been formally acquired (e.g. someone dropped a file in
-        raw/ manually)."""
+    def test_state_acquired_guard_present(self):
+        """v0.23: extract refuses on upstream states (discovered/triaged)
+        and on read/cited unless --force. acquired and extracted pass through."""
         src = self._src()
-        # A real guard would look something like:
-        #   if manifest.state != State.acquired
-        self.assertNotIn(
-            "State.acquired", src,
-            "if extract.py now has a state guard, flip this CRACK test",
-        )
+        self.assertIn("_STATES_TOO_EARLY", src,
+                      "extract.py must declare which states are too-early")
+        self.assertIn("_STATES_TOO_LATE", src,
+                      "extract.py must declare which states are too-late")
+        self.assertIn("refusing to extract", src)
 
-    def test_CRACK_B_no_pdf_integrity_check(self):
-        """No magic-byte / size check on the PDF before passing to docling
-        (compare paper-acquire/record.py which has b'%PDF-' check + size>=200)."""
+    def test_pdf_integrity_check_present(self):
+        """v0.23: magic-byte + min-size check before passing to docling."""
         src = self._src()
-        self.assertNotIn(b"%PDF-".decode(), src,
-                         "if extract.py now magic-byte-checks the PDF, flip this CRACK test")
+        self.assertIn("%PDF-", src,
+                      "extract.py must magic-byte-check the PDF")
+        self.assertIn("_MIN_PDF_BYTES", src)
 
-    def test_CRACK_C_no_artifact_lock(self):
-        """No artifact_lock around extract operations. Concurrent extracts
-        on the same paper can race — unlike paper-acquire/record.py which
-        wraps mutations in `with artifact_lock(art.root, timeout=30.0)`."""
+    def test_artifact_lock_present(self):
+        """v0.23: artifact_lock wraps the artifact mutation block."""
         src = self._src()
-        self.assertNotIn(
-            "artifact_lock", src,
-            "if extract.py now uses artifact_lock, flip this CRACK test",
-        )
+        self.assertIn("artifact_lock", src)
+        self.assertIn("from lib.lockfile import artifact_lock", src)
+
+
+class V023BehavioralTests(TestCase):
+    """End-to-end exercises of the v0.23 fixes."""
+
+    def test_extract_refuses_when_state_is_discovered(self):
+        """A paper at state=discovered with a PDF in raw/ now refuses
+        rather than silently extracting (CRACK A from v0.20)."""
+        with isolated_cache() as cache_dir:
+            cid = "anon_2025_unsanctioned_aaaaaa"
+            art = _seed_paper(cid)
+            # Manually drop a PDF in raw/ without going through paper-acquire
+            _write_pdf(art.raw_dir / "manual.pdf", size=1024)
+
+            r = _run("--canonical-id", cid)
+            self.assertTrue(r.returncode != 0)
+            self.assertIn("refusing to extract", r.stderr)
+            self.assertIn("discovered", r.stderr)
+
+    def test_extract_rejects_html_payload_at_extract_time(self):
+        """A paper at state=acquired with a non-PDF in raw/ (e.g. someone
+        replaced the file post-acquire) is now rejected before docling
+        is even invoked (CRACK B from v0.20)."""
+        with isolated_cache() as cache_dir:
+            from lib.paper_artifact import State
+            cid = "anon_2025_replaced_bbbbbb"
+            art = _seed_paper(cid)
+            # Advance state to acquired without going through record.py
+            m = art.load_manifest()
+            m.state = State.acquired
+            art.save_manifest(m)
+            # Drop an HTML payload as if a publisher replaced the PDF
+            html = b"<!DOCTYPE html><html>" + b"login wall " * 50 + b"</html>"
+            (art.raw_dir / "arxiv.pdf").write_bytes(html)
+
+            r = _run("--canonical-id", cid)
+            self.assertTrue(r.returncode != 0)
+            self.assertIn("not a PDF", r.stderr)
+
+    def test_extract_rejects_too_small_payload_at_extract_time(self):
+        with isolated_cache() as cache_dir:
+            from lib.paper_artifact import State
+            cid = "anon_2025_tinyrepl_cccccc"
+            art = _seed_paper(cid)
+            m = art.load_manifest()
+            m.state = State.acquired
+            art.save_manifest(m)
+            (art.raw_dir / "arxiv.pdf").write_bytes(b"%PDF-1.4\nx")
+
+            r = _run("--canonical-id", cid)
+            self.assertTrue(r.returncode != 0)
+            self.assertIn("too small", r.stderr)
 
 
 if __name__ == "__main__":
@@ -239,5 +291,6 @@ if __name__ == "__main__":
         DoclingMissingTests,
         IdempotencyTests,
         CliEdgeTests,
-        CrackDocumentationTests,
+        V023FixesTests,
+        V023BehavioralTests,
     ))

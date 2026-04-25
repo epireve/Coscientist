@@ -2,6 +2,17 @@
 """pdf-extract: Docling-primary PDF extraction into the paper artifact.
 
 Falls back to vision_fallback.py when Docling output is low-confidence.
+
+v0.23 closes three cracks the v0.20 harness pinned:
+- State guard: refuses to run on a paper that hasn't been formally
+  acquired (state ∈ {acquired, extracted+--force}); a manual file drop
+  in raw/ no longer bypasses the gate.
+- PDF integrity check: same magic-byte + min-size pre-check as
+  paper-acquire/record.py uses on the way in. A garbage file in raw/
+  errors with a clear 'not a PDF' rather than an opaque docling crash.
+- artifact_lock around artifact mutations: matches the paper-acquire
+  / paper-triage pattern so concurrent extract runs on the same paper
+  serialise instead of racing on content.md / figures/ / extraction.log.
 """
 
 from __future__ import annotations
@@ -17,9 +28,22 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from lib.lockfile import artifact_lock  # noqa: E402  v0.23
 from lib.paper_artifact import PaperArtifact, State  # noqa: E402
 
 MIN_CONFIDENCE_CHARS = 1500  # heuristic: <1500 chars ≈ extraction failed
+_MIN_PDF_BYTES = 200
+
+# States from which extract may run.
+#   - discovered, triaged: too early; extract called before paper-acquire
+#     formally accepted the PDF. Refuse hard.
+#   - acquired: the green-light state.
+#   - extracted: friendly no-op via has_full_text() below; allow without
+#     --force so re-running extract on a finished paper is harmless.
+#   - read, cited: way past extract; refuse unless --force (someone
+#     re-extracting deliberately, e.g. after a docling upgrade).
+_STATES_TOO_EARLY = {State.discovered, State.triaged}
+_STATES_TOO_LATE = {State.read, State.cited}
 
 
 def _run_docling(pdf: Path, art: PaperArtifact) -> dict:
@@ -117,38 +141,74 @@ def main() -> None:
     args = p.parse_args()
 
     art = PaperArtifact(args.canonical_id)
-    pdf = art.primary_pdf()
-    if pdf is None:
-        raise SystemExit(f"no PDF in {art.raw_dir}; run paper-acquire first")
 
-    if art.has_full_text() and not args.force:
-        print(f"already extracted: {art.content_path}")
-        return
+    # v0.23: serialise against any other concurrent writer for this paper
+    # (paper-triage, paper-acquire, or another extract). Same pattern as
+    # paper-acquire/record.py.
+    with artifact_lock(art.root, timeout=30.0):
+        manifest = art.load_manifest()
 
-    log: dict = {"at": datetime.now(UTC).isoformat(), "pdf": str(pdf)}
+        # v0.23 state guard:
+        if manifest.state in _STATES_TOO_EARLY:
+            raise SystemExit(
+                f"refusing to extract: state is "
+                f"{manifest.state.value!r}; run paper-acquire first"
+            )
+        if manifest.state in _STATES_TOO_LATE and not args.force:
+            raise SystemExit(
+                f"refusing to extract: state is "
+                f"{manifest.state.value!r}; pass --force to re-extract"
+            )
 
-    if args.engine == "vision":
-        _invoke_vision_fallback(args.canonical_id)
-        log["engine"] = "vision"
-    else:
-        try:
-            docling_log = _run_docling(pdf, art)
-            log.update(docling_log)
-            if docling_log["chars"] < MIN_CONFIDENCE_CHARS and args.engine == "auto":
-                log["low_confidence"] = True
-                log["fallback"] = "vision"
-                _invoke_vision_fallback(args.canonical_id)
-        except Exception as e:
-            log["docling_error"] = str(e)
-            if args.engine == "auto":
-                log["fallback"] = "vision"
-                _invoke_vision_fallback(args.canonical_id)
-            else:
-                raise
+        pdf = art.primary_pdf()
+        if pdf is None:
+            raise SystemExit(f"no PDF in {art.raw_dir}; run paper-acquire first")
 
-    art.extraction_log.write_text(json.dumps(log, indent=2))
-    art.set_state(State.extracted)
-    print(args.canonical_id)
+        # v0.23 integrity check — magic bytes + minimum size. Same pre-check
+        # paper-acquire applies on the way in; redundant when the PDF came
+        # from us, defence-in-depth when it didn't (manual drops, partial
+        # downloads, replaced files).
+        size = pdf.stat().st_size
+        if size < _MIN_PDF_BYTES:
+            raise SystemExit(
+                f"file too small to be a real PDF ({size} bytes): {pdf}"
+            )
+        with pdf.open("rb") as fh:
+            head = fh.read(8)
+        if not head.startswith(b"%PDF-"):
+            raise SystemExit(
+                f"file in raw/ is not a PDF (magic bytes: {head[:5]!r}): {pdf}. "
+                "Did paper-acquire's integrity check get bypassed?"
+            )
+
+        if art.has_full_text() and not args.force:
+            print(f"already extracted: {art.content_path}")
+            return
+
+        log: dict = {"at": datetime.now(UTC).isoformat(), "pdf": str(pdf)}
+
+        if args.engine == "vision":
+            _invoke_vision_fallback(args.canonical_id)
+            log["engine"] = "vision"
+        else:
+            try:
+                docling_log = _run_docling(pdf, art)
+                log.update(docling_log)
+                if docling_log["chars"] < MIN_CONFIDENCE_CHARS and args.engine == "auto":
+                    log["low_confidence"] = True
+                    log["fallback"] = "vision"
+                    _invoke_vision_fallback(args.canonical_id)
+            except Exception as e:
+                log["docling_error"] = str(e)
+                if args.engine == "auto":
+                    log["fallback"] = "vision"
+                    _invoke_vision_fallback(args.canonical_id)
+                else:
+                    raise
+
+        art.extraction_log.write_text(json.dumps(log, indent=2))
+        art.set_state(State.extracted)
+        print(args.canonical_id)
 
 
 if __name__ == "__main__":

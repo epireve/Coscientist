@@ -100,14 +100,15 @@ from tests.test_deep_research_pipeline import (
 )
 from tests.test_pdf_extract_state_machine import (
     CliEdgeTests as PdfExtractCliEdgeTests,
-    CrackDocumentationTests as PdfExtractCrackTests,
     DoclingMissingTests,
     IdempotencyTests as PdfExtractIdempotencyTests,
     PreExtractGuardTests,
+    V023BehavioralTests,
+    V023FixesTests,
 )
 from tests.test_manuscript_dogfood import (
     ManuscriptDogfoodTests,
-    PandocStyleBibCrackTests,
+    PandocStyleBibTests,
 )
 from tests.test_paper_state_machine import (
     AcquireGateTests,
@@ -211,15 +212,16 @@ if __name__ == "__main__":
         ResumeTests,
         BreakIdempotencyTests,
         EdgeCaseTests,
-        # v0.20 pdf-extract dry-run harness
+        # v0.20 pdf-extract dry-run harness + v0.23 fixes
         PreExtractGuardTests,
         DoclingMissingTests,
         PdfExtractIdempotencyTests,
         PdfExtractCliEdgeTests,
-        PdfExtractCrackTests,
-        # v0.21 manuscript subsystem dogfood
+        V023FixesTests,
+        V023BehavioralTests,
+        # v0.21 manuscript subsystem dogfood + v0.23 pandoc bib fix
         ManuscriptDogfoodTests,
-        PandocStyleBibCrackTests,
+        PandocStyleBibTests,
         # Per-paper state machine harness
         DiscoveredStateTests,
         AcquireGateTests,

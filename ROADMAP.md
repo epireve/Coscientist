@@ -330,6 +330,35 @@ Acted on the persona auditor's findings from the live smoke-test session: `groun
 
 Each persona's `## Output` section now contains an explicit JSON schema with named fields, types, and length constraints, framed as a fenced code block the orchestrator can parse straight into `phases.output_json`. Pure prose change; no test additions needed (the existing `AgentFrontmatterTests` regression test still passes).
 
+### v0.19 — tighten the remaining 6 personas (commits ea6ba4f + e9a0064)
+
+Auditor's second pass against `vision`, `theorist`, `rude`, `synthesizer`, `thinker`, `scribe` found the same Minor severity finding for all six — loose output specs. v0.19 applied the v0.18 schema pattern to each. Now all 9 deep-research personas have explicit JSON schemas in their `## Output` section.
+
+ROADMAP also got a re-test entry confirming the smoke-test egress block from earlier in the session is environmental and persistent (probed with a fresh search_papers call, same 403). Plus a third runtime constraint surfaced: general-purpose sub-agents that need many tool calls before persisting reliably die at the Claude API stream-idle timeout (3 confirmed instances this session). Read-only Explore sub-agents and orchestrator-driven work are fine.
+
+### v0.20 — pdf-extract dry-run harness (commit 0004c65)
+
+Same v0.15/v0.16 playbook applied to pdf-extract. 12 tests covering pre-extract guards, the docling-not-installed branch, idempotency, argparse edges, plus three CRACK-pinning tests documenting issues to fix later: no `state==acquired` guard, no PDF magic-byte check, no `artifact_lock`. Suite 310 → 322.
+
+### v0.21 — manuscript subsystem end-to-end dogfood (commit 8534470)
+
+End-to-end run of `ingest → validate_citations → audit gate → critique gate → reflect gate` on a synthetic 800-word manuscript with mixed citation styles, a duplicate-author-year bib collision (wang2020 × 2), an orphan reference, and a dangling cite. Exercises every code path that's been only unit-tested. Surfaced one real UX crack: the bib parser supports three styles (`[N]`, `- bullet`, `@article{key, ...}`) but silently loses pandoc-style `@key prose` entries. Pinned with assertEqual(len, 0). Suite 322 → 324.
+
+### v0.22 — MCP setup guide (commit e58aae0)
+
+User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
+
+### v0.23 — close the four CRACKs from v0.20 + v0.21
+
+The two harnesses pinned a total of four CRACKs as `current-broken-behavior` tests. v0.23 fixes all four:
+
+- **pdf-extract state guard**: refuses extraction on `discovered`/`triaged` (too early — paper-acquire hasn't run), or `read`/`cited` without `--force` (too late — already past extraction). `acquired` is the green-light state; `extracted` is a friendly no-op via the existing `has_full_text()` check.
+- **pdf-extract PDF integrity check**: same magic-byte + min-size pre-check `paper-acquire/record.py` applies on the way in. Defence-in-depth — catches manually-dropped non-PDFs and post-acquire file replacements before docling sees them.
+- **pdf-extract artifact_lock**: matches the paper-acquire/paper-triage pattern. Concurrent extracts on the same paper now serialise rather than racing on `content.md` / `figures/` / `extraction.log`.
+- **manuscript-ingest pandoc-style `@key prose` bib parser**: now recognised as a fourth bib style alongside `[N]`, bullets, and `@article{key, ...}` BibTeX blocks. Explicit key is lifted from the `@key` prefix and stored as `entry_key` directly, bypassing the heuristic inferrer.
+
+Tests: 4 CRACK-pinning tests replaced with fix-verification tests; 3 new behavioral tests (refuse-on-discovered, reject-html-at-extract-time, reject-too-small-at-extract-time); 1 new positive test for pandoc-bib parsing. Suite 324 → 327.
+
 ## Inspirations and what we take from them
 
 | Source | Pattern we adopt |

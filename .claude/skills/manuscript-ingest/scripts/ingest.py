@@ -54,6 +54,13 @@ BIBTEX_ENTRY = re.compile(
     r"incollection|conference|proceedings|unpublished|manual)\s*\{([^,]+),",
     re.IGNORECASE,
 )
+# v0.23: pandoc-style "@key prose ..." (no curly braces). The fourth common
+# bib format. Distinguish from BibTeX-block lines (which start with
+# @<entry-type>{ and were already handled). The pandoc form has the key
+# directly after @ and is followed by whitespace + prose, not a brace.
+BIB_PANDOC_KEY = re.compile(
+    r"^@([A-Za-z][A-Za-z0-9._:-]*)\s+(\S.*)$"
+)
 DOI_RX = re.compile(r"\b(10\.\d{4,9}/[-._;()/:A-Za-z0-9]+)\b")
 YEAR_RX = re.compile(r"\b(19\d{2}|20\d{2})\b")
 # Heuristic: infer a BibTeX-style key from "Author (Year)" or "Author, Year"
@@ -100,37 +107,65 @@ def extract_bibliography(text: str) -> list[dict]:
             })
         return entries
 
-    # Fall back to numbered / bullet style — parse line by line
+    # Fall back to numbered / bullet / pandoc-key style — parse line by line
     ordinal = 0
     pending_text: list[str] = []
     pending_ordinal: int | None = None
+    pending_explicit_key: str | None = None  # v0.23: pandoc-style explicit key
     for raw_line in bib_text.splitlines():
         line = raw_line.rstrip()
         if not line.strip():
             # Blank separates entries; flush
             if pending_text:
                 ordinal += 1 if pending_ordinal is None else 0
-                entries.append(_make_entry(pending_text, pending_ordinal or ordinal))
+                entries.append(_make_entry(
+                    pending_text, pending_ordinal or ordinal,
+                    explicit_key=pending_explicit_key,
+                ))
                 pending_text = []
                 pending_ordinal = None
+                pending_explicit_key = None
             continue
         nm = BIB_NUMBERED.match(line)
         if nm:
             if pending_text:
-                # Flush the previous entry before starting new one
                 ordinal = pending_ordinal or (ordinal + 1)
-                entries.append(_make_entry(pending_text, ordinal))
+                entries.append(_make_entry(
+                    pending_text, ordinal,
+                    explicit_key=pending_explicit_key,
+                ))
                 pending_text = []
+                pending_explicit_key = None
             pending_ordinal = int(nm.group(1) or nm.group(2) or nm.group(3))
             pending_text = [nm.group(4)]
+            continue
+        # v0.23: pandoc-style "@key prose" — must be checked BEFORE BIB_BULLET
+        # since "- @key prose" never matches and "@key" alone is unambiguous.
+        pm = BIB_PANDOC_KEY.match(line)
+        if pm:
+            if pending_text:
+                ordinal = pending_ordinal or (ordinal + 1)
+                entries.append(_make_entry(
+                    pending_text, ordinal,
+                    explicit_key=pending_explicit_key,
+                ))
+                pending_text = []
+                pending_ordinal = None
+                pending_explicit_key = None
+            pending_explicit_key = pm.group(1)
+            pending_text = [pm.group(2)]
             continue
         bm = BIB_BULLET.match(line)
         if bm:
             if pending_text:
                 ordinal = pending_ordinal or (ordinal + 1)
-                entries.append(_make_entry(pending_text, ordinal))
+                entries.append(_make_entry(
+                    pending_text, ordinal,
+                    explicit_key=pending_explicit_key,
+                ))
                 pending_text = []
                 pending_ordinal = None
+                pending_explicit_key = None
             pending_text = [bm.group(1)]
             continue
         # Continuation of the previous entry
@@ -139,15 +174,19 @@ def extract_bibliography(text: str) -> list[dict]:
 
     if pending_text:
         ordinal = pending_ordinal or (ordinal + 1)
-        entries.append(_make_entry(pending_text, ordinal))
+        entries.append(_make_entry(
+            pending_text, ordinal,
+            explicit_key=pending_explicit_key,
+        ))
 
     return entries
 
 
-def _make_entry(lines: list[str], ordinal: int) -> dict:
+def _make_entry(lines: list[str], ordinal: int,
+                explicit_key: str | None = None) -> dict:
     raw = " ".join(lines).strip()
     return {
-        "entry_key": _infer_entry_key(raw),
+        "entry_key": explicit_key or _infer_entry_key(raw),
         "raw_text": raw,
         "ordinal": ordinal,
         "doi": _extract_doi(raw),

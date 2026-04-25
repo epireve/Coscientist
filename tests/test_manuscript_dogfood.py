@@ -504,39 +504,41 @@ Cited \\cite{key1} and [@key2].
 """
 
 
-class PandocStyleBibCrackTests(TestCase):
-    """The bib parser supports three styles: numbered `[N]`, markdown
-    bullets `- `, and BibTeX blocks `@article{key, ...}`. The fourth
-    common style — pandoc-style `@key prose ...` (no curly braces) —
-    silently falls through: lines with `@key` get appended to the
-    previous entry rather than starting a new one.
+class PandocStyleBibTests(TestCase):
+    """v0.23: pandoc-style `@key prose` bibliography format is now
+    parsed alongside [N], `-`, and @article{} block styles. (Was
+    pinned as a CRACK in v0.21; fix landed in v0.23.)"""
 
-    This is the same class of bug as the v0.20 pdf-extract cracks.
-    Pinning current behavior so a future parser improvement surfaces
-    visibly when this test breaks (flip the assertion at that point)."""
-
-    def test_pandoc_at_key_style_bib_silently_loses_entries(self):
+    def _load(self):
         from importlib import util
         spec = util.spec_from_file_location(
             "ingest_mod",
             _ROOT / ".claude/skills/manuscript-ingest/scripts/ingest.py",
         )
-        ingest_mod = util.module_from_spec(spec)
-        spec.loader.exec_module(ingest_mod)
+        m = util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        return m
 
+    def test_pandoc_at_key_style_bib_now_parsed(self):
+        ingest_mod = self._load()
         entries = ingest_mod.extract_bibliography(PANDOC_STYLE_BIB)
-        # CRACK: a bib with three @-prefixed pandoc-style entries should
-        # produce three entries. Currently produces zero, because the
-        # parser doesn't recognise `@key prose` as a new-entry marker
-        # (only `@article{key, ...}` BibTeX-block form triggers).
         self.assertEqual(
-            len(entries), 0,
-            "if the parser now handles pandoc-style @key bibs, flip this CRACK"
+            len(entries), 3,
+            f"expected 3 pandoc-style entries; got {len(entries)}",
         )
+        keys = [e.get("entry_key") for e in entries]
+        self.assertEqual(keys, ["key1", "key2", "key3"],
+                         f"explicit keys must be lifted from @key prefix; got {keys}")
+        # Raw text must NOT include the @key prefix
+        for e in entries:
+            self.assertFalse(
+                e["raw_text"].startswith("@"),
+                f"raw_text should strip @key prefix; got {e['raw_text']!r}",
+            )
 
 
 if __name__ == "__main__":
     sys.exit(run_tests(
         ManuscriptDogfoodTests,
-        PandocStyleBibCrackTests,
+        PandocStyleBibTests,
     ))
