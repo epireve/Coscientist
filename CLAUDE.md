@@ -106,6 +106,8 @@ Three additional agents are invoked by other workflows (not the deep-research pi
 - `publishability-judge` — venue-calibrated publishability verdict via `publishability-check`
 - `red-team` — named-attack-vector critique of finished work via `attack-vectors`
 - `manuscript-drafter` — section-by-section drafting via the `manuscript-draft` skill; reads outline.json + research context, fills each section, tracks word counts and cite keys
+- `manuscript-formatter` — pandoc export via the `manuscript-format` skill; strips placeholders, writes to `exports/`
+- `manuscript-reviser` — respond-to-reviewers via the `manuscript-revise` skill; parses structured review, produces `response_letter.md` + `revision_notes.md`
 
 These are used by manuscript-audit / manuscript-critique workflows, and by the tournament/evolution subsystem when it lands.
 

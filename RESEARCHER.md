@@ -147,6 +147,8 @@ Principle keys: 1 Triage, 2 Cite, 3 Doubt Extractor, 4 Tension, 5 Bias, 6 Name F
 | **publishability-judge** (Tier A5) | 7 + 8 + 9 + 10 |
 | **red-team** (Tier A5, upgrade of rude) | 8 + named attack vectors (see ROADMAP A5) |
 | **manuscript-drafter** (A1) | 2 + 7 + 12 (cite what you've read, commit word counts, draft to communicate) |
+| **manuscript-formatter** (A1) | 3 + 12 (doubt extractor output; strip placeholders before export) |
+| **manuscript-reviser** (A1) | 8 + 12 (steelman each reviewer comment before responding; responses must communicate, not defend) |
 | all | 11 |
 
 ## Mergeable

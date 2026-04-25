@@ -348,6 +348,35 @@ End-to-end run of `ingest → validate_citations → audit gate → critique gat
 
 User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
 
+### v0.27 — manuscript-format, manuscript-revise, manuscript-version (A1 complete)
+
+Three parallel builds completing the A1 manuscript subsystem. All skills coexist alongside `manuscript-draft` (v0.26) and feed each other: draft → version snapshot → format export; draft → ingest → critique → revise.
+
+**manuscript-format** (new skill + agent):
+- `format.py` — subcommands: `export` (pandoc to `.tex`/`.docx`/`.pdf`), `list` (show all exports), `clean` (remove exports dir)
+- `pandoc_utils.py` — `pandoc_available()`, `strip_placeholders()` (removes `[PLACEHOLDER...]` blocks + HTML comments before export), `build_pandoc_args()` (venue-to-pandoc option map)
+- Venue support: `neurips`, `acl`, `imrad`, `nature`, `thesis` — each maps to appropriate pandoc `--to` args; source.md never modified
+- Sub-agent `manuscript-formatter` added; applies RESEARCHER.md principles 3 + 12
+
+**manuscript-revise** (new skill + agent):
+- `revise.py` — subcommands: `ingest-review` (parse → `review.json`), `plan` (section-keyed action list → `revision_notes.md`), `respond` (response stubs → `response_letter.md`; state → `revised`), `status` (pending responses count)
+- `review_parser.py` — parses `Reviewer N:` headers + numbered comments (four styles); pure module, no CLI
+- State guard: blocks if state in `{submitted, published}`; `--force` overrides
+- Sub-agent `manuscript-reviser` added; applies RESEARCHER.md principles 8 + 12
+
+**manuscript-version** (new skill, no sub-agent — mechanical):
+- `version.py` — subcommands: `snapshot`, `log`, `diff`, `restore`
+- `version_store.py` — `snapshot_hash`, `make_version_id`, `list_versions`, `latest_version`, `section_word_counts`; pure logic module
+- Version IDs: `v<N>-<YYYYMMDD-HHMMSS>` — sortable integer prefix, human-readable timestamp; prefix-match for ergonomic CLI use
+- Restore always auto-snapshots current state first; no SQLite — all metadata in `meta.json` per version
+
+Tests (99 new, 456 total; 0 failing):
+- manuscript-format: 31 tests (PandocUtilsTests, FormatExportTests, FormatListTests, FormatCleanTests, CliEdgeTests)
+- manuscript-revise: 42 tests (ReviewParserTests, IngestReviewTests, PlanTests, RespondTests, StatusTests, StateGuardTests, CliEdgeTests)
+- manuscript-version: 26 tests (VersionStoreTests, SnapshotTests, LogTests, DiffTests, RestoreTests, CliEdgeTests)
+
+A1 subsystem is now complete. Tier A is fully shipped.
+
 ### v0.26 — manuscript-draft skill (A1 second cut)
 
 First cut of structured manuscript drafting: outline → section → revision scaffold with venue templates.
@@ -425,9 +454,9 @@ Ingest the user's own manuscripts and treat them as artifacts parallel to papers
 - ✅ `manuscript-critique` — four reviewer personas (methodological, theoretical, big-picture, nitpicky) with structured findings + committed overall verdict (v0.4)
 - ✅ `manuscript-reflect` — argument structure, implicit assumptions, weakest link, one-experiment recommendation (v0.4)
 - ✅ `manuscript-draft` — outline → section → revision scaffold. Five venue templates (IMRaD, NeurIPS, ACL, Nature, thesis). Outline tracking + cite-key harvesting. Feeds into `manuscript-ingest`. (v0.26)
-- `manuscript-revise` — respond-to-reviewers mode. Takes review + current draft; produces diff + response letter keyed to each point.
-- `manuscript-format` — pandoc-driven export to venue template (LaTeX class, .docx, arXiv).
-- `manuscript-version` — git + SQLite `manuscript_versions` table. Auto-commit each iteration with semantic messages. DB layer tracks word_count, claims_added/removed, reviewer_feedback_addressed per version.
+- ✅ `manuscript-revise` — respond-to-reviewers mode. Parses structured review; produces `response_letter.md` + `revision_notes.md`; advances state to `revised`. (v0.27)
+- ✅ `manuscript-format` — pandoc-driven export (LaTeX, .docx, optional PDF); strips placeholders before export; writes to `exports/`; `list` + `clean` subcommands. (v0.27)
+- ✅ `manuscript-version` — lightweight snapshot history; `snapshot`, `log`, `diff`, `restore`; auto-snapshots before restore; no SQLite — pure filesystem under `versions/<version_id>/`. (v0.27)
 
 Retraction checking in `manuscript-audit` is currently a manual fallback via Semantic Scholar. Moves to automatic once the `retraction-mcp` lands (Tier B).
 

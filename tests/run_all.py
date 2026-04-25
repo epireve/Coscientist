@@ -141,6 +141,30 @@ from tests.test_manuscript_draft import (
     IdempotencyTests as ManuscriptDraftIdempotencyTests,
     TemplateTests,
 )
+from tests.test_manuscript_format import (
+    CliEdgeTests as FormatCliEdgeTests,
+    FormatCleanTests,
+    FormatExportTests,
+    FormatListTests,
+    PandocUtilsTests,
+)
+from tests.test_manuscript_revise import (
+    CliEdgeTests as ReviseCliEdgeTests,
+    IngestReviewTests,
+    PlanTests,
+    RespondTests,
+    ReviewParserTests,
+    StateGuardTests,
+    StatusTests,
+)
+from tests.test_manuscript_version import (
+    CliEdgeTests as VersionCliEdgeTests,
+    DiffTests,
+    LogTests,
+    RestoreTests,
+    SnapshotTests,
+    VersionStoreTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -245,6 +269,25 @@ if __name__ == "__main__":
         DraftSectionTests,
         DraftStatusTests,
         ManuscriptDraftCliEdgeTests,
+        # v0.27 manuscript-format, manuscript-revise, manuscript-version
+        PandocUtilsTests,
+        FormatExportTests,
+        FormatListTests,
+        FormatCleanTests,
+        FormatCliEdgeTests,
+        ReviewParserTests,
+        IngestReviewTests,
+        PlanTests,
+        RespondTests,
+        StatusTests,
+        StateGuardTests,
+        ReviseCliEdgeTests,
+        VersionStoreTests,
+        SnapshotTests,
+        LogTests,
+        DiffTests,
+        RestoreTests,
+        VersionCliEdgeTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,
