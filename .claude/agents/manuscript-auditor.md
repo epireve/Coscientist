@@ -45,6 +45,7 @@ This surfaces four distinct issues the author needs to know about:
 - **orphan-reference** (minor): bib entry never cited → author should drop it or add a citation
 - **unresolved-citation** (minor): citation key never mapped to a canonical paper → run `resolve_citations.py` or the reference-agent sync
 - **broken-reference** (major): resolved canonical_id points to a missing paper artifact → re-fetch the paper or correct the mapping
+- **ambiguous-citation** (major, v0.10): one in-text key matches multiple bib entries (e.g. two Wang-2020 papers) → rewrite as the disambiguated suffix (`wang2020a` / `wang2020b`) shown in `candidates`
 
 All four kinds land as rows in `manuscript_audit_findings` with `claim_id='citation-validator:<key>'`, so they appear in the same table as your own audit findings.
 

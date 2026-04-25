@@ -179,6 +179,57 @@ def _infer_entry_key(raw: str) -> str | None:
     return None
 
 
+def disambiguate_entry_keys(entries: list[dict]) -> list[dict]:
+    """Add `disambiguated_key` to every entry, auto-suffixing collisions.
+
+    Academic convention: Wang (2020) [paper A] + Wang (2020) [paper B] →
+    wang2020a, wang2020b (ordered by ordinal). The bare key stays in
+    `entry_key`; the disambiguated form goes in `disambiguated_key`.
+
+    Entries without an inferred entry_key (None) are left with
+    `disambiguated_key=None`. Entries with unique keys get the
+    disambiguated_key equal to the entry_key.
+    """
+    # Group by entry_key; preserve original order within groups via ordinal
+    groups: dict[str, list[dict]] = {}
+    for e in entries:
+        k = e.get("entry_key")
+        if k is None:
+            continue
+        groups.setdefault(k, []).append(e)
+
+    # For each entry, decide its disambiguated_key
+    out: list[dict] = []
+    for e in entries:
+        e = dict(e)  # shallow copy
+        k = e.get("entry_key")
+        if k is None:
+            e["disambiguated_key"] = None
+            out.append(e)
+            continue
+        group = groups[k]
+        if len(group) == 1:
+            e["disambiguated_key"] = k
+        else:
+            # Multiple entries share this key — assign a/b/c... by ordinal
+            sorted_group = sorted(group, key=lambda x: x["ordinal"])
+            suffix_idx = sorted_group.index(e)
+            suffix = chr(ord("a") + suffix_idx) if suffix_idx < 26 else f"z{suffix_idx - 25}"
+            e["disambiguated_key"] = f"{k}{suffix}"
+        out.append(e)
+    return out
+
+
+def collision_groups(entries: list[dict]) -> dict[str, list[dict]]:
+    """Return only the collision groups (entry_key → list of ≥2 entries)."""
+    groups: dict[str, list[dict]] = {}
+    for e in entries:
+        k = e.get("entry_key")
+        if k is not None:
+            groups.setdefault(k, []).append(e)
+    return {k: v for k, v in groups.items() if len(v) > 1}
+
+
 def _slugify(s: str) -> str:
     out: list[str] = []
     for ch in (s or "").lower():
@@ -352,15 +403,18 @@ def populate_graph_and_citations(
                     )
                     cites_edges += 1
 
-        # Bibliography entries
-        for entry in bib_entries:
+        # Bibliography entries with v0.10 collision disambiguation
+        disambiguated = disambiguate_entry_keys(bib_entries)
+        for entry in disambiguated:
             cur = con.execute(
                 "INSERT OR IGNORE INTO manuscript_references "
-                "(manuscript_id, entry_key, raw_text, ordinal, doi, title, year, at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "(manuscript_id, entry_key, disambiguated_key, raw_text, ordinal, "
+                "doi, title, year, at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
-                    mid, entry.get("entry_key"), entry["raw_text"],
-                    entry["ordinal"], entry.get("doi"), entry.get("title"),
+                    mid, entry.get("entry_key"), entry.get("disambiguated_key"),
+                    entry["raw_text"], entry["ordinal"],
+                    entry.get("doi"), entry.get("title"),
                     entry.get("year"), now,
                 ),
             )

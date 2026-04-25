@@ -164,6 +164,34 @@ Tests (17 new, 158 total; 0 failing):
 - Audit gate: accepts `dangling-citation` and `broken-reference` kinds
 - Schema: table + UNIQUE constraint on (manuscript_id, ordinal) enforced
 
+### v0.10 — citation key collision disambiguation
+
+Answers: "what if `wang2020` matches two different Wang-2020 papers in the bib?" Before v0.10, the matcher silently picked the first hit — wrong attribution, no flag. Now collisions are auto-suffixed `wang2020a` / `wang2020b` and any in-text key that maps to >1 entry is flagged.
+
+Schema (column added to `manuscript_references`):
+- `disambiguated_key` — entry_key + a/b/c suffix for collisions; equal to entry_key when unique; new index `idx_msrefs_disamb`
+
+Disambiguation logic in `manuscript-ingest`:
+- New `disambiguate_entry_keys(entries)` helper groups by inferred entry_key; collisions get suffixes by ordinal order (earliest = `a`)
+- New `collision_groups(entries)` helper returns just the colliding groups for reporting
+- Persistence path now writes `disambiguated_key` column
+
+`validate_citations.py` upgrades:
+- `_match_bib_candidates` returns *all* matches (not just first) so collisions surface
+- New finding kind `ambiguous-citation` (major) when one in-text key matches ≥2 bib entries — includes `candidates` list with the suggested disambiguated keys to rewrite to
+- `disambiguated_key` exact match (e.g. author wrote `\cite{wang2020a}`) takes precedence over `entry_key` match — clean resolve
+- New `collision_groups` section in the report surfaces the bib's internal collisions even when no in-text citation is currently ambiguous (so author can future-proof)
+- `--fail-on-major` now also triggers on ambiguous
+
+Audit gate `VALID_KINDS` extended with `ambiguous-citation`. Sub-agent `manuscript-auditor.md` updated.
+
+Tests (14 new, 172 total; 0 failing):
+- Disambiguation unit: unique pass-through; 2-way and 3-way collisions; None entry_key untouched; collision_groups helper
+- Ingest persistence: `disambiguated_key` column populated correctly for collisions
+- Validation: ambiguous detected when bib has 2 wang2020 + in-text uses plain `wang2020`; `\cite{wang2020a}` resolves cleanly with no ambiguous finding; collision_groups surfaced even without in-text ambiguity; `--fail-on-major` triggers on ambiguous; ambiguous-citation lands in manuscript_audit_findings
+- Audit gate: accepts `ambiguous-citation` kind
+- Schema: `disambiguated_key` column + index present
+
 ## Inspirations and what we take from them
 
 | Source | Pattern we adopt |

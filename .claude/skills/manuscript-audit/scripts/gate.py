@@ -35,6 +35,8 @@ VALID_KINDS = {
     # v0.9 citation-validator findings
     "dangling-citation", "orphan-reference",
     "unresolved-citation", "broken-reference",
+    # v0.10 collision disambiguation
+    "ambiguous-citation",
 }
 VALID_SEVERITY = {"info", "minor", "major"}
 INLINE_CITATION = re.compile(r"(\\cite\{|\[@|\[\d+\]|\(\w+\s+\d{4}\))")

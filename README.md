@@ -62,7 +62,7 @@ Ingest your own drafts and analyze them with the same discipline used for extern
 |---|---|
 | `manuscript-ingest` | Copy a markdown draft into a `manuscript` artifact; parse inline citations **and bibliography section** (v0.9); record in `manuscript_citations` + `manuscript_references` tables + graph with `cites` edges to placeholder paper nodes |
 | `manuscript-ingest/resolve_citations.py` | Map raw citation keys → canonical_ids; migrate graph edges to resolved paper nodes |
-| `manuscript-ingest/validate_citations.py` (v0.9) | Cross-check in-text vs bib; flag `dangling-citation` / `orphan-reference` / `unresolved-citation` / `broken-reference`; writes `validation_report.json` + populates `manuscript_audit_findings` so the author sees every integrity issue in one place |
+| `manuscript-ingest/validate_citations.py` (v0.9 + v0.10) | Cross-check in-text vs bib; flag `dangling-citation` / `orphan-reference` / `unresolved-citation` / `broken-reference` / `ambiguous-citation`; writes `validation_report.json` + populates `manuscript_audit_findings` so the author sees every integrity issue in one place. v0.10 also auto-suffixes colliding entry keys (`wang2020` × 2 → `wang2020a` + `wang2020b`) |
 | `manuscript-audit` | Per-claim audit against cited sources; flags overclaim / uncited / unsupported / outdated / retracted + the 4 new v0.9 kinds; adds concept nodes + `about` edges to the project graph |
 | `manuscript-critique` | Four reviewer personas (methodological / theoretical / big-picture / nitpicky) with committed verdict + confidence |
 | `manuscript-reflect` | Thesis + premises + evidence chain + implicit assumptions + weakest link + one-experiment recommendation |

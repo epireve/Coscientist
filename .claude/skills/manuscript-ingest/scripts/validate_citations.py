@@ -43,52 +43,79 @@ def _project_db(project_id: str) -> Path:
     return p
 
 
-def _fuzzy_match_bib(citation_key: str, bib_rows: list[dict]) -> dict | None:
-    """Try to find a bibliography entry for a given in-text citation key.
+def _match_bib_candidates(citation_key: str, bib_rows: list[dict]) -> list[dict]:
+    """Return every bibliography entry that could match the given citation key.
 
-    Matching rules, in order:
-    - Exact entry_key match
+    v0.10: returns a list (not a single match) so we can detect collisions.
+    Callers interpret: 0 = dangling, 1 = resolved, ≥2 = ambiguous.
+
+    Matching rules, tried in order; the first rule that yields any hits wins.
+    Within a rule all matches are returned (a 2-hit match is what `ambiguous`
+    is built from).
+
+    - Exact `disambiguated_key` match (strongest — author deliberately typed
+      wang2020a)
+    - Exact `entry_key` match (common case)
     - Numeric [N] → entry with ordinal N
     - Key substring (author slug) matches last-name + year in the raw entry
+    - (Author et al., Year) form
     """
-    # Exact entry_key
+    ck_low = citation_key.lower()
+
+    # Strongest: disambiguated_key exact hit (single entry only by construction)
     for row in bib_rows:
-        if row["entry_key"] and row["entry_key"].lower() == citation_key.lower():
-            return row
+        dk = (row.get("disambiguated_key") or "").lower()
+        if dk and dk == ck_low:
+            return [row]
+
+    # entry_key exact — may be ambiguous
+    by_entry_key = [
+        row for row in bib_rows
+        if row.get("entry_key") and row["entry_key"].lower() == ck_low
+    ]
+    if by_entry_key:
+        return by_entry_key
 
     # Numeric [N] → ordinal N
     m = NUMERIC_KEY.match(citation_key)
     if m:
         n = int(m.group(1))
-        for row in bib_rows:
-            if row["ordinal"] == n:
-                return row
+        hits = [row for row in bib_rows if row["ordinal"] == n]
+        if hits:
+            return hits
 
-    # Author-year heuristic: "smith2020" → look for "smith" and "2020" in raw_text
-    inline = citation_key.lower()
-    year_match = re.search(r"(19|20)\d{2}", inline)
+    # Author-year substring heuristic
+    year_match = re.search(r"(19|20)\d{2}", ck_low)
     if year_match:
         year = year_match.group(0)
-        author_part = inline[:year_match.start()].rstrip("_-")
+        author_part = ck_low[:year_match.start()].rstrip("_-")
         if len(author_part) >= 3:
-            for row in bib_rows:
-                raw_low = (row["raw_text"] or "").lower()
-                if author_part in raw_low and year in raw_low:
-                    return row
+            hits = [
+                row for row in bib_rows
+                if author_part in (row.get("raw_text") or "").lower()
+                and year in (row.get("raw_text") or "").lower()
+            ]
+            if hits:
+                return hits
 
     # (Author et al., Year) form
-    # e.g. citation_key="Vaswani et al., 2017" → look for "vaswani" + "2017"
     parts = re.split(r"[\s,]+", citation_key.strip())
     if parts and len(parts) >= 2:
         author = parts[0].lower()
-        year_part = next((p for p in parts if re.fullmatch(r"(19|20)\d{2}[a-z]?", p)), None)
+        year_part = next(
+            (p for p in parts if re.fullmatch(r"(19|20)\d{2}[a-z]?", p)),
+            None,
+        )
         if year_part and len(author) >= 3:
-            for row in bib_rows:
-                raw_low = (row["raw_text"] or "").lower()
-                if author in raw_low and year_part[:4] in raw_low:
-                    return row
+            hits = [
+                row for row in bib_rows
+                if author in (row.get("raw_text") or "").lower()
+                and year_part[:4] in (row.get("raw_text") or "").lower()
+            ]
+            if hits:
+                return hits
 
-    return None
+    return []
 
 
 def _paper_artifact_exists(canonical_id: str) -> bool:
@@ -105,23 +132,34 @@ def validate(manuscript_id: str, project_id: str) -> dict:
         "WHERE manuscript_id=?", (manuscript_id,),
     )]
     bib = [dict(r) for r in con.execute(
-        "SELECT entry_key, raw_text, ordinal, resolved_canonical_id FROM manuscript_references "
-        "WHERE manuscript_id=? ORDER BY ordinal", (manuscript_id,),
+        "SELECT entry_key, disambiguated_key, raw_text, ordinal, resolved_canonical_id "
+        "FROM manuscript_references WHERE manuscript_id=? ORDER BY ordinal",
+        (manuscript_id,),
     )]
 
     findings: list[dict] = []
     dangling: list[dict] = []
     unresolved: list[dict] = []
     broken: list[dict] = []
+    ambiguous: list[dict] = []
 
     # Track which bib entries are referenced at least once
     bib_ordinals_seen: set[int] = set()
 
+    # v0.10: pre-compute the set of entry_keys that are themselves in a
+    # collision group in the bib. Used to surface the collision set in report.
+    from collections import Counter
+    key_counts = Counter(
+        row["entry_key"] for row in bib if row.get("entry_key")
+    )
+    collision_keys = {k for k, n in key_counts.items() if n > 1}
+
     # Check each in-text citation
     for cit in citations:
         key = cit["citation_key"]
-        match = _fuzzy_match_bib(key, bib)
-        if match is None and bib:
+        matches = _match_bib_candidates(key, bib)
+
+        if not matches and bib:
             dangling.append({"citation_key": key, "location": cit["location"]})
             findings.append({
                 "kind": "dangling-citation",
@@ -133,8 +171,40 @@ def validate(manuscript_id: str, project_id: str) -> dict:
                     "entry in the bibliography section."
                 ),
             })
-        elif match is not None:
-            bib_ordinals_seen.add(match["ordinal"])
+        elif len(matches) > 1:
+            # v0.10: same citation key matches multiple bib entries
+            candidates = [
+                {
+                    "ordinal": m["ordinal"],
+                    "disambiguated_key": m.get("disambiguated_key"),
+                    "preview": (m.get("raw_text") or "")[:100],
+                }
+                for m in matches
+            ]
+            ambiguous.append({
+                "citation_key": key,
+                "location": cit["location"],
+                "candidates": candidates,
+            })
+            def _label(m: dict) -> str:
+                return m.get("disambiguated_key") or f"ord-{m['ordinal']}"
+            suggestion = ", ".join(f"'{_label(m)}'" for m in matches)
+            findings.append({
+                "kind": "ambiguous-citation",
+                "severity": "major",
+                "citation_key": key,
+                "location": cit["location"],
+                "evidence": (
+                    f"Inline citation '{key}' at {cit['location']} matches "
+                    f"{len(matches)} bibliography entries. Rewrite as one of: "
+                    f"{suggestion}."
+                ),
+            })
+            for m in matches:
+                bib_ordinals_seen.add(m["ordinal"])
+        else:
+            # Exactly one match
+            bib_ordinals_seen.add(matches[0]["ordinal"])
 
         if cit["resolved_canonical_id"] is None:
             unresolved.append({"citation_key": key, "location": cit["location"]})
@@ -192,6 +262,18 @@ def validate(manuscript_id: str, project_id: str) -> dict:
             ),
         })
 
+    # v0.10: surface the collision groups themselves, even if no in-text
+    # citation was ambiguous (the author still benefits from knowing)
+    collision_report: list[dict] = []
+    for k in sorted(collision_keys):
+        members = [
+            {"ordinal": row["ordinal"],
+             "disambiguated_key": row.get("disambiguated_key"),
+             "preview": (row.get("raw_text") or "")[:100]}
+            for row in bib if (row.get("entry_key") or "").lower() == k.lower()
+        ]
+        collision_report.append({"entry_key": k, "members": members})
+
     now = datetime.now(UTC).isoformat()
     report = {
         "manuscript_id": manuscript_id,
@@ -204,11 +286,15 @@ def validate(manuscript_id: str, project_id: str) -> dict:
             "orphan_references": len(orphans),
             "unresolved_citations": len(unresolved),
             "broken_references": len(broken),
+            "ambiguous_citations": len(ambiguous),
+            "collision_groups": len(collision_report),
         },
         "dangling_citations": dangling,
         "orphan_references": orphans,
         "unresolved_citations": unresolved,
         "broken_references": broken,
+        "ambiguous_citations": ambiguous,
+        "collision_groups": collision_report,
         "findings": findings,
     }
 
@@ -251,7 +337,9 @@ def _print_author_summary(report: dict) -> None:
         f"{s['dangling_citations']} dangling, "
         f"{s['orphan_references']} orphans, "
         f"{s['unresolved_citations']} unresolved, "
-        f"{s['broken_references']} broken → {report['report_path']}"
+        f"{s['broken_references']} broken, "
+        f"{s['ambiguous_citations']} ambiguous, "
+        f"{s['collision_groups']} collision groups → {report['report_path']}"
     )
     if s["dangling_citations"]:
         print(
@@ -270,6 +358,30 @@ def _print_author_summary(report: dict) -> None:
                 f"    - {b['citation_key']!r} → {b['canonical_id']}",
                 file=sys.stderr,
             )
+    if s["ambiguous_citations"]:
+        print(
+            "  ⚠ Ambiguous citations (one key matches multiple bib entries):",
+            file=sys.stderr,
+        )
+        for a in report["ambiguous_citations"][:10]:
+            def _cand_label(c: dict) -> str:
+                return c.get("disambiguated_key") or f"ord-{c['ordinal']}"
+            cand = ", ".join(_cand_label(c) for c in a["candidates"])
+            print(
+                f"    - {a['citation_key']!r} at {a['location']} → rewrite as one of: {cand}",
+                file=sys.stderr,
+            )
+    if s["collision_groups"]:
+        print(
+            "  ℹ Bibliography contains colliding keys (auto-suffixed a/b/c):",
+            file=sys.stderr,
+        )
+        for g in report["collision_groups"][:10]:
+            suffixes = ", ".join(
+                m.get("disambiguated_key") or f"ord-{m['ordinal']}"
+                for m in g["members"]
+            )
+            print(f"    - {g['entry_key']!r}: {suffixes}", file=sys.stderr)
 
 
 def main() -> None:
@@ -285,7 +397,8 @@ def main() -> None:
 
     if args.fail_on_major:
         s = report["summary"]
-        if s["dangling_citations"] or s["broken_references"]:
+        if (s["dangling_citations"] or s["broken_references"]
+                or s["ambiguous_citations"]):
             sys.exit(2)
 
 

@@ -28,6 +28,13 @@ from tests.test_manuscript import (
     ManuscriptSchemaTests,
     ReflectGateTests,
 )
+from tests.test_citation_collisions import (
+    AmbiguousCitationTests,
+    AuditGateAmbiguousKindTests,
+    DisambiguatedKeyColumnTests,
+    DisambiguationUnitTests,
+    IngestDisambiguationTests,
+)
 from tests.test_citation_validation import (
     AuditGateNewKindsTests,
     BibParserTests,
@@ -89,6 +96,11 @@ if __name__ == "__main__":
         ValidateCitationsTests,
         AuditGateNewKindsTests,
         ManuscriptReferencesSchemaTests,
+        DisambiguationUnitTests,
+        IngestDisambiguationTests,
+        AmbiguousCitationTests,
+        AuditGateAmbiguousKindTests,
+        DisambiguatedKeyColumnTests,
         SyncTests,
         BibtexTests,
         ReadingStateTests,

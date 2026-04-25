@@ -367,6 +367,7 @@ CREATE TABLE IF NOT EXISTS manuscript_references (
     ref_row_id            INTEGER PRIMARY KEY AUTOINCREMENT,
     manuscript_id         TEXT NOT NULL,
     entry_key             TEXT,                  -- BibTeX-style key when inferrable (e.g. "vaswani2017")
+    disambiguated_key     TEXT,                  -- v0.10: entry_key + a/b/c suffix when collisions exist (e.g. "wang2020a")
     raw_text              TEXT NOT NULL,         -- verbatim bib entry (may span multiple lines)
     ordinal               INTEGER NOT NULL,      -- [1], [2], ... (numeric bib order)
     doi                   TEXT,                  -- extracted if present
@@ -377,5 +378,6 @@ CREATE TABLE IF NOT EXISTS manuscript_references (
     UNIQUE(manuscript_id, ordinal)
 );
 
-CREATE INDEX IF NOT EXISTS idx_msrefs_ms    ON manuscript_references(manuscript_id);
-CREATE INDEX IF NOT EXISTS idx_msrefs_key   ON manuscript_references(entry_key);
+CREATE INDEX IF NOT EXISTS idx_msrefs_ms      ON manuscript_references(manuscript_id);
+CREATE INDEX IF NOT EXISTS idx_msrefs_key     ON manuscript_references(entry_key);
+CREATE INDEX IF NOT EXISTS idx_msrefs_disamb  ON manuscript_references(disambiguated_key);
