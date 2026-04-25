@@ -54,16 +54,28 @@ def _connect(run_id: str) -> sqlite3.Connection:
     return con
 
 
+def is_overnight(con: sqlite3.Connection, run_id: str) -> bool:
+    """Return True if the run was started with --overnight."""
+    row = con.execute(
+        "SELECT overnight FROM runs WHERE run_id=?", (run_id,)
+    ).fetchone()
+    if row is None:
+        return False
+    return bool(row["overnight"])
+
+
 def cmd_init(args: argparse.Namespace) -> None:
     run_id = secrets.token_hex(4)
     con = _connect(run_id)
     config = (
         json.loads(Path(args.config).read_text()) if args.config else {}
     )
+    overnight = 1 if getattr(args, "overnight", False) else 0
     with con:
         con.execute(
-            "INSERT INTO runs (run_id, question, started_at, config_json) VALUES (?, ?, ?, ?)",
-            (run_id, args.question, datetime.now(UTC).isoformat(), json.dumps(config)),
+            "INSERT INTO runs (run_id, question, started_at, config_json, overnight) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (run_id, args.question, datetime.now(UTC).isoformat(), json.dumps(config), overnight),
         )
         for i, name in enumerate(PHASES_IN_ORDER):
             con.execute(
@@ -222,7 +234,7 @@ def main() -> None:
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    pi = sub.add_parser("init"); pi.add_argument("--question", required=True); pi.add_argument("--config", default=None)
+    pi = sub.add_parser("init"); pi.add_argument("--question", required=True); pi.add_argument("--config", default=None); pi.add_argument("--overnight", action="store_true", default=False)
     pi.set_defaults(func=cmd_init)
 
     pp = sub.add_parser("record-phase")

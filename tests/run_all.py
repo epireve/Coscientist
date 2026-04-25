@@ -98,6 +98,12 @@ from tests.test_deep_research_pipeline import (
     PhaseOutputTests,
     ResumeTests,
 )
+from tests.test_overnight import (
+    CliEdgeTests as OvernightCliEdgeTests,
+    DigestTests,
+    OvernightInitTests,
+    QueueBreakTests,
+)
 from tests.test_pdf_extract_state_machine import (
     CliEdgeTests as PdfExtractCliEdgeTests,
     DoclingMissingTests,
@@ -164,6 +170,16 @@ from tests.test_manuscript_version import (
     RestoreTests,
     SnapshotTests,
     VersionStoreTests,
+)
+from tests.test_systematic_review import (
+    BiasTests,
+    CliEdgeTests as ReviewCliEdgeTests,
+    ExtractionTests,
+    PrismaTests,
+    ProtocolInitTests,
+    ScreeningTests,
+    SearchTests,
+    StatusTests as ReviewStatusTests,
 )
 
 if __name__ == "__main__":
@@ -244,6 +260,11 @@ if __name__ == "__main__":
         ResumeTests,
         BreakIdempotencyTests,
         EdgeCaseTests,
+        # v0.28 overnight mode
+        OvernightInitTests,
+        QueueBreakTests,
+        DigestTests,
+        OvernightCliEdgeTests,
         # v0.20 pdf-extract dry-run harness + v0.23 fixes
         PreExtractGuardTests,
         DoclingMissingTests,
@@ -288,6 +309,15 @@ if __name__ == "__main__":
         DiffTests,
         RestoreTests,
         VersionCliEdgeTests,
+        # v0.28 systematic-review
+        ProtocolInitTests,
+        SearchTests,
+        ScreeningTests,
+        ExtractionTests,
+        BiasTests,
+        PrismaTests,
+        ReviewStatusTests,
+        ReviewCliEdgeTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,

@@ -348,6 +348,25 @@ End-to-end run of `ingest → validate_citations → audit gate → critique gat
 
 User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
 
+### v0.28 — systematic-review skill + overnight mode (Tier B second cut)
+
+Two parallel builds, both pure filesystem + SQLite, no sub-agents.
+
+**systematic-review** (new skill):
+- `review.py` — 7 subcommands: `init` (protocol-first; freezes after `search`), `search` (records query strings), `screen` (title_abstract → full_text two-stage; idempotent), `extract` (one row per field per paper), `bias` (low/unclear/high per RoB domain), `prisma` (ASCII flow diagram → `prisma.md`), `status` (counts at every stage)
+- 4 new DB tables: `review_protocols`, `screening_decisions`, `extraction_rows`, `bias_assessments`
+- Each protocol gets its own lightweight `review.db` under `reviews/<protocol_id>/` — self-contained, no coupling to run DBs
+- `protocol_id` derivation: `slug(title)_blake2s(title::question)[:6]` — consistent with manuscript_id pattern
+- 34 tests across 8 classes
+
+**overnight mode** (extends `deep-research`):
+- `overnight.py` — 3 subcommands: `queue-break` (auto-resolves break with placeholder; errors if already resolved), `digest` (writes `digest.md` with break prompts + auto-answers + phase table + output paths; idempotent), `status` (queued vs user-resolved vs pending)
+- `db.py` extended: `--overnight` flag on `init`; `is_overnight(con, run_id) -> bool` helper; `overnight` column added via `lib/migrations.py` v0.28 migration (idempotent ALTER TABLE)
+- `deep-research/SKILL.md` updated with full overnight mode section
+- 17 tests across 4 classes; existing pipeline tests unaffected
+
+Tests: 51 new, 507 total, 0 failing.
+
 ### v0.27 — manuscript-format, manuscript-revise, manuscript-version (A1 complete)
 
 Three parallel builds completing the A1 manuscript subsystem. All skills coexist alongside `manuscript-draft` (v0.26) and feed each other: draft → version snapshot → format export; draft → ingest → critique → revise.
@@ -520,7 +539,7 @@ Serves use cases: cross-check WIP, ultrathink own work, critique own/others' wor
 High value but narrower or more domain-dependent.
 
 - **Tournament ranker + Evolution agent** (Google Co-scientist pattern): new sub-agents `ranker` (pairwise Elo tournament over Theorist/Thinker proposals) and `evolver` (mutate top-Elo candidates and re-tournament). Table `hypotheses` with Elo.
-- **Systematic review (PRISMA)**: `systematic-review` skill with protocol-first declaration, documented exhaustive search, two-stage screening, risk-of-bias assessment, extraction forms, meta-analysis module, PRISMA flow diagram. New tables: `review_protocols`, `screening_decisions`, `extraction_rows`, `bias_assessments`.
+- ✅ **Systematic review (PRISMA)**: `systematic-review` skill — protocol-first init, search (freeze), two-stage screen, extract, bias, prisma, status. 4 new DB tables. (v0.28)
 - **Statistics MCP**: effect sizes, power analysis, meta-analysis, test selection, assumption checks. Reusable across manuscript-audit + systematic-review + experiment-design.
 - **Figure agent**: venue-styled plots, caption consistency, alt-text, colorblind-safe palettes, vector vs raster decisions.
 - **Peer-review simulator**: multi-round (initial review → revision → final decision), not single-shot critique.
@@ -528,7 +547,7 @@ High value but narrower or more domain-dependent.
 - **Preprint alerts daemon**: daily arXiv/bioRxiv digest filtered to your topics + followed authors.
 - **Grant-draft skill**: funder-specific templates (NIH, NSF, ERC, Wellcome). Significance + impact framing distinct from papers.
 - **Red-team agent**: meaner than Rude. Specifically tries to disprove your best ideas. Separate persona, explicit trigger.
-- **Overnight mode**: "run while I sleep" — discovery → triage → acquire → extract runs through the night; human-in-the-loop breaks are *queued*, not blocking. You review morning digest.
+- ✅ **Overnight mode**: breaks queued via `overnight.py queue-break` instead of blocking; `digest.md` written at end; `--overnight` flag on `db.py init`. (v0.28)
 
 ## Tier C — longer horizon
 

@@ -400,3 +400,58 @@ CREATE TABLE IF NOT EXISTS journal_entries (
 
 CREATE INDEX IF NOT EXISTS idx_journal_project ON journal_entries(project_id, entry_date);
 CREATE INDEX IF NOT EXISTS idx_journal_date    ON journal_entries(entry_date);
+
+-- -----------------------------------------------------------------------
+-- Systematic review tables (v0.28)
+-- -----------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS review_protocols (
+    protocol_id    TEXT PRIMARY KEY,   -- slug from title
+    run_id         TEXT REFERENCES runs(run_id) ON DELETE SET NULL,
+    title          TEXT NOT NULL,
+    question       TEXT NOT NULL,      -- PICO or equivalent
+    inclusion      TEXT NOT NULL,      -- JSON array of criteria strings
+    exclusion      TEXT NOT NULL,      -- JSON array of criteria strings
+    search_strings TEXT NOT NULL,      -- JSON array of query strings run
+    date_range     TEXT,               -- e.g. "2015-2025"
+    languages      TEXT DEFAULT '["en"]',
+    created_at     TEXT NOT NULL,
+    frozen_at      TEXT                -- set when screening begins; protocol immutable after
+);
+
+CREATE TABLE IF NOT EXISTS screening_decisions (
+    decision_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    protocol_id    TEXT NOT NULL REFERENCES review_protocols(protocol_id) ON DELETE CASCADE,
+    paper_id       TEXT NOT NULL,      -- canonical_id from paper artifact
+    stage          TEXT NOT NULL CHECK(stage IN ('title_abstract','full_text')),
+    decision       TEXT NOT NULL CHECK(decision IN ('include','exclude','uncertain')),
+    reason         TEXT,               -- which exclusion criterion, or note
+    decided_at     TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS extraction_rows (
+    row_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    protocol_id    TEXT NOT NULL REFERENCES review_protocols(protocol_id) ON DELETE CASCADE,
+    paper_id       TEXT NOT NULL,
+    field          TEXT NOT NULL,      -- e.g. "sample_size", "effect_size", "outcome"
+    value          TEXT,
+    unit           TEXT,
+    notes          TEXT,
+    extracted_at   TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS bias_assessments (
+    assessment_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+    protocol_id    TEXT NOT NULL REFERENCES review_protocols(protocol_id) ON DELETE CASCADE,
+    paper_id       TEXT NOT NULL,
+    domain         TEXT NOT NULL,      -- e.g. "selection", "performance", "detection", "attrition", "reporting"
+    rating         TEXT NOT NULL CHECK(rating IN ('low','unclear','high')),
+    justification  TEXT,
+    assessed_at    TEXT NOT NULL
+);
+
+-- -----------------------------------------------------------------------
+-- v0.28 overnight mode
+-- Migration: ALTER TABLE runs ADD COLUMN overnight INTEGER NOT NULL DEFAULT 0;
+-- (applied by db.py on first use via IF NOT EXISTS check)
+-- -----------------------------------------------------------------------

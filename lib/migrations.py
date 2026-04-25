@@ -35,6 +35,12 @@ MIGRATIONS: list[tuple[int, str, str]] = [
         -- Recorded here for traceability; the SQL below is a no-op.
         SELECT 1;
     """),
+    (2, "v0.28_overnight_column", """
+        -- Add overnight flag to runs table.
+        -- SQLite does not support IF NOT EXISTS on ALTER TABLE, so we rely
+        -- on the migration framework to call this exactly once per DB.
+        ALTER TABLE runs ADD COLUMN overnight INTEGER NOT NULL DEFAULT 0;
+    """),
 ]
 
 
