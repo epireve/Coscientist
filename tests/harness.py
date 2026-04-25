@@ -103,7 +103,7 @@ class _CacheScope:
 
     def __enter__(self) -> Path:
         self.prev = os.environ.get("COSCIENTIST_CACHE_DIR")
-        self.path = Path(tempfile.mkdtemp(prefix="coscientist-test-"))
+        self.path = Path(tempfile.mkdtemp(prefix="coscientist-test-")).resolve()
         os.environ["COSCIENTIST_CACHE_DIR"] = str(self.path)
         return self.path
 

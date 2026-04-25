@@ -7,6 +7,7 @@ Writes to the paper artifact at ~/.cache/coscientist/papers/<canonical_id>/.
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import re
 import sys
@@ -43,25 +44,33 @@ def run(
     sections: list[str] | None,
 ) -> str:
     try:
-        from arxiv2markdown import ingest_paper_sync
+        from arxiv2md import ingest_paper
     except ImportError as e:
         raise SystemExit(
-            "arxiv2markdown not installed. Run `uv sync` first."
+            "arxiv2md not installed. Run `uv add arxiv2markdown` first."
         ) from e
 
     aid = normalize_arxiv_id(arxiv_input)
 
-    result = ingest_paper_sync(
-        aid,
-        remove_refs=remove_refs,
-        remove_toc=remove_toc,
-        remove_citations=remove_citations,
-        sections=sections,
-        frontmatter=True,
+    html_url = f"https://arxiv.org/html/{aid}"
+    ar5iv_url = f"https://ar5iv.org/abs/{aid}"
+
+    result, meta = asyncio.run(
+        ingest_paper(
+            arxiv_id=aid,
+            version=None,
+            html_url=html_url,
+            ar5iv_url=ar5iv_url,
+            remove_refs=remove_refs,
+            remove_toc=remove_toc,
+            remove_inline_citations=remove_citations,
+            section_filter_mode="include" if sections else "all",
+            sections=sections or [],
+            include_frontmatter=True,
+        )
     )
 
-    md: str = getattr(result, "content", result if isinstance(result, str) else "")
-    meta: dict = getattr(result, "metadata", {}) or {}
+    md: str = result.content or ""
 
     if not md.strip():
         raise SystemExit("arxiv2markdown returned empty content")

@@ -1,0 +1,69 @@
+{
+  "mcpServers": {
+    "consensus": {
+      "type": "http",
+      "url": "https://mcp.consensus.app/mcp"
+    },
+    "paper-search": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--with",
+        "paper-search-mcp",
+        "python",
+        "-c",
+        "from paper_search_mcp.server import mcp; import asyncio; asyncio.run(mcp.run_stdio_async())"
+      ],
+      "env": {
+        "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL": "<paper_search_mcp_unpaywall_email>",
+        "PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY": "<paper_search_mcp_semantic_scholar_api_key>",
+        "PAPER_SEARCH_MCP_CORE_API_KEY": "<paper_search_mcp_core_api_key>",
+        "PAPER_SEARCH_MCP_DOAJ_API_KEY": "<paper_search_mcp_doaj_api_key>",
+        "PAPER_SEARCH_MCP_ZENODO_ACCESS_TOKEN": "<paper_search_mcp_zenodo_access_token>",
+        "PAPER_SEARCH_MCP_IEEE_API_KEY": "<paper_search_mcp_ieee_api_key>"
+      }
+    },
+    "academic": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "academic-mcp"
+      ]
+    },
+    "semantic-scholar": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "semantic-scholar-mcp"
+      ]
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ]
+    },
+    "browser-use": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--with",
+        "browser-use==0.1.40",
+        "browser-use-mcp-server"
+      ]
+    },
+    "zotero": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "zotero-mcp"
+      ],
+      "env": {
+        "ZOTERO_API_HOST": "<zotero_api_host>"
+      }
+    }
+  }
+}
