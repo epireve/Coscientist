@@ -15,9 +15,17 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from slugify import slugify
-
 from lib.cache import paper_dir
+
+
+def _slug(s: str) -> str:
+    """Inline slugifier (v0.12.1).
+
+    Matches `python-slugify` closely enough for canonical_id derivation.
+    Avoids the hard dependency so `from lib.paper_artifact import …` works
+    in any environment (same fix applied to lib/project.py earlier).
+    """
+    return re.sub(r"[^a-z0-9]+", "-", (s or "").lower()).strip("-")
 
 
 class State(str, Enum):
@@ -70,9 +78,9 @@ def canonical_id(
 
     The hash prevents collisions across near-duplicate titles.
     """
-    author_part = slugify(first_author or "anon").split("-")[-1] or "anon"
+    author_part = (_slug(first_author or "anon").split("-") or ["anon"])[-1] or "anon"
     year_part = str(year) if year else "nd"
-    title_part = slugify(title)[:60] if title else "untitled"
+    title_part = _slug(title)[:60] if title else "untitled"
     fingerprint = (doi or f"{title}|{year}|{first_author}").lower()
     hashsuffix = hashlib.blake2s(fingerprint.encode("utf-8"), digest_size=3).hexdigest()
     return f"{author_part}_{year_part}_{title_part}_{hashsuffix}"

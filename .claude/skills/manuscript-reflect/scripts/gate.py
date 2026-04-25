@@ -28,6 +28,16 @@ VAGUE_EXPERIMENT = re.compile(
 VALID_FRAGILITY = {"low", "medium", "high"}
 
 
+def _strip_quoted(text: str) -> str:
+    """Remove quoted spans before hedge scanning (v0.12.1)."""
+    if not text:
+        return ""
+    text = re.sub(r'"[^"]*"', " ", text)
+    text = re.sub(r"'[^']*'", " ", text)
+    text = re.sub(r"`[^`]*`", " ", text)
+    return text
+
+
 def validate(report: dict) -> list[str]:
     errors: list[str] = []
 
@@ -72,15 +82,15 @@ def validate(report: dict) -> list[str]:
     if exp.get("description") and VAGUE_EXPERIMENT.match(exp["description"].strip()):
         errors.append("one_experiment.description is too vague (looks like a research program)")
 
-    # hedge-word scan across key prose fields
+    # hedge-word scan across key prose fields (v0.12.1: skip quoted spans)
     for section, text in (
         ("thesis", arg.get("thesis", "")),
         ("conclusion", arg.get("conclusion", "")),
         ("weakest_link.why", weakest.get("why", "")),
         ("one_experiment.description", exp.get("description", "")),
     ):
-        if text and HEDGE_WORDS.search(text):
-            errors.append(f"{section} contains hedge word")
+        if text and HEDGE_WORDS.search(_strip_quoted(text)):
+            errors.append(f"{section} contains hedge word (outside quotes)")
 
     return errors
 

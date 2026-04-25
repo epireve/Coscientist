@@ -36,6 +36,19 @@ class TestCase:
         if needle in haystack:
             raise AssertionError(f"{msg}: {needle!r} unexpectedly in {haystack!r}")
 
+    def assertAlmostEqual(self, a, b, places: int = 7, delta: float | None = None,
+                          msg: str = ""):
+        if delta is not None:
+            if abs(a - b) > delta:
+                raise AssertionError(
+                    f"{msg}: |{a!r} - {b!r}| = {abs(a - b)} > delta {delta}"
+                )
+        else:
+            if round(a - b, places) != 0:
+                raise AssertionError(
+                    f"{msg}: {a!r} != {b!r} (within {places} places)"
+                )
+
     def assertTrue(self, x, msg: str = ""):
         if not x:
             raise AssertionError(f"{msg}: {x!r} is not truthy")

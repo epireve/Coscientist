@@ -50,10 +50,24 @@ def main() -> None:
         src = Path(args.pdf_path)
         if not src.exists():
             raise SystemExit(f"pdf not found: {src}")
+        # v0.12.1: integrity check — magic bytes + minimum size
+        size = src.stat().st_size
+        if size < 200:
+            raise SystemExit(
+                f"file too small to be a real PDF ({size} bytes): {src}"
+            )
+        with src.open("rb") as fh:
+            head = fh.read(8)
+        if not head.startswith(b"%PDF-"):
+            raise SystemExit(
+                f"file is not a PDF (magic bytes: {head[:5]!r}): {src}. "
+                "Likely a paywall HTML page or login redirect."
+            )
         dst = art.raw_dir / f"{args.source}.pdf"
         shutil.copy2(src, dst)
         entry["pdf"] = str(dst)
-        art.record_source_attempt(args.source, "ok", {"pdf": str(dst)})
+        entry["bytes"] = size
+        art.record_source_attempt(args.source, "ok", {"pdf": str(dst), "bytes": size})
         art.set_state(State.acquired)
 
     with audit_log_path().open("a") as f:

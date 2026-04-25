@@ -69,6 +69,13 @@ from tests.test_tournament import (
     RecordHypothesisTests,
     RecordMatchTests,
 )
+from tests.test_v0_12_1_hardening import (
+    CalibrationHardFailTests,
+    HedgeQuotedContextTests,
+    KFactorDecayTests,
+    NoveltyAnchorUniquenessTests,
+    PdfIntegrityTests,
+)
 from tests.test_personal_knowledge import (
     CrossProjectSearchTests,
     DashboardTests,
@@ -140,6 +147,11 @@ if __name__ == "__main__":
         PairwiseTests,
         LeaderboardTests,
         EloMathTests,
+        PdfIntegrityTests,
+        NoveltyAnchorUniquenessTests,
+        HedgeQuotedContextTests,
+        KFactorDecayTests,
+        CalibrationHardFailTests,
         AgentFrontmatterTests,
         # Integration + regression
         ResearchFlowIntegrationTests,

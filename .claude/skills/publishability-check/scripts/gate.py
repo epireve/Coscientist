@@ -34,6 +34,16 @@ VAGUE_KILL = re.compile(
     r"\b(if it'?s bad|depends on reviewers|hard to say|it depends|unclear)\b",
     re.IGNORECASE,
 )
+
+
+def _strip_quoted(text: str) -> str:
+    """Remove quoted spans before hedge scanning (v0.12.1)."""
+    if not text:
+        return ""
+    text = re.sub(r'"[^"]*"', " ", text)
+    text = re.sub(r"'[^']*'", " ", text)
+    text = re.sub(r"`[^`]*`", " ", text)
+    return text
 VERDICT_P_RANGE = {
     "accept": (0.65, 1.0),
     "borderline-with-revisions": (0.30, 0.65),
@@ -85,9 +95,9 @@ def validate(report: dict) -> list[str]:
             errors.append(f"[{venue}] kill_criterion too vague: {kill!r}")
 
         reasoning = v.get("reasoning", "")
-        if HEDGE_WORDS.search(reasoning):
+        if HEDGE_WORDS.search(_strip_quoted(reasoning)):
             errors.append(
-                f"[{venue}] reasoning contains hedge word — commit to a position"
+                f"[{venue}] reasoning contains hedge word (outside quotes) — commit to a position"
             )
 
         if not v.get("tier_up_requirements"):
@@ -159,6 +169,9 @@ def main() -> None:
     p.add_argument("--input", required=True)
     p.add_argument("--target-manuscript-id", required=True)
     p.add_argument("--run-id", default=None)
+    p.add_argument("--allow-uncalibrated", action="store_true",
+                   help="v0.12.1: don't fail when calibration set is present "
+                        "but not referenced (warning instead)")
     args = p.parse_args()
 
     report = json.loads(Path(args.input).read_text())
@@ -170,9 +183,19 @@ def main() -> None:
             print(f"  - {e}", file=sys.stderr)
         sys.exit(2)
 
+    # v0.12.1: hard-fail when a calibration set is present but unreferenced.
+    # Pass --allow-uncalibrated to revert to v0.10 warning behavior.
     warn = calibration_warning(report)
     if warn:
-        print(f"[publishability-check] WARN: {warn}", file=sys.stderr)
+        if args.allow_uncalibrated:
+            print(f"[publishability-check] WARN: {warn}", file=sys.stderr)
+        else:
+            print(f"[publishability-check] REJECTED: {warn}", file=sys.stderr)
+            print(
+                "  pass --allow-uncalibrated to override (not recommended)",
+                file=sys.stderr,
+            )
+            sys.exit(2)
 
     out = persist(report, args.target_manuscript_id, args.run_id)
     print(f"[publishability-check] OK → {out}")

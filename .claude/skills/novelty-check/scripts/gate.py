@@ -36,6 +36,20 @@ HEDGE_WORDS = re.compile(
 VALID_VERDICTS = {"novel", "incremental", "not-novel"}
 
 
+def _strip_quoted(text: str) -> str:
+    """Remove quoted spans before hedge scanning (v0.12.1).
+
+    A hedge word inside quotes (e.g. quoting another paper) is not the
+    auditor's hedge. Strip "..." 'sometext' and `code` spans first.
+    """
+    if not text:
+        return ""
+    text = re.sub(r'"[^"]*"', " ", text)
+    text = re.sub(r"'[^']*'", " ", text)
+    text = re.sub(r"`[^`]*`", " ", text)
+    return text
+
+
 def validate(report: dict) -> list[str]:
     errors: list[str] = []
     contribs = report.get("contributions")
@@ -53,6 +67,15 @@ def validate(report: dict) -> list[str]:
         if len(anchors) < MIN_ANCHORS:
             errors.append(
                 f"[{cid}] only {len(anchors)} anchors — need ≥{MIN_ANCHORS}"
+            )
+        # v0.12.1: anchor uniqueness — five copies of the same paper isn't five anchors
+        unique_cids = {
+            a.get("canonical_id") for a in anchors if a.get("canonical_id")
+        }
+        if len(anchors) >= MIN_ANCHORS and len(unique_cids) < MIN_ANCHORS:
+            errors.append(
+                f"[{cid}] {len(anchors)} anchors but only {len(unique_cids)} unique "
+                f"canonical_ids — need ≥{MIN_ANCHORS} distinct prior works"
             )
         for a in anchors:
             if not a.get("canonical_id"):
@@ -82,9 +105,9 @@ def validate(report: dict) -> list[str]:
                 errors.append(f"[{cid}] confidence not a number: {conf!r}")
 
         reasoning = c.get("reasoning", "")
-        if HEDGE_WORDS.search(reasoning):
+        if HEDGE_WORDS.search(_strip_quoted(reasoning)):
             errors.append(
-                f"[{cid}] reasoning contains hedge word — commit to a position"
+                f"[{cid}] reasoning contains hedge word (outside quotes) — commit to a position"
             )
 
     return errors

@@ -38,6 +38,16 @@ VALID_KINDS = {
     # v0.10 collision disambiguation
     "ambiguous-citation",
 }
+
+
+def _strip_quoted(text: str) -> str:
+    """Remove quoted spans before hedge scanning (v0.12.1)."""
+    if not text:
+        return ""
+    text = re.sub(r'"[^"]*"', " ", text)
+    text = re.sub(r"'[^']*'", " ", text)
+    text = re.sub(r"`[^`]*`", " ", text)
+    return text
 VALID_SEVERITY = {"info", "minor", "major"}
 INLINE_CITATION = re.compile(r"(\\cite\{|\[@|\[\d+\]|\(\w+\s+\d{4}\))")
 
@@ -74,8 +84,8 @@ def validate(report: dict) -> list[str]:
             evidence = (f.get("evidence") or "").strip()
             if not evidence:
                 errors.append(f"[{cid}] finding missing evidence")
-            elif HEDGE_WORDS.search(evidence):
-                errors.append(f"[{cid}] evidence contains hedge word")
+            elif HEDGE_WORDS.search(_strip_quoted(evidence)):
+                errors.append(f"[{cid}] evidence contains hedge word (outside quotes)")
 
     return errors
 

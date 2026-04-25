@@ -31,6 +31,16 @@ VERDICT_CONF_RANGE = {
 }
 
 
+def _strip_quoted(text: str) -> str:
+    """Remove quoted spans before hedge scanning (v0.12.1)."""
+    if not text:
+        return ""
+    text = re.sub(r'"[^"]*"', " ", text)
+    text = re.sub(r"'[^']*'", " ", text)
+    text = re.sub(r"`[^`]*`", " ", text)
+    return text
+
+
 def validate(report: dict) -> list[str]:
     errors: list[str] = []
     reviewers = report.get("reviewers") or {}
@@ -44,8 +54,8 @@ def validate(report: dict) -> list[str]:
         summary = (r.get("summary") or "").strip()
         if not findings and not summary:
             errors.append(f"[{name}] zero findings and no summary")
-        if HEDGE_WORDS.search(summary):
-            errors.append(f"[{name}] summary contains hedge word")
+        if HEDGE_WORDS.search(_strip_quoted(summary)):
+            errors.append(f"[{name}] summary contains hedge word (outside quotes)")
 
         for f in findings:
             fid = f.get("id", "?")

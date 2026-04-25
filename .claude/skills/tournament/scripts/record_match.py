@@ -19,20 +19,36 @@ if str(_REPO_ROOT) not in sys.path:
 
 from lib.cache import run_db_path  # noqa: E402
 
-K_FACTOR = 32.0
+K_FACTOR = 32.0  # default for new players (n_matches < 5)
 
 
 def expected_score(rating_a: float, rating_b: float) -> float:
     return 1.0 / (1.0 + 10.0 ** ((rating_b - rating_a) / 400.0))
 
 
+def k_factor(n_matches: int) -> float:
+    """v0.12.1: per-player K decays with experience.
+
+    Standard chess practice: cold-start K=32 for volatility, drops to 16
+    once a hypothesis has played a few matches, then to 8 for established
+    ones. Asymmetric K is the cost; the trade is fewer wild Elo swings.
+    """
+    if n_matches < 5:
+        return 32.0
+    if n_matches < 15:
+        return 16.0
+    return 8.0
+
+
 def update_elo(rating_a: float, rating_b: float, score_a: float,
-               k: float = K_FACTOR) -> tuple[float, float]:
-    """Returns (new_rating_a, new_rating_b)."""
+               k_a: float = K_FACTOR, k_b: float | None = None) -> tuple[float, float]:
+    """Returns (new_rating_a, new_rating_b). Each player has its own K."""
+    if k_b is None:
+        k_b = k_a
     e_a = expected_score(rating_a, rating_b)
     e_b = 1.0 - e_a
-    new_a = rating_a + k * (score_a - e_a)
-    new_b = rating_b + k * ((1.0 - score_a) - e_b)
+    new_a = rating_a + k_a * (score_a - e_a)
+    new_b = rating_b + k_b * ((1.0 - score_a) - e_b)
     return (new_a, new_b)
 
 
@@ -81,7 +97,9 @@ def main() -> None:
     else:
         score_a = 0.5
 
-    new_a, new_b = update_elo(elo_a, elo_b, score_a)
+    k_a = k_factor(rows[args.hyp_a]["n_matches"])
+    k_b = k_factor(rows[args.hyp_b]["n_matches"])
+    new_a, new_b = update_elo(elo_a, elo_b, score_a, k_a=k_a, k_b=k_b)
     now = datetime.now(UTC).isoformat()
 
     with con:
