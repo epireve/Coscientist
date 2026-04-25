@@ -98,6 +98,13 @@ from tests.test_deep_research_pipeline import (
     PhaseOutputTests,
     ResumeTests,
 )
+from tests.test_pdf_extract_state_machine import (
+    CliEdgeTests as PdfExtractCliEdgeTests,
+    CrackDocumentationTests as PdfExtractCrackTests,
+    DoclingMissingTests,
+    IdempotencyTests as PdfExtractIdempotencyTests,
+    PreExtractGuardTests,
+)
 from tests.test_paper_state_machine import (
     AcquireGateTests,
     AcquireIntegrityTests,
@@ -200,6 +207,12 @@ if __name__ == "__main__":
         ResumeTests,
         BreakIdempotencyTests,
         EdgeCaseTests,
+        # v0.20 pdf-extract dry-run harness
+        PreExtractGuardTests,
+        DoclingMissingTests,
+        PdfExtractIdempotencyTests,
+        PdfExtractCliEdgeTests,
+        PdfExtractCrackTests,
         # Per-paper state machine harness
         DiscoveredStateTests,
         AcquireGateTests,
