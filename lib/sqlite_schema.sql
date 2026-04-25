@@ -381,3 +381,22 @@ CREATE TABLE IF NOT EXISTS manuscript_references (
 CREATE INDEX IF NOT EXISTS idx_msrefs_ms      ON manuscript_references(manuscript_id);
 CREATE INDEX IF NOT EXISTS idx_msrefs_key     ON manuscript_references(entry_key);
 CREATE INDEX IF NOT EXISTS idx_msrefs_disamb  ON manuscript_references(disambiguated_key);
+
+-- -----------------------------------------------------------------------
+-- Tier A4: personal knowledge layer (journal + cross-project memory)
+-- -----------------------------------------------------------------------
+
+-- Daily lab-notebook entries. Per-project but cross-project search joins
+-- across projects is handled in cross-project-memory by union.
+CREATE TABLE IF NOT EXISTS journal_entries (
+    entry_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id      TEXT REFERENCES projects(project_id) ON DELETE SET NULL,
+    entry_date      TEXT NOT NULL,            -- YYYY-MM-DD (local date)
+    body            TEXT NOT NULL,
+    tags            TEXT,                     -- JSON array
+    links           TEXT,                     -- JSON: {papers: [cid], manuscripts: [mid], runs: [rid], experiments: [eid]}
+    at              TEXT NOT NULL             -- ISO timestamp
+);
+
+CREATE INDEX IF NOT EXISTS idx_journal_project ON journal_entries(project_id, entry_date);
+CREATE INDEX IF NOT EXISTS idx_journal_date    ON journal_entries(entry_date);

@@ -98,6 +98,18 @@ Pure deterministic voice-matching — no LLM, no external deps. Fingerprints you
 
 Associated sub-agent: `writing-style`.
 
+### Personal knowledge layer (v0.11)
+
+Daily research-life utilities. All deterministic — no LLM, no MCP fetches.
+
+| Skill | Job |
+|---|---|
+| `research-journal` | Capture / list / search daily lab-notebook entries; per-project, time-stamped, with optional links to runs/papers/manuscripts. Mirrors to disk for greppability |
+| `project-dashboard` | Read-only single-screen view across all projects (or one): activity, reading state, manuscripts by state, open audit issues, graph stats. JSON or Markdown |
+| `cross-project-memory` | Read-only search and lookup across all project DBs. Find papers/concepts/claims/journal entries; given a paper, list every project containing it |
+
+Associated sub-agents: `research-journal`, `project-dashboard`, `cross-project-memory`.
+
 ## MCP servers used
 
 Registered in `.mcp.json`:

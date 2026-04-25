@@ -27,6 +27,8 @@ EXPECTED_AGENTS = {
     "reference-agent",
     # A3 writing style
     "writing-style",
+    # A4 personal knowledge layer
+    "research-journal", "project-dashboard", "cross-project-memory",
 }
 
 

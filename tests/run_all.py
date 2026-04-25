@@ -62,6 +62,15 @@ from tests.test_reference_agent import (
 )
 from tests.test_refactor import ArtifactTests, GraphTests, ProjectTests
 from tests.test_schema import SchemaTests
+from tests.test_personal_knowledge import (
+    CrossProjectSearchTests,
+    DashboardTests,
+    FindPaperTests,
+    JournalAddTests,
+    JournalListTests,
+    JournalSchemaTests,
+    JournalSearchTests,
+)
 from tests.test_writing_style import (
     ApplyTests,
     AuditTests,
@@ -112,6 +121,13 @@ if __name__ == "__main__":
         AuditTests,
         ApplyTests,
         TextstatsUnitTests,
+        JournalAddTests,
+        JournalListTests,
+        JournalSearchTests,
+        DashboardTests,
+        CrossProjectSearchTests,
+        FindPaperTests,
+        JournalSchemaTests,
         AgentFrontmatterTests,
         # Integration + regression
         ResearchFlowIntegrationTests,

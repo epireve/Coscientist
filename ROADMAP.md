@@ -192,6 +192,44 @@ Tests (14 new, 172 total; 0 failing):
 - Audit gate: accepts `ambiguous-citation` kind
 - Schema: `disambiguated_key` column + index present
 
+### v0.11 — personal knowledge layer (A4 complete)
+
+The everyday research-life layer: capture observations, see your status across projects, find things you've already encountered. All read/write operations are deterministic; no LLM, no MCP fetches.
+
+Schema (+1 table, 27 total):
+- `journal_entries` — daily lab-notebook rows: date, body, JSON tags, JSON links to papers/manuscripts/runs/experiments
+
+Three new skills + three new sub-agents:
+
+**research-journal**:
+- `add_entry.py` — append entry from stdin or `--text`; tags + links optional; date defaults to today UTC
+- `list_entries.py` — filter by date range, tag, linked paper/manuscript/run
+- `search.py` — case-insensitive substring search across bodies with snippet
+- Mirrors every entry to `projects/<pid>/journal/<entry_id>.md` for greppability with non-Coscientist tools
+- Sub-agent: `research-journal` — bias for capture over ceremony, validate links exist before recording, never edit existing entries (immutable log)
+
+**project-dashboard**:
+- `dashboard.py` — read-only aggregate across all projects (or one with `--project-id`)
+- Reports: identity, last-7-day activity, reading state counts, manuscripts by state, open audit issues by kind, recent journal entries, graph stats
+- JSON or Markdown output (`--format md` for daily review docs)
+- Sub-agent: `project-dashboard` — read-only by construction, no editorializing
+
+**cross-project-memory**:
+- `search.py` — keyword search across paper titles/abstracts, concept nodes, manuscript_claims, journal entries; group by kind; respect `--kinds` filter
+- `find_paper.py` — given canonical_id / DOI / title-fragment, list every project containing it with its state in each (registered, cited, reading-tracked, graph-only)
+- Sub-agent: `cross-project-memory` — iterates every project DB, never writes, doesn't synthesize (use `/deep-research` if you want synthesis)
+
+Tests (23 new, 195 total; 0 failing):
+- Journal add: writes DB row + disk mirror; stdin path; tags + links round-trip; empty body rejected
+- Journal list: all / by tag / by date range / by linked paper
+- Journal search: substring match with snippet; empty query rejected
+- Dashboard: empty state; aggregates one project (reading state, audit kinds, recent journal); markdown format renders; unknown project rejected
+- Cross-project search: finds papers across 2 projects; finds journal entries; kinds filter works; invalid kind rejected
+- Find paper: by canonical_id / DOI / title fragment; no-match returns empty appearances
+- Schema: journal_entries table present
+
+A4 complete. Tier A is now ✅ A1 (manuscript ingest+audit+critique+reflect, draft/revise/format/version pending), ✅ A2 (reference agent + graph), ✅ A3 (writing-style), ✅ A4 (personal knowledge layer), ✅ A5 (critical judgment). The four remaining A1 sub-skills (draft/revise/format/version) are pure generation work; everything analytical for Tier A is shipped.
+
 ## Inspirations and what we take from them
 
 | Source | Pattern we adopt |
