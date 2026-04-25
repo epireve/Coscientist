@@ -45,3 +45,4 @@ node_modules/
 
 # Test harness scratch files
 tests/_tmp_input.json
+tests/_tmp_phase_*.json

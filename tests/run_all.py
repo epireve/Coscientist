@@ -89,6 +89,15 @@ from tests.test_v0_14_adoption import (
     MultiDbTxAdoptionTests,
     RetryAdoptionTests,
 )
+from tests.test_deep_research_pipeline import (
+    BreakIdempotencyTests,
+    ClaimTests,
+    EdgeCaseTests,
+    InitTests,
+    NextPhaseTests,
+    PhaseOutputTests,
+    ResumeTests,
+)
 from tests.test_personal_knowledge import (
     CrossProjectSearchTests,
     DashboardTests,
@@ -175,6 +184,14 @@ if __name__ == "__main__":
         ArtifactLockAdoptionTests,
         RetryAdoptionTests,
         MultiDbTxAdoptionTests,
+        # v0.15 dry-run pipeline harness
+        InitTests,
+        NextPhaseTests,
+        PhaseOutputTests,
+        ClaimTests,
+        ResumeTests,
+        BreakIdempotencyTests,
+        EdgeCaseTests,
         AgentFrontmatterTests,
         # Integration + regression
         ResearchFlowIntegrationTests,

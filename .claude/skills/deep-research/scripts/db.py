@@ -76,6 +76,24 @@ def cmd_init(args: argparse.Namespace) -> None:
 
 def cmd_record_phase(args: argparse.Namespace) -> None:
     con = _connect(args.run_id)
+    # Reject unknown phase names: a silent no-op UPDATE would let an
+    # orchestrator typo (e.g. "theroist") silently desync the run state
+    # from what the orchestrator believes is recorded.
+    if args.phase not in PHASES_IN_ORDER:
+        con.close()
+        raise SystemExit(
+            f"unknown phase {args.phase!r}; must be one of {PHASES_IN_ORDER}"
+        )
+    exists = con.execute(
+        "SELECT 1 FROM phases WHERE run_id=? AND name=?",
+        (args.run_id, args.phase),
+    ).fetchone()
+    if not exists:
+        con.close()
+        raise SystemExit(
+            f"phase {args.phase!r} not found for run {args.run_id} — "
+            "did you call init?"
+        )
     now = datetime.now(UTC).isoformat()
     output = Path(args.output_json).read_text() if args.output_json else None
     with con:
