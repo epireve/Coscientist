@@ -98,6 +98,14 @@ from tests.test_deep_research_pipeline import (
     PhaseOutputTests,
     ResumeTests,
 )
+from tests.test_paper_state_machine import (
+    AcquireGateTests,
+    AcquireIntegrityTests,
+    AuditLogTests,
+    CliEdgeCaseTests as PaperCliEdgeCaseTests,
+    DiscoveredStateTests,
+    StateMonotonicityTests,
+)
 from tests.test_personal_knowledge import (
     CrossProjectSearchTests,
     DashboardTests,
@@ -192,6 +200,13 @@ if __name__ == "__main__":
         ResumeTests,
         BreakIdempotencyTests,
         EdgeCaseTests,
+        # Per-paper state machine harness
+        DiscoveredStateTests,
+        AcquireGateTests,
+        AcquireIntegrityTests,
+        AuditLogTests,
+        StateMonotonicityTests,
+        PaperCliEdgeCaseTests,
         AgentFrontmatterTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
