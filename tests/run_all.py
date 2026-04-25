@@ -76,6 +76,13 @@ from tests.test_v0_12_1_hardening import (
     NoveltyAnchorUniquenessTests,
     PdfIntegrityTests,
 )
+from tests.test_v0_13_infrastructure import (
+    JournalDriftTests,
+    LockfileTests,
+    MigrationTests,
+    RetryTests,
+    TransactionTests,
+)
 from tests.test_personal_knowledge import (
     CrossProjectSearchTests,
     DashboardTests,
@@ -152,6 +159,11 @@ if __name__ == "__main__":
         HedgeQuotedContextTests,
         KFactorDecayTests,
         CalibrationHardFailTests,
+        MigrationTests,
+        TransactionTests,
+        LockfileTests,
+        RetryTests,
+        JournalDriftTests,
         AgentFrontmatterTests,
         # Integration + regression
         ResearchFlowIntegrationTests,

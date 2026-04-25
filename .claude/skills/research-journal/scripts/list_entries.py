@@ -55,6 +55,9 @@ def main() -> None:
     con.close()
 
     out = []
+    journal_dir = cache_root() / "projects" / args.project_id / "journal"
+    drift_warnings: list[str] = []
+
     for r in rows:
         d = dict(r)
         try:
@@ -75,7 +78,26 @@ def main() -> None:
         if args.linked_run and args.linked_run not in d["links"].get("runs", []):
             continue
 
+        # v0.13: drift detection — disk mirror should contain the body verbatim
+        mirror = journal_dir / f"{d['entry_id']}.md"
+        if mirror.exists():
+            disk_content = mirror.read_text()
+            if d["body"] not in disk_content:
+                drift_warnings.append(
+                    f"entry {d['entry_id']} disk mirror has drifted from DB"
+                )
+                d["disk_drift"] = True
+        else:
+            drift_warnings.append(
+                f"entry {d['entry_id']} disk mirror missing at {mirror}"
+            )
+            d["disk_missing"] = True
+
         out.append(d)
+
+    if drift_warnings:
+        for w in drift_warnings:
+            print(f"[warn] {w}", file=sys.stderr)
 
     print(json.dumps(out, indent=2, default=str))
 
