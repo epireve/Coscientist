@@ -448,6 +448,67 @@ Not all skill scripts need to be MCPs. These earn MCP status because they're reu
 - **manuscript-mcp** — .docx / .tex / .md → structured AST. Once-only parsing that many skills consume.
 - **graph-query-mcp** — wraps Kuzu with research-domain-friendly query primitives (`expand_citations`, `concept_path`, `author_cluster`).
 
+## Live smoke-test status (run aa41d0cb, paused 2026-04-25)
+
+The first attempt to drive `/deep-research` end-to-end on a real question
+("How should digital memory systems implement forgetting mechanisms — and
+which approaches actually serve human memory rather than replace it?")
+**paused at the social phase** for runtime reasons unrelated to Coscientist
+itself. The mechanical pipeline is validated; the agent-quality side is not.
+
+**What was validated by the live attempt:**
+
+- `db.py init` + phase-state machine work in production (run id `aa41d0cb`
+  exists and resumes cleanly).
+- `record-phase --start` + `--error` + `--complete` round-trip works.
+- The dry-run harnesses (v0.15 + v0.16) caught every mechanical bug that
+  could have been caught from disk artifacts alone.
+
+**What broke (in order of discovery):**
+
+1. **Social persona batched its writes.** First social invocation made 80
+   tool calls / 12 minutes / 48 MCP queries with **zero papers persisted**
+   before hitting the Claude API stream-idle timeout. Fixed in commit
+   `e8a6c97`: `social.md` now mandates per-angle persistence
+   (query → `merge.py --run-id` → verify count grew → next angle), with a
+   per-invocation budget of 6 angles / 30 MCP calls and a structured
+   output JSON shape.
+
+2. **Sub-agents do not inherit MCP access in some runtimes.** The retry
+   reported `claude mcp list` empty inside the sub-agent and HTTP fallback
+   blocked at the egress proxy. So even with the persona fixed, the
+   sub-agent had no search path.
+
+3. **The runtime itself cannot reach external paper APIs.** Trying to
+   drive social manually from the orchestrator (option "c" in the
+   smoke-test plan) hit the same `403 Forbidden` from
+   `api.semanticscholar.org` — the egress proxy blocks the API for the
+   parent agent too. Not a Coscientist bug; an environment constraint.
+
+**Resume plan when we move to a runtime with paper-API egress:**
+
+- [ ] **Verify external API egress** — one `mcp__semantic-scholar__search_papers`
+      call must return papers, not 403. Without this, nothing else matters.
+- [ ] **Verify sub-agent MCP inheritance** — spawn a one-shot sub-agent that
+      calls one MCP tool. If it errors with "no such tool", the per-persona
+      `tools:` declarations don't actually grant MCP access in that
+      runtime, and we need to either fix the runtime or pivot the
+      architecture (see next item).
+- [ ] **If sub-agent MCP inheritance is unfixable**, refactor to
+      orchestrator-calls-MCPs: the parent agent invokes MCP tools, writes
+      results to disk via `merge.py`, and spawns sub-agents with paths to
+      the shortlist files instead of MCP tool names. This loses some
+      sub-agent isolation but is robust to runtimes without MCP
+      propagation. ≈1–2 hours of persona refactoring (social, grounder,
+      historian, gaper, theorist, thinker — every persona that searches).
+- [ ] **Re-run on `aa41d0cb`** — the run is intentionally left in
+      `started_at`-only state on social so resume picks up at the same
+      phase. Or start a fresh run; nothing valuable was persisted.
+- [ ] **Fix the two cracks the per-paper harness found** (separate from
+      the smoke-test pause): paper-acquire silently skips audit log on
+      integrity rejection; paper-triage record_one demotes state on
+      re-triage. Both have failing tests pinning current behavior.
+
 ## Open questions and decisions pending
 
 1. Graph DB: Kuzu vs SQLite-adjacency vs Neo4j (lean toward Kuzu)
