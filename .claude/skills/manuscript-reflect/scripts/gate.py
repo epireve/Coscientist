@@ -16,6 +16,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from lib.cache import cache_root, run_db_path  # noqa: E402
+from lib.transaction import multi_db_tx  # noqa: E402  v0.14
 
 HEDGE_WORDS = re.compile(
     r"\b(maybe|perhaps|potentially|could\s+be|might\s+be|possibly|seems?\s+to|appears?\s+to)\b",
@@ -97,24 +98,25 @@ def validate(report: dict) -> list[str]:
 
 def _write_reflection(con: sqlite3.Connection, manuscript_id: str,
                        report: dict, now: str) -> None:
-    with con:
-        con.execute(
-            "INSERT OR REPLACE INTO manuscript_reflections "
-            "(manuscript_id, thesis, weakest_link, one_experiment, report_json, at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (
-                manuscript_id,
-                report["argument_structure"]["thesis"],
-                json.dumps(report["weakest_link"]),
-                json.dumps(report["one_experiment"]),
-                json.dumps(report),
-                now,
-            ),
-        )
+    """v0.14: caller manages BEGIN/COMMIT (via multi_db_tx)."""
+    con.execute(
+        "INSERT OR REPLACE INTO manuscript_reflections "
+        "(manuscript_id, thesis, weakest_link, one_experiment, report_json, at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            manuscript_id,
+            report["argument_structure"]["thesis"],
+            json.dumps(report["weakest_link"]),
+            json.dumps(report["one_experiment"]),
+            json.dumps(report),
+            now,
+        ),
+    )
 
 
 def persist(report: dict, manuscript_id: str,
             run_id: str | None, project_id: str | None) -> Path:
+    """v0.14: dual-DB writes wrapped in multi_db_tx — atomic across both."""
     out_dir = cache_root() / "manuscripts" / manuscript_id
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / "reflect_report.json"
@@ -122,19 +124,20 @@ def persist(report: dict, manuscript_id: str,
 
     now = datetime.now(UTC).isoformat()
 
+    targets: list[Path] = []
     if run_id:
-        db = run_db_path(run_id)
-        if db.exists():
-            con = sqlite3.connect(db)
-            _write_reflection(con, manuscript_id, report, now)
-            con.close()
-
+        rdb = run_db_path(run_id)
+        if rdb.exists():
+            targets.append(rdb)
     if project_id:
-        proj_db = cache_root() / "projects" / project_id / "project.db"
-        if proj_db.exists():
-            con = sqlite3.connect(proj_db)
-            _write_reflection(con, manuscript_id, report, now)
-            con.close()
+        pdb = cache_root() / "projects" / project_id / "project.db"
+        if pdb.exists():
+            targets.append(pdb)
+
+    if targets:
+        with multi_db_tx(targets) as cons:
+            for con in cons:
+                _write_reflection(con, manuscript_id, report, now)
 
     return out
 

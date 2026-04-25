@@ -41,10 +41,16 @@ BREAK_AFTER = {"social": 0, "gaper": 1, "synthesizer": 2}
 def _connect(run_id: str) -> sqlite3.Connection:
     db = run_db_path(run_id)
     fresh = not db.exists()
+    if fresh:
+        # Build base schema first
+        con = sqlite3.connect(db)
+        con.executescript(SCHEMA_PATH.read_text())
+        con.close()
+    # v0.14: apply any unapplied migrations before returning the connection
+    from lib.migrations import ensure_current
+    ensure_current(db)
     con = sqlite3.connect(db)
     con.row_factory = sqlite3.Row
-    if fresh:
-        con.executescript(SCHEMA_PATH.read_text())
     return con
 
 

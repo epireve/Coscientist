@@ -69,3 +69,41 @@ def retry_with_backoff(
     # Re-raise the most recent exception
     assert last_exc is not None
     raise last_exc
+
+
+async def aretry_with_backoff(
+    fn,
+    *,
+    max_attempts: int = 4,
+    base_delay: float = 2.0,
+    max_delay: float = 30.0,
+    jitter: float = 0.1,
+    retryable: tuple[type[BaseException], ...] = DEFAULT_RETRYABLE,
+    on_retry: Callable[[int, BaseException, float], None] | None = None,
+):
+    """Async variant of retry_with_backoff.
+
+    `fn` is an async callable. Uses asyncio.sleep so the event loop isn't
+    blocked during backoff.
+    """
+    import asyncio
+    last_exc: BaseException | None = None
+    for attempt in range(max_attempts):
+        try:
+            return await fn()
+        except retryable as exc:
+            last_exc = exc
+            if attempt >= max_attempts - 1:
+                break
+            delay = min(base_delay * (2 ** attempt), max_delay)
+            delay += random.uniform(0, base_delay * jitter)
+            if on_retry:
+                on_retry(attempt + 1, exc, delay)
+            else:
+                logger.debug(
+                    "async retry attempt %d/%d after %s: sleeping %.2fs",
+                    attempt + 1, max_attempts, type(exc).__name__, delay,
+                )
+            await asyncio.sleep(delay)
+    assert last_exc is not None
+    raise last_exc

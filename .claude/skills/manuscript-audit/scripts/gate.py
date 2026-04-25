@@ -25,6 +25,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from lib.cache import cache_root, run_db_path  # noqa: E402
+from lib.transaction import multi_db_tx  # noqa: E402  v0.14
 
 HEDGE_WORDS = re.compile(
     r"\b(maybe|perhaps|potentially|could\s+be|might\s+be|possibly|seems?\s+to|appears?\s+to)\b",
@@ -99,36 +100,38 @@ def _concept_node_id(claim_id: str, text: str) -> str:
 
 def _write_claims_and_findings(con: sqlite3.Connection, manuscript_id: str,
                                 claims: list[dict], now: str) -> None:
-    """Write claim + finding rows to an open connection. Schema is shared."""
-    with con:
-        for c in claims:
+    """Write claim + finding rows to an open connection. Schema is shared.
+
+    v0.14: caller manages BEGIN/COMMIT (via multi_db_tx). No nested `with con:`.
+    """
+    for c in claims:
+        con.execute(
+            "INSERT OR IGNORE INTO manuscript_claims "
+            "(manuscript_id, claim_id, text, location, cited_sources, at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                manuscript_id,
+                c["claim_id"],
+                c["text"],
+                c["location"],
+                json.dumps(c.get("cited_sources", [])),
+                now,
+            ),
+        )
+        for f in c.get("findings") or []:
             con.execute(
-                "INSERT OR IGNORE INTO manuscript_claims "
-                "(manuscript_id, claim_id, text, location, cited_sources, at) "
+                "INSERT INTO manuscript_audit_findings "
+                "(manuscript_id, claim_id, kind, severity, evidence, at) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
                 (
                     manuscript_id,
                     c["claim_id"],
-                    c["text"],
-                    c["location"],
-                    json.dumps(c.get("cited_sources", [])),
+                    f["kind"],
+                    f["severity"],
+                    f["evidence"],
                     now,
                 ),
             )
-            for f in c.get("findings") or []:
-                con.execute(
-                    "INSERT INTO manuscript_audit_findings "
-                    "(manuscript_id, claim_id, kind, severity, evidence, at) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (
-                        manuscript_id,
-                        c["claim_id"],
-                        f["kind"],
-                        f["severity"],
-                        f["evidence"],
-                        now,
-                    ),
-                )
 
 
 def _add_graph_edges(con: sqlite3.Connection, manuscript_id: str,
@@ -142,97 +145,104 @@ def _add_graph_edges(con: sqlite3.Connection, manuscript_id: str,
     concepts_added = 0
     about_edges = 0
 
-    with con:
-        # Ensure manuscript node exists
-        con.execute(
+    # v0.14: caller manages BEGIN/COMMIT (via multi_db_tx). No nested `with con:`.
+    con.execute(
+        "INSERT OR IGNORE INTO graph_nodes "
+        "(node_id, kind, label, data_json, created_at) "
+        "VALUES (?, 'manuscript', ?, NULL, ?)",
+        (ms_node, manuscript_id, now),
+    )
+
+    for c in claims:
+        concept_id = _concept_node_id(c["claim_id"], c["text"])
+        cur = con.execute(
             "INSERT OR IGNORE INTO graph_nodes "
             "(node_id, kind, label, data_json, created_at) "
-            "VALUES (?, 'manuscript', ?, NULL, ?)",
-            (ms_node, manuscript_id, now),
+            "VALUES (?, 'concept', ?, ?, ?)",
+            (concept_id, c["text"][:120],
+             json.dumps({"source": "manuscript-audit", "manuscript_id": manuscript_id}),
+             now),
         )
+        if cur.rowcount:
+            concepts_added += 1
 
-        for c in claims:
-            concept_id = _concept_node_id(c["claim_id"], c["text"])
-            cur = con.execute(
+        exists = con.execute(
+            "SELECT 1 FROM graph_edges WHERE from_node=? AND to_node=? AND relation=?",
+            (ms_node, concept_id, "about"),
+        ).fetchone()
+        if not exists:
+            con.execute(
+                "INSERT INTO graph_edges "
+                "(from_node, to_node, relation, weight, data_json, created_at) "
+                "VALUES (?, ?, 'about', 1.0, ?, ?)",
+                (ms_node, concept_id,
+                 json.dumps({"claim_id": c["claim_id"]}), now),
+            )
+            about_edges += 1
+
+        for cit_cid in c.get("cited_sources") or []:
+            paper_node = f"paper:{cit_cid}"
+            con.execute(
                 "INSERT OR IGNORE INTO graph_nodes "
                 "(node_id, kind, label, data_json, created_at) "
-                "VALUES (?, 'concept', ?, ?, ?)",
-                (concept_id, c["text"][:120],
-                 json.dumps({"source": "manuscript-audit", "manuscript_id": manuscript_id}),
-                 now),
+                "VALUES (?, 'paper', ?, NULL, ?)",
+                (paper_node, cit_cid, now),
             )
-            if cur.rowcount:
-                concepts_added += 1
-
-            # manuscript "contains" concept (via in-project relation reused)
             exists = con.execute(
                 "SELECT 1 FROM graph_edges WHERE from_node=? AND to_node=? AND relation=?",
-                (ms_node, concept_id, "about"),
+                (concept_id, paper_node, "about"),
             ).fetchone()
             if not exists:
                 con.execute(
                     "INSERT INTO graph_edges "
                     "(from_node, to_node, relation, weight, data_json, created_at) "
                     "VALUES (?, ?, 'about', 1.0, ?, ?)",
-                    (ms_node, concept_id,
+                    (concept_id, paper_node,
                      json.dumps({"claim_id": c["claim_id"]}), now),
                 )
                 about_edges += 1
-
-            # concept → each cited paper via about
-            for cit_cid in c.get("cited_sources") or []:
-                paper_node = f"paper:{cit_cid}"
-                con.execute(
-                    "INSERT OR IGNORE INTO graph_nodes "
-                    "(node_id, kind, label, data_json, created_at) "
-                    "VALUES (?, 'paper', ?, NULL, ?)",
-                    (paper_node, cit_cid, now),
-                )
-                exists = con.execute(
-                    "SELECT 1 FROM graph_edges WHERE from_node=? AND to_node=? AND relation=?",
-                    (concept_id, paper_node, "about"),
-                ).fetchone()
-                if not exists:
-                    con.execute(
-                        "INSERT INTO graph_edges "
-                        "(from_node, to_node, relation, weight, data_json, created_at) "
-                        "VALUES (?, ?, 'about', 1.0, ?, ?)",
-                        (concept_id, paper_node,
-                         json.dumps({"claim_id": c["claim_id"]}), now),
-                    )
-                    about_edges += 1
 
     return {"concepts_added": concepts_added, "about_edges": about_edges}
 
 
 def persist(report: dict, manuscript_id: str,
             run_id: str | None, project_id: str | None) -> dict:
-    """Write report to disk + (optional) run DB + (optional) project DB."""
+    """Write report to disk + (optional) run DB + (optional) project DB.
+
+    v0.14: dual DB writes are wrapped in `multi_db_tx` so a failure on the
+    project side rolls back the run side too. Either both DBs reflect the
+    audit, or neither does.
+    """
     out_dir = cache_root() / "manuscripts" / manuscript_id
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / "audit_report.json"
     out.write_text(json.dumps(report, indent=2))
 
     now = datetime.now(UTC).isoformat()
-    summary = {"report_path": str(out)}
+    summary: dict = {"report_path": str(out)}
 
+    targets: list[tuple[str, Path]] = []
     if run_id:
-        db = run_db_path(run_id)
-        if db.exists():
-            con = sqlite3.connect(db)
-            _write_claims_and_findings(con, manuscript_id, report["claims"], now)
-            con.close()
-            summary["run_db_written"] = True
-
+        rdb = run_db_path(run_id)
+        if rdb.exists():
+            targets.append(("run", rdb))
     if project_id:
-        proj_db = cache_root() / "projects" / project_id / "project.db"
-        if proj_db.exists():
-            con = sqlite3.connect(proj_db)
-            _write_claims_and_findings(con, manuscript_id, report["claims"], now)
-            graph_stats = _add_graph_edges(con, manuscript_id, report["claims"], now)
-            con.close()
-            summary["project_db_written"] = True
-            summary.update(graph_stats)
+        pdb = cache_root() / "projects" / project_id / "project.db"
+        if pdb.exists():
+            targets.append(("project", pdb))
+
+    if targets:
+        with multi_db_tx([p for _, p in targets]) as cons:
+            for (kind, _), con in zip(targets, cons):
+                _write_claims_and_findings(con, manuscript_id, report["claims"], now)
+                if kind == "run":
+                    summary["run_db_written"] = True
+                else:
+                    graph_stats = _add_graph_edges(
+                        con, manuscript_id, report["claims"], now,
+                    )
+                    summary["project_db_written"] = True
+                    summary.update(graph_stats)
 
     return summary
 

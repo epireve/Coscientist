@@ -18,26 +18,30 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from lib.lockfile import artifact_lock  # noqa: E402  v0.14
 from lib.paper_artifact import PaperArtifact, State  # noqa: E402
 
 
 def record_one(cid: str, sufficient: bool, rationale: str) -> None:
     art = PaperArtifact(cid)
-    meta = art.load_metadata()
-    if sufficient:
-        if not meta or not (meta.abstract or meta.tldr or meta.claims):
-            raise SystemExit(
-                f"[{cid}] cannot mark sufficient=true: no abstract/tldr/claims in metadata. "
-                "Fetch or override explicitly."
-            )
-    manifest = art.load_manifest()
-    manifest.triage = {
-        "sufficient": bool(sufficient),
-        "rationale": rationale,
-        "at": datetime.now(UTC).isoformat(),
-    }
-    manifest.state = State.triaged
-    art.save_manifest(manifest)
+    # v0.14: serialize against concurrent paper-acquire / paper-discovery
+    # writes on the same paper artifact.
+    with artifact_lock(art.root, timeout=30.0):
+        meta = art.load_metadata()
+        if sufficient:
+            if not meta or not (meta.abstract or meta.tldr or meta.claims):
+                raise SystemExit(
+                    f"[{cid}] cannot mark sufficient=true: no abstract/tldr/claims in metadata. "
+                    "Fetch or override explicitly."
+                )
+        manifest = art.load_manifest()
+        manifest.triage = {
+            "sufficient": bool(sufficient),
+            "rationale": rationale,
+            "at": datetime.now(UTC).isoformat(),
+        }
+        manifest.state = State.triaged
+        art.save_manifest(manifest)
 
 
 def main() -> None:

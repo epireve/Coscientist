@@ -255,6 +255,48 @@ Tests (22 new, 217 total; 0 failing):
 
 Tier B has its first big-pattern adoption. Statistics MCP, PRISMA, retraction watch, preprint alerts still pending.
 
+### v0.12.1 — hardening pass (5 trivial anomalies closed)
+
+Five small-but-real failure modes from the anomaly analysis, fixed inline:
+
+- Hedge-word scan now strips quoted spans (`"…"`, `'…'`, backticks) before regex. Lets a manuscript *quote* a reviewer's hedge without the gate refusing the audit.
+- `paper-acquire` integrity check on every accepted PDF: minimum 200 bytes + `%PDF-` magic-byte prefix. Catches paywall HTML masquerading as a PDF.
+- Novelty-anchor uniqueness — each contribution must cite ≥5 *distinct* prior works (not the same paper five times).
+- K-factor decay in Elo (32 → 16 after 10 matches → 8 after 30) so early upsets matter and late matches don't whip the leaderboard.
+- Calibration soft→hard fail: a publishability verdict's confidence must lie within the verdict band.
+
+`lib/paper_artifact.py` lost its `slugify` dependency the same way `lib/project.py` did in v0.5.1 — replaced with the same inline `_slug()`. Zero external deps for the canonical-id helper.
+
+### v0.13 — infrastructure primitives (5 medium-impact items)
+
+The five non-trivial items from the anomaly pass became their own library modules — no skills changed yet, just the building blocks:
+
+- `lib/migrations.py` — schema-version tracking + idempotent `ensure_current(db)`. Solves "old run DB without the v0.5 tables crashes the gate."
+- `lib/transaction.py` — `multi_db_tx(db_paths)` context manager: BEGIN both, COMMIT both on clean exit, ROLLBACK both on raise. Solves split-brain dual-writes.
+- `lib/lockfile.py` — `artifact_lock(art_dir, timeout)` over fcntl with marker-file fallback. Solves concurrent paper-acquire + paper-triage racing on the same manifest.
+- `lib/retry.py` — `retry_with_backoff` (sync) + `aretry_with_backoff` (async) with exponential delay + jitter and explicit retryable-exception tuple. Solves transient MCP/publisher 429s.
+- Journal disk-mirror drift detection: `list_entries.py` warns on missing-or-tampered markdown mirrors so the SQLite row stays the source of truth.
+
+22 new tests; suite at 251 passing.
+
+### v0.14 — adopting v0.13 primitives in the skills that need them
+
+Wires the v0.13 infrastructure into every site that has a real failure mode it solves. Pure plumbing — no new skills, no schema changes — but the failure modes are now actually closed.
+
+- `lib/project._connect` and `deep-research/scripts/db.py::_connect` now call `migrations.ensure_current()` on every open, so an older project DB picks up new migrations transparently.
+- `paper-acquire/scripts/record.py` and `paper-triage/scripts/record.py` wrap all manifest mutations in `artifact_lock(art.root, timeout=30.0)`. Concurrent record calls against the same paper now serialize.
+- `institutional-access/scripts/fetch.py` calls `aretry_with_backoff(attempt, max_attempts=3, base_delay=2.0, retryable=(TimeoutError, ConnectionError, OSError, PWTimeout))` around `adapter.fetch_pdf`. `SessionExpired` deliberately stays non-retryable — bubbles to exit code 10 so the user re-runs `login.py`.
+- `manuscript-{audit,critique,reflect}/scripts/gate.py` `persist()` now opens both run DB and project DB through `multi_db_tx`, so any failure on one side rolls back the other. The inner write helpers no longer manage their own transactions.
+
+Tests (`test_v0_14_adoption.py`, 16 new; suite at 267 passing):
+
+- Static checks that each skill imports the matching primitive (so the wiring isn't silently regressed).
+- Behavioral check: opening a fresh project DB populates `schema_versions`.
+- Behavioral check: 4 threads calling `paper-triage` `record_one` against the same paper all complete with no manifest corruption.
+- Async retry primitive retries flaky `TimeoutError` then succeeds; gives up after `max_attempts`.
+- Atomicity proof: drop the project-side target table before invoking each gate → gate exits non-zero **and** the run DB row never appears (multi_db_tx rolled back the first leg).
+- Sanity: clean dual-write still produces one row in each DB.
+
 ## Inspirations and what we take from them
 
 | Source | Pattern we adopt |

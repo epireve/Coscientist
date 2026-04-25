@@ -60,6 +60,19 @@ def _connect(project_id: str) -> sqlite3.Connection:
     con.row_factory = sqlite3.Row
     if fresh:
         con.executescript(SCHEMA_PATH.read_text())
+        con.close()
+        # v0.14: register baseline + apply any pending migrations.
+        from lib.migrations import ensure_current  # lazy to avoid cycles
+        ensure_current(db)
+        con = sqlite3.connect(db)
+        con.row_factory = sqlite3.Row
+    else:
+        # Existing DB — apply any unapplied migrations before handing it back
+        from lib.migrations import ensure_current
+        con.close()
+        ensure_current(db)
+        con = sqlite3.connect(db)
+        con.row_factory = sqlite3.Row
     return con
 
 

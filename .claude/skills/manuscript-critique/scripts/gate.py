@@ -16,6 +16,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from lib.cache import cache_root, run_db_path  # noqa: E402
+from lib.transaction import multi_db_tx  # noqa: E402  v0.14
 
 REQUIRED_REVIEWERS = {"methodological", "theoretical", "big_picture", "nitpicky"}
 VALID_SEVERITY = {"fatal", "major", "minor"}
@@ -91,23 +92,24 @@ def validate(report: dict) -> list[str]:
 
 def _write_findings(con: sqlite3.Connection, manuscript_id: str,
                     reviewers: dict, now: str) -> None:
-    with con:
-        for name, r in reviewers.items():
-            for f in r.get("findings") or []:
-                con.execute(
-                    "INSERT INTO manuscript_critique_findings "
-                    "(manuscript_id, reviewer, severity, location, issue, "
-                    "suggested_fix, steelman, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        manuscript_id, name,
-                        f["severity"], f["location"], f["issue"],
-                        f.get("suggested_fix"), f.get("steelman"), now,
-                    ),
-                )
+    """v0.14: caller manages BEGIN/COMMIT (via multi_db_tx)."""
+    for name, r in reviewers.items():
+        for f in r.get("findings") or []:
+            con.execute(
+                "INSERT INTO manuscript_critique_findings "
+                "(manuscript_id, reviewer, severity, location, issue, "
+                "suggested_fix, steelman, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    manuscript_id, name,
+                    f["severity"], f["location"], f["issue"],
+                    f.get("suggested_fix"), f.get("steelman"), now,
+                ),
+            )
 
 
 def persist(report: dict, manuscript_id: str,
             run_id: str | None, project_id: str | None) -> Path:
+    """v0.14: dual-DB writes wrapped in multi_db_tx — atomic across both."""
     out_dir = cache_root() / "manuscripts" / manuscript_id
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / "critique_report.json"
@@ -116,19 +118,20 @@ def persist(report: dict, manuscript_id: str,
     now = datetime.now(UTC).isoformat()
     reviewers = report["reviewers"]
 
+    targets: list[Path] = []
     if run_id:
-        db = run_db_path(run_id)
-        if db.exists():
-            con = sqlite3.connect(db)
-            _write_findings(con, manuscript_id, reviewers, now)
-            con.close()
-
+        rdb = run_db_path(run_id)
+        if rdb.exists():
+            targets.append(rdb)
     if project_id:
-        proj_db = cache_root() / "projects" / project_id / "project.db"
-        if proj_db.exists():
-            con = sqlite3.connect(proj_db)
-            _write_findings(con, manuscript_id, reviewers, now)
-            con.close()
+        pdb = cache_root() / "projects" / project_id / "project.db"
+        if pdb.exists():
+            targets.append(pdb)
+
+    if targets:
+        with multi_db_tx(targets) as cons:
+            for con in cons:
+                _write_findings(con, manuscript_id, reviewers, now)
 
     return out
 

@@ -83,6 +83,12 @@ from tests.test_v0_13_infrastructure import (
     RetryTests,
     TransactionTests,
 )
+from tests.test_v0_14_adoption import (
+    ArtifactLockAdoptionTests,
+    MigrationsAdoptionTests,
+    MultiDbTxAdoptionTests,
+    RetryAdoptionTests,
+)
 from tests.test_personal_knowledge import (
     CrossProjectSearchTests,
     DashboardTests,
@@ -164,6 +170,11 @@ if __name__ == "__main__":
         LockfileTests,
         RetryTests,
         JournalDriftTests,
+        # v0.14 adoption
+        MigrationsAdoptionTests,
+        ArtifactLockAdoptionTests,
+        RetryAdoptionTests,
+        MultiDbTxAdoptionTests,
         AgentFrontmatterTests,
         # Integration + regression
         ResearchFlowIntegrationTests,

@@ -22,6 +22,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from lib.paper_artifact import PaperArtifact  # noqa: E402
 from lib.rate_limit import wait as rate_limit_wait  # noqa: E402
+from lib.retry import aretry_with_backoff  # noqa: E402  v0.14
 
 STATE_FILE = Path(__file__).resolve().parent.parent / "state" / "storage_state.json"
 
@@ -59,7 +60,27 @@ async def run(cid: str) -> int:
         context = await browser.new_context(storage_state=str(STATE_FILE))
         try:
             rate_limit_wait(adapter.DOMAIN)
-            pdf = await adapter.fetch_pdf(context, manifest.doi, out_path)
+
+            # v0.14: retry transient adapter errors (timeouts, network blips,
+            # publisher 429s) with exponential backoff. SessionExpired is
+            # NOT retryable — bubble it up immediately.
+            retryable: tuple[type[BaseException], ...] = (TimeoutError,
+                                                           ConnectionError, OSError)
+            try:
+                from playwright.async_api import TimeoutError as PWTimeout
+                retryable = (*retryable, PWTimeout)
+            except ImportError:
+                pass
+
+            async def attempt():
+                return await adapter.fetch_pdf(context, manifest.doi, out_path)
+
+            pdf = await aretry_with_backoff(
+                attempt,
+                max_attempts=3,
+                base_delay=2.0,
+                retryable=retryable,
+            )
             print(str(pdf))
             return 0
         except adapter.SessionExpired:
