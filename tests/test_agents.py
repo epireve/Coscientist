@@ -29,6 +29,8 @@ EXPECTED_AGENTS = {
     "writing-style",
     # A4 personal knowledge layer
     "research-journal", "project-dashboard", "cross-project-memory",
+    # Tier B tournament + evolution
+    "ranker", "evolver",
 }
 
 

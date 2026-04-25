@@ -62,6 +62,13 @@ from tests.test_reference_agent import (
 )
 from tests.test_refactor import ArtifactTests, GraphTests, ProjectTests
 from tests.test_schema import SchemaTests
+from tests.test_tournament import (
+    EloMathTests,
+    LeaderboardTests,
+    PairwiseTests,
+    RecordHypothesisTests,
+    RecordMatchTests,
+)
 from tests.test_personal_knowledge import (
     CrossProjectSearchTests,
     DashboardTests,
@@ -128,6 +135,11 @@ if __name__ == "__main__":
         CrossProjectSearchTests,
         FindPaperTests,
         JournalSchemaTests,
+        RecordHypothesisTests,
+        RecordMatchTests,
+        PairwiseTests,
+        LeaderboardTests,
+        EloMathTests,
         AgentFrontmatterTests,
         # Integration + regression
         ResearchFlowIntegrationTests,

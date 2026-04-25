@@ -230,6 +230,31 @@ Tests (23 new, 195 total; 0 failing):
 
 A4 complete. Tier A is now ✅ A1 (manuscript ingest+audit+critique+reflect, draft/revise/format/version pending), ✅ A2 (reference agent + graph), ✅ A3 (writing-style), ✅ A4 (personal knowledge layer), ✅ A5 (critical judgment). The four remaining A1 sub-skills (draft/revise/format/version) are pure generation work; everything analytical for Tier A is shipped.
 
+### v0.12 — Tournament Elo + Evolution (Tier B first cut)
+
+Google Co-scientist's pattern, applied. Pairwise self-play between candidate hypotheses; the top of the leaderboard gets mutated and re-enters. Every match recorded with the judge's reasoning; lineage walked via parent_hyp_id.
+
+New skill `tournament` (4 scripts):
+- `record_hypothesis.py` — register a hypothesis at default Elo 1200; rejects duplicate IDs, validates JSON arrays
+- `record_match.py` — Elo update with K=32 (standard formula); winner can be a hyp_id or `draw`; counters incremented atomically; match row persisted with judge_reasoning
+- `pairwise.py` — three strategies: round-robin, top-k-vs-rest, top-k-internal; `--exclude-played` skips already-judged pairs
+- `leaderboard.py` — top-N by Elo with W-L-M counts and ancestor lineage (walks parent_hyp_id back to root)
+
+Two new sub-agents:
+- **`ranker`** — pairwise judge with explicit criteria (falsifiability, operationalization, cost of decisive test, grounded precedent, novelty). Steelmans both before picking. `draw` only when criteria are genuinely indistinguishable.
+- **`evolver`** — three evolution kinds (sharpen, recombine, re-aim); 2–4 children per call; required parent_hyp_id; falsifier list non-empty per child; ≥5 supporting_ids per child.
+
+`theorist` and `thinker` updated to register every hypothesis they produce in the tournament table.
+
+Tests (22 new, 217 total; 0 failing):
+- Record-hypothesis: default Elo 1200, duplicate hyp_id rejected, parent lineage recorded, invalid agent rejected
+- Record-match: equal-initial winner gains +16 / loser -16, counters updated, draw moves nothing when equal, **underdog wins gain MORE than +16** (validates the formula's asymmetry), match row + judge_reasoning persisted, invalid winner rejected, self-match rejected
+- Pairwise: round-robin n choose 2; top-k-vs-rest k×rest; top-k-internal k choose 2; --exclude-played subtracts already-judged pairs; <2 hypotheses rejected
+- Leaderboard: sorted by Elo desc; ancestor chain walks correctly through 3 generations; markdown format renders
+- Elo math units: expected_score symmetric at equal ratings; 400-Elo diff yields ~0.909 expected; update is zero-sum
+
+Tier B has its first big-pattern adoption. Statistics MCP, PRISMA, retraction watch, preprint alerts still pending.
+
 ## Inspirations and what we take from them
 
 | Source | Pattern we adopt |

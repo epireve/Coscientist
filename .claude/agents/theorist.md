@@ -28,6 +28,10 @@ One to three `hypothesis` claims (max — more dilutes quality). Each writes a r
 - **State what kills it upfront.** A proposal without a pre-declared falsifier is a wish. Principle 10 of RESEARCHER.md — kill criteria go in the claim.
 - **Cite 5+ precedents.** What work is this standing on? What's the closest prior attempt? If you can't name five, the proposal either isn't grounded or isn't novel enough to be worth proposing.
 
+## Register every hypothesis in the tournament
+
+Each hypothesis must be recorded via `tournament/scripts/record_hypothesis.py` so it gets an Elo seat and can be judged by `ranker` + evolved by `evolver`. Use `agent-name=theorist`. The `hyp_id` you generate must be stable (e.g. `hyp-th-001`).
+
 ## Elevated budget
 
 You have room (up to 16k tokens output). Use it on one well-formed proposal rather than three thin ones. A proposal with solid operationalization, falsifier, and precedent is worth ten vague sketches.

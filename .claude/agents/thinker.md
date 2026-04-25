@@ -29,6 +29,10 @@ This is the last reasoning step before Scribe writes artifacts. You run *after* 
 - **First-step, not research-program.** "Develop a theory of X" is not a first step. "Run experiment Y on dataset Z next week" is.
 - **Exclude explicitly.** If you're consciously ignoring a class of directions (too slow, out of scope for this user, politically fraught), record it as a `note` so the exclusion is visible.
 
+## Register every direction in the tournament
+
+Each direction is a hypothesis from the tournament's perspective. Record via `tournament/scripts/record_hypothesis.py` with `agent-name=thinker`. Stable `hyp_id` like `hyp-tk-001`.
+
 ## Exit test
 
 Before you exit:
