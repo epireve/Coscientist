@@ -1,0 +1,97 @@
+{
+  "venue": "neurips",
+  "full_name": "Neural Information Processing Systems",
+  "style": "NeurIPS",
+  "word_limit": 8000,
+  "notes": "Eight pages of content + unlimited references. Emphasis on reproducibility (code/data URLs in text), broader societal impact, limitations sections. Single-blind review.",
+  "sections": [
+    {
+      "name": "abstract",
+      "heading": "Abstract",
+      "ordinal": 1,
+      "target_words": 150,
+      "required": true,
+      "notes": "Motivation, method, key result, significance. No citations. Accessible to a broad ML audience."
+    },
+    {
+      "name": "introduction",
+      "heading": "Introduction",
+      "ordinal": 2,
+      "target_words": 800,
+      "required": true,
+      "notes": "Problem setting, why it matters, what makes it hard. Contributions as a bulleted list (typically 3–4 bullets). Roadmap sentence at the end."
+    },
+    {
+      "name": "related_work",
+      "heading": "Related Work",
+      "ordinal": 3,
+      "target_words": 600,
+      "required": true,
+      "notes": "Situate the work. Use subheadings if needed. Be specific about what you do differently. Avoid listing papers without contrast."
+    },
+    {
+      "name": "background",
+      "heading": "Background",
+      "ordinal": 4,
+      "target_words": 400,
+      "required": false,
+      "notes": "Notation, prior formalism you build on. Skip if problem setting is simple enough to fold into Introduction."
+    },
+    {
+      "name": "method",
+      "heading": "Method",
+      "ordinal": 5,
+      "target_words": 1500,
+      "required": true,
+      "notes": "Core technical contribution. Pseudocode or algorithm box recommended. Equations numbered. Intuition before formalism."
+    },
+    {
+      "name": "experiments",
+      "heading": "Experiments",
+      "ordinal": 6,
+      "target_words": 1800,
+      "required": true,
+      "notes": "Setup (datasets, baselines, metrics, hyperparams), main table, ablations. Every baseline must be cited and run under identical conditions."
+    },
+    {
+      "name": "discussion",
+      "heading": "Discussion",
+      "ordinal": 7,
+      "target_words": 400,
+      "required": false,
+      "notes": "What do results reveal beyond the numbers? Failure modes, surprising findings."
+    },
+    {
+      "name": "conclusion",
+      "heading": "Conclusion",
+      "ordinal": 8,
+      "target_words": 200,
+      "required": true,
+      "notes": "Two or three sentences. What was shown, what it opens up."
+    },
+    {
+      "name": "broader_impact",
+      "heading": "Broader Impact",
+      "ordinal": 9,
+      "target_words": 200,
+      "required": true,
+      "notes": "NeurIPS requires this. Positive and negative societal impacts. Be honest about dual-use risks."
+    },
+    {
+      "name": "limitations",
+      "heading": "Limitations",
+      "ordinal": 10,
+      "target_words": 200,
+      "required": true,
+      "notes": "NeurIPS expects explicit limitations. Reviewers will list them anyway; preempt with honesty."
+    },
+    {
+      "name": "references",
+      "heading": "References",
+      "ordinal": 11,
+      "target_words": 0,
+      "required": true,
+      "notes": "Unlimited pages. NeurIPS style uses numbered citations [1]."
+    }
+  ]
+}

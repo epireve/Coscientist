@@ -105,8 +105,9 @@ Three additional agents are invoked by other workflows (not the deep-research pi
 - `novelty-auditor` — structured novelty assessment via the `novelty-check` gate
 - `publishability-judge` — venue-calibrated publishability verdict via `publishability-check`
 - `red-team` — named-attack-vector critique of finished work via `attack-vectors`
+- `manuscript-drafter` — section-by-section drafting via the `manuscript-draft` skill; reads outline.json + research context, fills each section, tracks word counts and cite keys
 
-These are used by future manuscript-audit / manuscript-critique workflows, and by the tournament/evolution subsystem when it lands.
+These are used by manuscript-audit / manuscript-critique workflows, and by the tournament/evolution subsystem when it lands.
 
 All sub-agents:
 
@@ -164,4 +165,4 @@ Prefer declarative success criteria over procedural steps. Sub-agent prompts sho
 
 ## Git
 
-Work happens on branch `claude/analyze-research-agent-repos-DdVMQ`. Never push to a different branch without explicit approval.
+Work happens on branch `main`.

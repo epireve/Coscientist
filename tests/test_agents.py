@@ -23,6 +23,7 @@ EXPECTED_AGENTS = {
     "novelty-auditor", "publishability-judge", "red-team",
     # A1 manuscript subsystem
     "manuscript-auditor", "manuscript-critic", "manuscript-reflector",
+    "manuscript-drafter",
     # A2 reference agent
     "reference-agent",
     # A3 writing style

@@ -118,9 +118,19 @@ Shaped after [karpathy-skills](https://github.com/forrestchang/andrej-karpathy-s
 
 ---
 
+## 12. Draft to Communicate, Not to Sound Impressive
+
+**Failure mode**: LLMs default to verbose, hedge-laden academic prose ("it is worth noting that", "further investigation may potentially be warranted"). This signals that the agent is imitating academic writing rather than making claims.
+
+**Practice**: Every sentence must do one job: state a claim, provide evidence, or signal structure. Hedges are permitted only when genuine uncertainty warrants them — one hedge per claim maximum. Word targets are ceilings, not floors. The test for any paragraph: could you replace it with a table, a number, or a shorter sentence without losing meaning? If yes, do it.
+
+**The test**: Read the drafted section aloud. Do the sentences move forward, each one adding new information? Or do they circle the same idea with different words? Circling is padding; cut it.
+
+---
+
 ## How these apply to each sub-agent
 
-Principle keys: 1 Triage, 2 Cite, 3 Doubt Extractor, 4 Tension, 5 Bias, 6 Name Five, 7 Commit Number, 8 Steelman, 9 Premortem, 10 Kill Criteria, 11 Stop.
+Principle keys: 1 Triage, 2 Cite, 3 Doubt Extractor, 4 Tension, 5 Bias, 6 Name Five, 7 Commit Number, 8 Steelman, 9 Premortem, 10 Kill Criteria, 11 Stop, 12 Draft.
 
 | Sub-agent | Principles most relevant |
 |---|---|
@@ -136,6 +146,7 @@ Principle keys: 1 Triage, 2 Cite, 3 Doubt Extractor, 4 Tension, 5 Bias, 6 Name F
 | **novelty-auditor** (Tier A5) | 6 + 7 + 8 + 9 + 10 |
 | **publishability-judge** (Tier A5) | 7 + 8 + 9 + 10 |
 | **red-team** (Tier A5, upgrade of rude) | 8 + named attack vectors (see ROADMAP A5) |
+| **manuscript-drafter** (A1) | 2 + 7 + 12 (cite what you've read, commit word counts, draft to communicate) |
 | all | 11 |
 
 ## Mergeable

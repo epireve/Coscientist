@@ -1,0 +1,89 @@
+{
+  "venue": "thesis",
+  "full_name": "PhD / MPhil Thesis",
+  "style": "thesis",
+  "word_limit": 80000,
+  "notes": "Standard PhD thesis structure. Word limits vary by institution (60k–100k is typical). target_words here are rough chapter targets for a 5-chapter thesis. Adjust per institution guidelines.",
+  "sections": [
+    {
+      "name": "abstract",
+      "heading": "Abstract",
+      "ordinal": 1,
+      "target_words": 300,
+      "required": true,
+      "notes": "Context, gap, contributions (bulleted list), key findings, significance. Typically 1–2 pages. Stand-alone: a reader who only reads the abstract should understand what the thesis contributes."
+    },
+    {
+      "name": "acknowledgements",
+      "heading": "Acknowledgements",
+      "ordinal": 2,
+      "target_words": 300,
+      "required": false,
+      "notes": "Supervisors, committee, funders, collaborators, personal acknowledgements."
+    },
+    {
+      "name": "introduction",
+      "heading": "Chapter 1: Introduction",
+      "ordinal": 3,
+      "target_words": 5000,
+      "required": true,
+      "notes": "Research context, problem statement, research questions (numbered), scope and exclusions, thesis structure overview (one paragraph per chapter). End with a contributions summary."
+    },
+    {
+      "name": "literature_review",
+      "heading": "Chapter 2: Literature Review",
+      "ordinal": 4,
+      "target_words": 12000,
+      "required": true,
+      "notes": "Systematic coverage of the field. Use subheadings to organise themes. Identify gaps that justify your research questions. Synthesise — do not annotate-bibliography."
+    },
+    {
+      "name": "methodology",
+      "heading": "Chapter 3: Methodology",
+      "ordinal": 5,
+      "target_words": 8000,
+      "required": true,
+      "notes": "Research paradigm, design, data sources, instruments, analysis approach, validity/reliability/trustworthiness, ethics. Justify every choice with reference to the research questions."
+    },
+    {
+      "name": "results",
+      "heading": "Chapter 4: Results",
+      "ordinal": 6,
+      "target_words": 15000,
+      "required": true,
+      "notes": "Present findings without interpretation. Use subheadings per research question or theme. Tables and figures as primary vehicles. Narrate what is shown, not what it means."
+    },
+    {
+      "name": "discussion",
+      "heading": "Chapter 5: Discussion",
+      "ordinal": 7,
+      "target_words": 10000,
+      "required": true,
+      "notes": "Interpret findings against research questions. Compare with literature. Explain surprises. Theoretical and practical contributions. Limitations. Future research."
+    },
+    {
+      "name": "conclusion",
+      "heading": "Chapter 6: Conclusion",
+      "ordinal": 8,
+      "target_words": 3000,
+      "required": true,
+      "notes": "Restate research questions and summarise answers. Contributions (theoretical, methodological, practical). Final word count, page count, and recommendations."
+    },
+    {
+      "name": "references",
+      "heading": "References",
+      "ordinal": 9,
+      "target_words": 0,
+      "required": true,
+      "notes": "Full bibliography. Style per institution or discipline convention (APA, Harvard, Vancouver, etc.)."
+    },
+    {
+      "name": "appendices",
+      "heading": "Appendices",
+      "ordinal": 10,
+      "target_words": 0,
+      "required": false,
+      "notes": "Interview transcripts, survey instruments, supplementary tables, ethics approval letters."
+    }
+  ]
+}

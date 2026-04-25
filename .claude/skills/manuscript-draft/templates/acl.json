@@ -1,0 +1,97 @@
+{
+  "venue": "acl",
+  "full_name": "Association for Computational Linguistics (ACL / EMNLP / NAACL)",
+  "style": "ACL",
+  "word_limit": 8000,
+  "notes": "Eight pages of content + unlimited references. ARR rolling review. Ethics statement required if involving human data or dual-use risks. Reproducibility checklist submitted separately.",
+  "sections": [
+    {
+      "name": "abstract",
+      "heading": "Abstract",
+      "ordinal": 1,
+      "target_words": 150,
+      "required": true,
+      "notes": "Task, method, result, significance. Accessible to a broad NLP audience. No citations."
+    },
+    {
+      "name": "introduction",
+      "heading": "Introduction",
+      "ordinal": 2,
+      "target_words": 800,
+      "required": true,
+      "notes": "Problem motivation, challenge, your approach. Contributions as a bulleted list at the end. Include a concrete example or figure early to anchor the reader."
+    },
+    {
+      "name": "related_work",
+      "heading": "Related Work",
+      "ordinal": 3,
+      "target_words": 600,
+      "required": true,
+      "notes": "Can be placed at the end (before Conclusion) for short papers. Group by theme. Be specific about what distinguishes your work from closest prior work."
+    },
+    {
+      "name": "background",
+      "heading": "Background",
+      "ordinal": 4,
+      "target_words": 400,
+      "required": false,
+      "notes": "Task definition, datasets described here. Skip if task is standard enough to describe in Introduction."
+    },
+    {
+      "name": "method",
+      "heading": "Method",
+      "ordinal": 5,
+      "target_words": 1500,
+      "required": true,
+      "notes": "Model architecture or approach. Architecture figures highly recommended. Equations numbered. Keep intuition prominent."
+    },
+    {
+      "name": "experiments",
+      "heading": "Experiments",
+      "ordinal": 6,
+      "target_words": 1800,
+      "required": true,
+      "notes": "Setup, main results table, analysis. Each baseline must be cited. Error bars required. Include statistical significance where applicable."
+    },
+    {
+      "name": "analysis",
+      "heading": "Analysis",
+      "ordinal": 7,
+      "target_words": 600,
+      "required": false,
+      "notes": "Ablations, error analysis, qualitative examples. Reviewers love this section."
+    },
+    {
+      "name": "conclusion",
+      "heading": "Conclusion",
+      "ordinal": 8,
+      "target_words": 200,
+      "required": true,
+      "notes": "Summary and future directions. ACL conventions: no new claims in conclusion."
+    },
+    {
+      "name": "limitations",
+      "heading": "Limitations",
+      "ordinal": 9,
+      "target_words": 200,
+      "required": true,
+      "notes": "Mandatory since ACL 2023. Does not count toward page limit."
+    },
+    {
+      "name": "ethics_statement",
+      "heading": "Ethics Statement",
+      "ordinal": 10,
+      "target_words": 150,
+      "required": false,
+      "notes": "Required when work involves human subjects, sensitive data, or potential misuse. Does not count toward page limit."
+    },
+    {
+      "name": "references",
+      "heading": "References",
+      "ordinal": 11,
+      "target_words": 0,
+      "required": true,
+      "notes": "Unlimited pages. ACL anthology style (Author et al., Year) inline."
+    }
+  ]
+}

@@ -348,6 +348,35 @@ End-to-end run of `ingest → validate_citations → audit gate → critique gat
 
 User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
 
+### v0.26 — manuscript-draft skill (A1 second cut)
+
+First cut of structured manuscript drafting: outline → section → revision scaffold with venue templates.
+
+New skill `manuscript-draft` (3 scripts + 5 templates):
+- `draft.py` — CLI with four subcommands: `init` (scaffold), `section` (fill/update one section), `status` (progress table), `venues` (list templates)
+- `outline.py` — Outline data model + template loading; `outline.json` tracks per-section status, word_count, cite_keys
+- `section.py` — Operations on `source.md` (section extraction/replacement, word counting, cite-key harvesting from all four citation styles)
+- Five venue templates: `imrad`, `neurips`, `acl`, `nature`, `thesis` — each with per-section `notes`, `target_words`, `required` flag
+- `manuscript_id` deterministic from `title::venue` (same formula as `manuscript-ingest`)
+
+New sub-agent `manuscript-drafter`:
+- Reads `outline.json` + `source.md` + project claims/papers as research context
+- Drafts section-by-section, persists via `draft.py section` after each
+- Applies RESEARCHER.md principle 12 (Draft to Communicate, Not to Sound Impressive)
+- Exit test: all assigned sections at status `drafted`, word counts ≥60% of target, all cite keys resolved or marked `[CITATION NEEDED]`
+
+RESEARCHER.md:
+- Added **Principle 12: Draft to Communicate, Not to Sound Impressive** — antidote to verbose hedge-laden academic prose; one hedge per claim, ceilings not floors
+- Sub-agent mapping table updated
+
+Tests (30 new, 357 total; 0 failing):
+- Template: all 5 templates structurally valid (required fields, sorted ordinals, positive word_limit)
+- Init: creates manifest/outline.json/source.md; state=drafted; all sections start as placeholder; source.md has correct headings + YAML frontmatter
+- Idempotency: same title+venue → same ID; different venue → different ID; re-init without --force errors
+- Section: updates source.md body; updates outline.json stats (word_count, status, cite_keys); revised status flag; unknown section/manuscript errors cleanly
+- Status: prints table with correct columns; updates after section draft; errors on unknown manuscript
+- CLI edges: missing --title / --venue / --manuscript-id; unknown venue rejected; --help lists all subcommands
+
 ### v0.23 — close the four CRACKs from v0.20 + v0.21
 
 The two harnesses pinned a total of four CRACKs as `current-broken-behavior` tests. v0.23 fixes all four:
@@ -395,7 +424,7 @@ Ingest the user's own manuscripts and treat them as artifacts parallel to papers
 - ✅ `manuscript-audit` — extract every claim; verify each against its cited source; flag overclaim/uncited/unsupported/outdated/retracted (v0.4)
 - ✅ `manuscript-critique` — four reviewer personas (methodological, theoretical, big-picture, nitpicky) with structured findings + committed overall verdict (v0.4)
 - ✅ `manuscript-reflect` — argument structure, implicit assumptions, weakest link, one-experiment recommendation (v0.4)
-- `manuscript-draft` — outline → section → revision cycle. Venue-specific templates (IMRaD, Nature, NeurIPS, ACL, thesis). Writes `\cite{key}` inline against Zotero in real time.
+- ✅ `manuscript-draft` — outline → section → revision scaffold. Five venue templates (IMRaD, NeurIPS, ACL, Nature, thesis). Outline tracking + cite-key harvesting. Feeds into `manuscript-ingest`. (v0.26)
 - `manuscript-revise` — respond-to-reviewers mode. Takes review + current draft; produces diff + response letter keyed to each point.
 - `manuscript-format` — pandoc-driven export to venue template (LaTeX class, .docx, arXiv).
 - `manuscript-version` — git + SQLite `manuscript_versions` table. Auto-commit each iteration with semantic messages. DB layer tracks word_count, claims_added/removed, reviewer_feedback_addressed per version.

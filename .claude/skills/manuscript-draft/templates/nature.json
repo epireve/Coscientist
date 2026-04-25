@@ -1,0 +1,73 @@
+{
+  "venue": "nature",
+  "full_name": "Nature / Nature Methods / Nature Communications",
+  "style": "Nature",
+  "word_limit": 3000,
+  "notes": "Nature journal Articles: 3000 words main text, 6 display items. Methods section does not count toward word limit. Brief Communications: 1500 words. Adapt target_words if submitting to Nature Methods (3000 + extended methods) or Nature Communications (more lenient). One-sentence summary required.",
+  "sections": [
+    {
+      "name": "abstract",
+      "heading": "Abstract",
+      "ordinal": 1,
+      "target_words": 150,
+      "required": true,
+      "notes": "Nature Article abstract is unstructured. Three sentences: what is the problem, what you did, what you found + why it matters. Extremely tight. No citations."
+    },
+    {
+      "name": "introduction",
+      "heading": "Introduction",
+      "ordinal": 2,
+      "target_words": 600,
+      "required": true,
+      "notes": "Scene-setting for a broad audience (Nature readers span all biology + physical sciences). Do NOT use subheadings. Last sentence states the main conclusion of the paper."
+    },
+    {
+      "name": "results",
+      "heading": "Results",
+      "ordinal": 3,
+      "target_words": 1800,
+      "required": true,
+      "notes": "Narrative flow with short subheadings. Each subheading introduces one main result. Integrated interpretation is acceptable (unlike IMRaD). Refer to figures/tables as primary evidence."
+    },
+    {
+      "name": "discussion",
+      "heading": "Discussion",
+      "ordinal": 4,
+      "target_words": 600,
+      "required": true,
+      "notes": "Short. Broader significance, caveats, future directions. No repetition of Results. End with a 2-sentence statement of the advance."
+    },
+    {
+      "name": "methods",
+      "heading": "Methods",
+      "ordinal": 5,
+      "target_words": 2000,
+      "required": true,
+      "notes": "Does NOT count toward 3000-word main text limit. Detailed reproducibility: reagents, code, statistical analyses. Online Methods for extended detail."
+    },
+    {
+      "name": "data_availability",
+      "heading": "Data Availability",
+      "ordinal": 6,
+      "target_words": 50,
+      "required": true,
+      "notes": "Where data are deposited (GEO, Zenodo, Figshare). Required by Nature since 2017."
+    },
+    {
+      "name": "code_availability",
+      "heading": "Code Availability",
+      "ordinal": 7,
+      "target_words": 50,
+      "required": false,
+      "notes": "URL to public code repository. Required if code was used."
+    },
+    {
+      "name": "references",
+      "heading": "References",
+      "ordinal": 8,
+      "target_words": 0,
+      "required": true,
+      "notes": "Nature limits to 50 references for Articles. Numbered style [1]. Use only published or in-press work."
+    }
+  ]
+}

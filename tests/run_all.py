@@ -133,6 +133,14 @@ from tests.test_writing_style import (
     FingerprintTests,
     TextstatsUnitTests,
 )
+from tests.test_manuscript_draft import (
+    CliEdgeTests as ManuscriptDraftCliEdgeTests,
+    DraftInitTests,
+    DraftSectionTests,
+    DraftStatusTests,
+    IdempotencyTests as ManuscriptDraftIdempotencyTests,
+    TemplateTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -230,6 +238,13 @@ if __name__ == "__main__":
         StateMonotonicityTests,
         PaperCliEdgeCaseTests,
         AgentFrontmatterTests,
+        # v0.26 manuscript-draft
+        TemplateTests,
+        DraftInitTests,
+        ManuscriptDraftIdempotencyTests,
+        DraftSectionTests,
+        DraftStatusTests,
+        ManuscriptDraftCliEdgeTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,
