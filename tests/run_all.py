@@ -105,6 +105,10 @@ from tests.test_pdf_extract_state_machine import (
     IdempotencyTests as PdfExtractIdempotencyTests,
     PreExtractGuardTests,
 )
+from tests.test_manuscript_dogfood import (
+    ManuscriptDogfoodTests,
+    PandocStyleBibCrackTests,
+)
 from tests.test_paper_state_machine import (
     AcquireGateTests,
     AcquireIntegrityTests,
@@ -213,6 +217,9 @@ if __name__ == "__main__":
         PdfExtractIdempotencyTests,
         PdfExtractCliEdgeTests,
         PdfExtractCrackTests,
+        # v0.21 manuscript subsystem dogfood
+        ManuscriptDogfoodTests,
+        PandocStyleBibCrackTests,
         # Per-paper state machine harness
         DiscoveredStateTests,
         AcquireGateTests,
