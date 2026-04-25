@@ -148,6 +148,8 @@ Registered in `.mcp.json`:
 - **browser-use MCP** — LLM-guided browser fallback
 - **Zotero** (local) — wraps Zotero's HTTP API for institutional PDF resolution + permanent library
 
+For per-MCP API-key requirements and where to obtain each (Semantic Scholar, OpenAI for browser-use, IEEE / Scopus / Springer / Elsevier for premium search, Zotero local-vs-Web), see [`docs/MCP-SETUP.md`](docs/MCP-SETUP.md).
+
 ## Setup
 
 ```bash
