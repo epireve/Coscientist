@@ -39,7 +39,12 @@ async def run(cid: str) -> int:
     from adapters import resolve_adapter  # type: ignore
 
     if not STATE_FILE.exists():
-        print("[fetch] no storage_state.json — run login.py first", file=sys.stderr)
+        print(
+            "[fetch] no storage_state.json — run idp_runner.py login first, "
+            "e.g. `uv run python .claude/skills/institutional-access/scripts/"
+            "idp_runner.py login --institution um --interactive`",
+            file=sys.stderr,
+        )
         return 10
 
     try:
