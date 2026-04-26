@@ -932,13 +932,17 @@ finishes inside the stream-idle window.
 
 **Resume plan when we move to a runtime with paper-API egress:**
 
-- [ ] **Verify external API egress** — one `mcp__semantic-scholar__search_papers`
-      call must return papers, not 403. Without this, nothing else matters.
-- [ ] **Verify sub-agent MCP inheritance** — spawn a one-shot sub-agent that
-      calls one MCP tool. If it errors with "no such tool", the per-persona
-      `tools:` declarations don't actually grant MCP access in that
-      runtime, and we need to either fix the runtime or pivot the
-      architecture (see next item).
+- [x] **Verify external API egress** — one `mcp__semantic-scholar__search_papers`
+      call must return papers, not 403. **Verified 2026-04-27**: from the
+      orchestrator, the call returned 446,602 hits on
+      "transformer attention mechanism" with limit=2 in this runtime. The
+      egress block from the previous runtime is gone here.
+- [x] **Verify sub-agent MCP inheritance** — spawn a one-shot sub-agent that
+      calls one MCP tool. **Verified 2026-04-27, FAILED**: a probe sub-agent
+      (general-purpose) reported `mcp__semantic-scholar__search_papers` is
+      not in its tool set. So in this runtime, sub-agents do **not** inherit
+      MCP access from the parent. Confirms the architectural pivot (next
+      item) is required.
 - [ ] **If sub-agent MCP inheritance is unfixable**, refactor to
       orchestrator-calls-MCPs: the parent agent invokes MCP tools, writes
       results to disk via `merge.py`, and spawns sub-agents with paths to
@@ -949,10 +953,13 @@ finishes inside the stream-idle window.
 - [ ] **Re-run on `aa41d0cb`** — the run is intentionally left in
       `started_at`-only state on social so resume picks up at the same
       phase. Or start a fresh run; nothing valuable was persisted.
-- [ ] **Fix the two cracks the per-paper harness found** (separate from
+- [x] **Fix the two cracks the per-paper harness found** (separate from
       the smoke-test pause): paper-acquire silently skips audit log on
-      integrity rejection; paper-triage record_one demotes state on
-      re-triage. Both have failing tests pinning current behavior.
+      integrity rejection (fixed v0.17 — `action=rejected` audit line
+      before SystemExit); paper-triage record_one demotes state on
+      re-triage (fixed v0.17 — `_DOWNSTREAM_STATES` guard refuses
+      re-triage unless `--force`). Both have tests pinning correct
+      behavior in `tests/test_paper_state_machine.py`.
 
 ## Open questions and decisions pending
 
