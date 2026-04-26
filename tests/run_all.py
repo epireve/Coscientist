@@ -90,6 +90,11 @@ from tests.test_audit_rotate import (
     RotateTests as AuditRotateTests,
 )
 from tests.test_lib_cache import ArchivesForTests
+from tests.test_paper_discovery import (
+    CliTests as PaperDiscoveryCliTests,
+    MergeEntriesTests,
+    RankTests as PaperDiscoveryRankTests,
+)
 from tests.test_research_eval import (
     EvalClaimsTests,
     EvalReferencesTests,
@@ -433,6 +438,9 @@ if __name__ == "__main__":
         ArchivesForTests,
         EvalReferencesTests,
         EvalClaimsTests,
+        MergeEntriesTests,
+        PaperDiscoveryRankTests,
+        PaperDiscoveryCliTests,
         PdfIntegrityTests,
         NoveltyAnchorUniquenessTests,
         HedgeQuotedContextTests,
