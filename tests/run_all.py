@@ -76,6 +76,12 @@ from tests.test_evolve_loop import (
     OpenRoundTests as EvoOpenRoundTests,
     StatusTests as EvoStatusTests,
 )
+from tests.test_audit_query import (
+    CliTests as AuditCliTests,
+    FetchesTests as AuditFetchesTests,
+    SandboxTests as AuditSandboxTests,
+    SummaryTests as AuditSummaryTests,
+)
 from tests.test_institutional_check import (
     CheckCommandTests as InstAccessCheckTests,
     IdpRunnerTests as InstAccessIdpRunnerTests,
@@ -403,6 +409,10 @@ if __name__ == "__main__":
         EvoIntegrationTests,
         InstAccessCheckTests,
         InstAccessIdpRunnerTests,
+        AuditFetchesTests,
+        AuditSandboxTests,
+        AuditSummaryTests,
+        AuditCliTests,
         PdfIntegrityTests,
         NoveltyAnchorUniquenessTests,
         HedgeQuotedContextTests,
