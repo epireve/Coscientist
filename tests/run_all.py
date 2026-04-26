@@ -79,6 +79,7 @@ from tests.test_evolve_loop import (
 from tests.test_audit_query import (
     CliTests as AuditCliTests,
     FetchesTests as AuditFetchesTests,
+    IncludeArchivesTests as AuditIncludeArchivesTests,
     SandboxTests as AuditSandboxTests,
     SummaryTests as AuditSummaryTests,
 )
@@ -418,6 +419,7 @@ if __name__ == "__main__":
         AuditFetchesTests,
         AuditSandboxTests,
         AuditSummaryTests,
+        AuditIncludeArchivesTests,
         AuditCliTests,
         AuditRotateInspectTests,
         AuditRotateTests,

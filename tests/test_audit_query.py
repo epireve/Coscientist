@@ -162,6 +162,50 @@ class SummaryTests(TestCase):
             self.assertIn("## Sandbox", r.stdout)
 
 
+class IncludeArchivesTests(TestCase):
+    def test_fetches_default_excludes_archives(self):
+        with isolated_cache():
+            from lib.cache import audit_log_path
+            audit_log_path().write_text("2026-04-27 tier=arxiv status=ok\n")
+            # Seed an archive next to it
+            archive = audit_log_path().with_name(
+                "audit.log.20260101T000000Z"
+            )
+            archive.write_text("2026-01-01 tier=oa status=ok\n")
+            out = json.loads(_run("fetches").stdout)
+            self.assertEqual(out["total_records"], 1)
+
+    def test_fetches_include_archives_unions(self):
+        with isolated_cache():
+            from lib.cache import audit_log_path
+            audit_log_path().write_text("2026-04-27 tier=arxiv status=ok\n")
+            archive = audit_log_path().with_name(
+                "audit.log.20260101T000000Z"
+            )
+            archive.write_text("2026-01-01 tier=oa status=ok\n")
+            out = json.loads(_run("fetches", "--include-archives").stdout)
+            self.assertEqual(out["total_records"], 2)
+
+    def test_sandbox_include_archives_unions(self):
+        with isolated_cache():
+            from lib.cache import cache_root
+            live = cache_root() / "sandbox_audit.log"
+            live.write_text(json.dumps({
+                "audit_id": "live", "started_at": "2026-04-27",
+                "exit_code": 0, "wall_time_seconds": 1.0,
+            }) + "\n")
+            archive = live.with_name("sandbox_audit.log.20260101T000000Z")
+            archive.write_text(json.dumps({
+                "audit_id": "old", "started_at": "2026-01-01",
+                "exit_code": 0, "wall_time_seconds": 2.0,
+            }) + "\n")
+            base = json.loads(_run("sandbox").stdout)
+            self.assertEqual(base["total_runs"], 1)
+            full = json.loads(_run("sandbox", "--include-archives").stdout)
+            self.assertEqual(full["total_runs"], 2)
+            self.assertEqual(full["total_wall_time_seconds"], 3.0)
+
+
 class CliTests(TestCase):
     def test_no_subcommand_errors(self):
         r = _run()
@@ -174,5 +218,6 @@ class CliTests(TestCase):
 
 if __name__ == "__main__":
     sys.exit(run_tests(
-        FetchesTests, SandboxTests, SummaryTests, CliTests,
+        FetchesTests, SandboxTests, SummaryTests,
+        IncludeArchivesTests, CliTests,
     ))

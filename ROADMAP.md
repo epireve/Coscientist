@@ -348,6 +348,15 @@ End-to-end run of `ingest → validate_citations → audit gate → critique gat
 
 User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
 
+### v0.45 — audit-rotate: size/age-based rotation for both audit logs
+
+Companion to v0.44 audit-query. Pure stdlib, atomic via `Path.rename`.
+Subcommands: `inspect | rotate | list-archives`. Rotation is rename
+(never delete) — archives sit next to the live file with a UTC-stamp
+suffix (`audit.log.20260427T093015Z`). Producers reopen the live
+path on each write, so the swap is invisible. 11 new tests. Suite
+988/0 (+11).
+
 ### v0.44 — audit-query: read-only forensic view over both audit logs
 
 New `audit-query` skill aggregates over `~/.cache/coscientist/audit.log`

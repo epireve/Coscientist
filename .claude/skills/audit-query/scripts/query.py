@@ -25,9 +25,29 @@ if str(_REPO_ROOT) not in sys.path:
 
 from lib.cache import audit_log_path, cache_root  # noqa: E402
 
+# Match audit-rotate's archive naming: <live>.<8-digit-date>T<6-digit-time>Z
+_ARCHIVE_RE = re.compile(r"^(.+)\.\d{8}T\d{6}Z(_\d+)?$")
+
 
 def _sandbox_log_path() -> Path:
     return cache_root() / "sandbox_audit.log"
+
+
+def _expand_with_archives(live: Path) -> list[Path]:
+    """Live log first, then all rotated archives sorted oldest→newest."""
+    out = [live] if live.exists() else []
+    if not live.parent.exists():
+        return out
+    archives: list[Path] = []
+    for sib in live.parent.iterdir():
+        if not sib.is_file():
+            continue
+        m = _ARCHIVE_RE.match(sib.name)
+        if m and m.group(1) == live.name:
+            archives.append(sib)
+    # Stamp is lexicographically sortable
+    archives.sort(key=lambda p: p.name)
+    return archives + out
 
 
 # Legacy line: "2026-04-26T01:22:38.481316 doi=None arxiv=2010.11929 tier=arxiv status=ok"
@@ -98,11 +118,16 @@ def _after(rec: dict, since: str | None) -> bool:
 
 
 def cmd_fetches(args: argparse.Namespace) -> dict:
-    records = [
-        r for r in _iter_fetch_records(audit_log_path())
-        if _after(r, args.since)
-        and (not args.domain or args.domain in json.dumps(r))
-    ]
+    paths = (_expand_with_archives(audit_log_path())
+             if getattr(args, "include_archives", False)
+             else [audit_log_path()])
+    records: list[dict] = []
+    for p in paths:
+        records.extend(
+            r for r in _iter_fetch_records(p)
+            if _after(r, args.since)
+            and (not args.domain or args.domain in json.dumps(r))
+        )
     by_tier = Counter(r.get("tier") or r.get("source") or "unknown" for r in records)
     by_status = Counter(_status_of(r) for r in records)
     failures = [r for r in records if _status_of(r) not in ("ok", "success", "200")]
@@ -125,11 +150,17 @@ def _status_of(rec: dict) -> str:
 
 
 def cmd_sandbox(args: argparse.Namespace) -> dict:
-    records = [
-        r for r in _iter_sandbox_records(_sandbox_log_path())
-        if _after(r, args.since)
-        and (not args.error_class or r.get("error_class") == args.error_class)
-    ]
+    paths = (_expand_with_archives(_sandbox_log_path())
+             if getattr(args, "include_archives", False)
+             else [_sandbox_log_path()])
+    records: list[dict] = []
+    for p in paths:
+        records.extend(
+            r for r in _iter_sandbox_records(p)
+            if _after(r, args.since)
+            and (not args.error_class
+                 or r.get("error_class") == args.error_class)
+        )
     by_error_class = Counter(r.get("error_class") or "ok" for r in records)
     timeouts = [r for r in records if r.get("timed_out")]
     ooms = [r for r in records if r.get("memory_oom")]
@@ -149,10 +180,14 @@ def cmd_sandbox(args: argparse.Namespace) -> dict:
 
 
 def cmd_summary(args: argparse.Namespace) -> dict:
-    fa = argparse.Namespace(since=args.since, domain=None, limit=5)
-    sa = argparse.Namespace(since=args.since, error_class=None, limit=5)
+    incl = getattr(args, "include_archives", False)
+    fa = argparse.Namespace(since=args.since, domain=None, limit=5,
+                             include_archives=incl)
+    sa = argparse.Namespace(since=args.since, error_class=None, limit=5,
+                             include_archives=incl)
     return {
         "since": args.since,
+        "include_archives": incl,
         "fetches": cmd_fetches(fa),
         "sandbox": cmd_sandbox(sa),
     }
@@ -195,16 +230,20 @@ def main() -> None:
     f.add_argument("--since", help="ISO date (YYYY-MM-DD)")
     f.add_argument("--domain", help="substring filter on record JSON")
     f.add_argument("--limit", type=int, default=20)
+    f.add_argument("--include-archives", action="store_true",
+                    help="also read rotated <name>.<UTC-stamp> archives")
     f.set_defaults(func=cmd_fetches)
 
     s = sub.add_parser("sandbox", help="Docker sandbox log summary")
     s.add_argument("--since", help="ISO date (YYYY-MM-DD)")
     s.add_argument("--error-class", dest="error_class")
     s.add_argument("--limit", type=int, default=20)
+    s.add_argument("--include-archives", action="store_true")
     s.set_defaults(func=cmd_sandbox)
 
     a = sub.add_parser("summary", help="Combined fetch + sandbox forensic view")
     a.add_argument("--since", help="ISO date (YYYY-MM-DD)")
+    a.add_argument("--include-archives", action="store_true")
     a.set_defaults(func=cmd_summary)
 
     args = p.parse_args()

@@ -33,6 +33,10 @@ uv run python .claude/skills/audit-query/scripts/query.py summary \
 
 All output JSON to stdout. `--format md` renders a markdown table.
 
+Pass `--include-archives` to any subcommand to also union over rotated
+archives (`<name>.<UTC-stamp>` files produced by `audit-rotate`). The
+default scans only the live log.
+
 ## What it does NOT do
 
 - Doesn't rotate / truncate / archive logs (that's a future `audit-rotate` skill if needed).
