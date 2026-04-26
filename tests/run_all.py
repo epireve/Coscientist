@@ -290,6 +290,27 @@ from tests.test_phase2_remaining import (
     RegisteredReportsTests,
     ZenodoPrepareTests,
 )
+from tests.test_experiment_design import (
+    InitTests as ExpDesignInitTests,
+    MetricTests as ExpDesignMetricTests,
+    PreregisterTests as ExpDesignPreregisterTests,
+    StatusListTests as ExpDesignStatusListTests,
+    VariableTests as ExpDesignVariableTests,
+)
+from tests.test_project_manager import (
+    ActiveMarkerTests as PMActiveMarkerTests,
+    ArchiveTests as PMArchiveTests,
+    HelperTests as PMHelperTests,
+    InitListTests as PMInitListTests,
+    StatusTests as PMStatusTests,
+)
+from tests.test_meta_research import (
+    ConceptsTests as MetaConceptsTests,
+    ProductivityTests as MetaProductivityTests,
+    ReadOnlyContractTests as MetaReadOnlyTests,
+    SummaryTests as MetaSummaryTests,
+    TrajectoryTests as MetaTrajectoryTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -520,6 +541,24 @@ if __name__ == "__main__":
         EthicsIrbTests,
         RegisteredReportsTests,
         ZenodoPrepareTests,
+        # Tier C Phase 3A — experiment-design
+        ExpDesignInitTests,
+        ExpDesignVariableTests,
+        ExpDesignMetricTests,
+        ExpDesignPreregisterTests,
+        ExpDesignStatusListTests,
+        # Tier C Phase 3D — project-manager
+        PMInitListTests,
+        PMActiveMarkerTests,
+        PMArchiveTests,
+        PMStatusTests,
+        PMHelperTests,
+        # Tier C Phase 3E — meta-research
+        MetaTrajectoryTests,
+        MetaConceptsTests,
+        MetaProductivityTests,
+        MetaSummaryTests,
+        MetaReadOnlyTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,

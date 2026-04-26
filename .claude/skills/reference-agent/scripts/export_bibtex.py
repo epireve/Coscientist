@@ -85,6 +85,45 @@ def bib_entry(cid: str) -> str:
     return f"{entry_type}{{{_bib_key(cid)},\n" + ",\n".join(fields) + "\n}\n"
 
 
+def csl_entry(cid: str) -> dict:
+    """Build a CSL-JSON entry. Returns {} if no metadata."""
+    meta = _load_metadata(cid)
+    manifest = _load_manifest(cid)
+    if not meta and not manifest:
+        return {}
+
+    authors = meta.get("authors") or []
+    csl_authors = []
+    for a in authors:
+        # Heuristic name split — last token is family
+        parts = a.strip().split()
+        if not parts:
+            continue
+        if len(parts) == 1:
+            csl_authors.append({"family": parts[0]})
+        else:
+            csl_authors.append({"given": " ".join(parts[:-1]), "family": parts[-1]})
+
+    entry = {
+        "id": _bib_key(cid),
+        "type": "article-journal" if meta.get("venue") else "article",
+        "title": meta.get("title") or cid,
+        "author": csl_authors,
+        "note": f"canonical_id:{cid}",
+    }
+    if meta.get("year"):
+        entry["issued"] = {"date-parts": [[int(meta["year"])]]}
+    if meta.get("venue"):
+        entry["container-title"] = meta["venue"]
+    if manifest.get("doi"):
+        entry["DOI"] = manifest["doi"]
+    if manifest.get("arxiv_id"):
+        entry["URL"] = f"https://arxiv.org/abs/{manifest['arxiv_id']}"
+    if meta.get("abstract"):
+        entry["abstract"] = meta["abstract"]
+    return entry
+
+
 def canonical_ids_for_manuscript(mid: str, run_id: str | None) -> list[str]:
     if not run_id:
         # Fall back to scanning manuscript artifact
@@ -135,6 +174,8 @@ def main() -> None:
     p.add_argument("--out", required=True)
     p.add_argument("--context-run-id", default=None,
                    help="When --manuscript-id is given, also read claims from this run DB")
+    p.add_argument("--format", default="bibtex", choices=["bibtex", "csl-json"],
+                   help="Output format (default: bibtex)")
     args = p.parse_args()
 
     if args.manuscript_id:
@@ -145,12 +186,19 @@ def main() -> None:
     if not cids:
         raise SystemExit("no canonical_ids to export")
 
-    entries = [bib_entry(cid) for cid in cids]
-    entries = [e for e in entries if e]  # skip empties
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text("\n".join(entries))
-    print(f"{len(entries)} entries → {out_path}")
+
+    if args.format == "csl-json":
+        entries = [csl_entry(cid) for cid in cids]
+        entries = [e for e in entries if e]
+        out_path.write_text(json.dumps(entries, indent=2))
+        print(f"{len(entries)} CSL-JSON entries → {out_path}")
+    else:
+        entries = [bib_entry(cid) for cid in cids]
+        entries = [e for e in entries if e]
+        out_path.write_text("\n".join(entries))
+        print(f"{len(entries)} BibTeX entries → {out_path}")
 
 
 if __name__ == "__main__":

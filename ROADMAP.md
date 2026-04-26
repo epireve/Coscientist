@@ -348,6 +348,22 @@ End-to-end run of `ingest → validate_citations → audit gate → critique gat
 
 User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
 
+### v0.33 — Tier C Phase 3 partial: experiment-design + project-manager + meta-research + cleanup
+
+3 new skills + 1 enhancement + 1 deletion. Suite at 894 passing, 0 failing (+61 tests vs v0.32).
+
+**experiment-design** (Phase 3A): Karpathy-style discipline scaffold. New `experiment` artifact under `experiments/<eid>/` with state machine `designed → preregistered → running → completed → analyzed → reproduced` (already in lib.artifact since v0.3). Subcommands: `init / variable / metric / preregister / status / list`. Gates: ≥1 hypothesis, ≥1 falsifier (must differ), ≥1 independent + ≥1 dependent variable, exactly 1 primary metric, budget > 0. Optional `--rr-id` link to registered-reports for full pre-registration. Generates human-readable `preregistration.md`. 26 tests.
+
+**project-manager** (Phase 3D): Project lifecycle CLI wrapping `lib.project`. Subcommands: `init / list / activate / current / deactivate / archive / unarchive / status`. Single global active-project marker at `~/.cache/coscientist/active_project.json` — public `get_active_project_id()` API for other skills. Soft-delete archive (writes `archived_at`); auto-deactivates if archiving the active project. Distinct from project-dashboard (read-only view). 23 tests.
+
+**meta-research** (Phase 3E): Cross-project read-only aggregation. Subcommands: `trajectory` (per-year manuscript counts by state), `concepts` (concepts in ≥N project graphs), `productivity` (per-project artifact counts + activity windows), `summary` (combined view; JSON or Markdown). Read-only by construction (verified via mtime). 12 tests.
+
+**reference-agent enhancement**: `--format csl-json` flag on `export_bibtex.py`. Builds CSL-JSON with author family/given splitting, `issued.date-parts`, `container-title`, DOI, URL (arXiv).
+
+**Deleted**: `frontier-orchestration` skill — orphan (MCP not registered, different domain). Use frontier-broker as user-scope MCP if needed.
+
+Phase 3 incomplete — 3B (reproducibility-mcp Docker backend) + 3C (experiment-reproduce) still pending. Higher-risk; needs dedicated session.
+
 ### v0.32 — Tier C Phase 2: 6 medium-value skills
 
 Six more skills extending coverage. Suite at 833 passing, 0 failing.
@@ -556,8 +572,8 @@ Promote citations/concepts/authors from rows to a real graph.
 - ✅ Author-graph edges via Zotero sync (`authored-by`)
 - ✅ Citation edges — `populate_citations.py` (v0.6): Semantic Scholar refs/citations → `cites` + `cited-by` edges
 - ✅ Concept edges — `populate_concepts.py` (v0.6): run claims → `concept` nodes + `about` edges
+- ✅ CSL-JSON export — `--format csl-json` flag on `reference-agent/scripts/export_bibtex.py` (v0.33)
 - **Still pending** (nice-to-have, not blocking):
-  - CSL-JSON export (BibTeX only for now)
   - Dedicated "resolve incomplete citation" skill ("Smith 2020" → DOI) — sub-agent can do this today via Semantic Scholar MCP directly
   - Visualization (mermaid embed; Cytoscape.js if a web dashboard emerges)
   - Kuzu backend migration (deferred until volume demands it)
@@ -619,8 +635,8 @@ High value but narrower or more domain-dependent.
 
 ## Tier C — longer horizon
 
-- **Sakana-style experimentation loop** (Phase 3): `experiment-design` + `experiment-reproduce` + a custom `reproducibility-mcp` that sandboxes exec (Docker first; E2B/Modal later). Measure with fixed compute + single metric per karpathy/autoresearch. This is what turns Coscientist from assistant → co-scientist.
-- **Research project container** (Phase 3): persistent top-level object wrapping multiple runs, manuscripts, experiments, reading lists, knowledge graphs. Zotero collection per project.
+- **Sakana-style experimentation loop** (Phase 3 — partial): ✅ `experiment-design` (v0.33). Pending: `experiment-reproduce` + custom `reproducibility-mcp` Docker backend (v0.34/v0.35).
+- ✅ **Research project container**: `project-manager` skill — init/list/activate/archive/status; single global active marker. (v0.33)
 - ✅ **Dataset agent**: local registry of datasets with DOIs, licenses, versions, content hashes (sha256/blake2s/sha512). State machine: `registered → deposited → versioned`. Zenodo deposit pending Phase 2. (v0.31)
 - ✅ **Slide-draft skill**: manuscript → beamer/pptx/revealjs/slidev via pandoc. 4 styles (standard/short-talk/long-talk/poster) with section-aware content extraction. (v0.31)
 - ✅ **Data management plan generator**: NIH DMSP, NSF DMP, Wellcome, ERC templates. (v0.32)
@@ -633,7 +649,7 @@ High value but narrower or more domain-dependent.
 - ✅ **Open-data deposit**: zenodo-deposit skill — bridges dataset-agent to Zenodo REST API; mints DOIs; sandbox option. (v0.32)
 - ✅ **Registered reports pathway**: Stage 1/Stage 2 state machine with monotonic transitions; `--force` overrides. (v0.32)
 - ✅ **Ethics/IRB skill**: IRB application templates (exempt/expedited/full-board) + per-project COI registry. (v0.32)
-- **Meta-research skill** (Phase 3): publication trends, career trajectory analysis.
+- ✅ **Meta-research skill**: cross-project trajectory + concept overlap + productivity. Read-only. JSON or Markdown. (v0.33)
 
 ## Structural refactor (prerequisite to most Tier-A work)
 
