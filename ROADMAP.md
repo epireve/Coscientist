@@ -348,6 +348,19 @@ End-to-end run of `ingest → validate_citations → audit gate → critique gat
 
 User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
 
+### v0.35 — Sub-agent personas for Tier C skills + live-test blocker noted
+
+4 new personas; suite still 923 passing. Live integration test of the Sakana loop was blocked: Docker Desktop binary missing (broken symlink at `/usr/local/bin/docker → /Applications/Docker.app/Contents/Resources/bin/docker`, which no longer exists in Docker Desktop 4.x layout). Reinstall Docker Desktop to restore. Mock-based tests still pass; real-Docker dogfood deferred to next session.
+
+**4 new sub-agent personas:**
+
+- **experimentalist** — orchestrates the full Sakana loop (design → preregister → sandbox run → analyze → reproduce-check). Hard rules: single primary metric, fixed budget, hypothesis ≠ falsifier, sandbox-only execution, reproduce-check before believing. Names every failure mode (Docker down, OOM, timeout, script error, no metric, reproduction outside tolerance) with explicit recovery.
+- **dataset-curator** — manages dataset artifacts end-to-end (register → hash → version → Zenodo prepare → deposit). Hard rules: hash before deposit, validate via prepare first, license required + explicit, sandbox before production, frozen on deposit.
+- **peer-reviewer** — drafts structured peer review of someone else's manuscript. Distinct from manuscript-critic (own work) and peer-review simulator (own paper). Hard rules: no anonymous reasoning, steelman before each weakness, no pile-on, calibrated confidence, no self-reveal.
+- **grant-writer** — funder-specific grant scaffolds (NIH/NSF/ERC/Wellcome). Specific Aims first, premortem each aim, Significance ≠ Innovation, parallel not serial aims, budget reality check, companion DMP/IRB.
+
+`tests/test_agents.py` allowlist updated; LayoutRegressionTests still passes.
+
 ### v0.34 — Tier C Phase 3 complete: Sakana experimentation loop closed
 
 2 new skills closing the experimentation pipeline. Suite at 923 passing, 0 failing (+29 tests vs v0.33).

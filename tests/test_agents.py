@@ -34,6 +34,8 @@ EXPECTED_AGENTS = {
     "ranker", "evolver",
     # Tier B standalone adversarial
     "idea-attacker",
+    # Tier C orchestration personas
+    "experimentalist", "dataset-curator", "peer-reviewer", "grant-writer",
 }
 
 

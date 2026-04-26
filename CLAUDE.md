@@ -99,7 +99,7 @@ API is deliberately small (`lib/graph.py`): `add_node`, `add_edge`, `neighbors`,
 
 ## Sub-agents (under `deep-research`)
 
-27 personas live in `.claude/agents/`. Each has its own context window and a minimal `tools:` restriction. The orchestrator invokes the deep-research pipeline in order:
+31 personas live in `.claude/agents/`. Each has its own context window and a minimal `tools:` restriction. The orchestrator invokes the deep-research pipeline in order:
 
 `social → grounder → historian → gaper → [BREAK 1] → vision → theorist → rude → synthesizer → [BREAK 2] → thinker → scribe`
 
