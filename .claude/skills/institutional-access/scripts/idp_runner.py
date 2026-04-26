@@ -95,6 +95,10 @@ IDP_PROFILES = {
 
 
 def _load_env_file() -> dict[str, str]:
+    # Allow tests / sandboxed runs to bypass repo .env (e.g. to verify the
+    # "missing credentials" error path even when the developer has a real .env).
+    if os.environ.get("COSCIENTIST_NO_ENV_FILE") == "1":
+        return {}
     env_path = _REPO_ROOT / ".env"
     if not env_path.exists():
         return {}

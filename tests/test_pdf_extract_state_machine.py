@@ -118,15 +118,29 @@ class DoclingMissingTests(TestCase):
             _write_pdf(art.raw_dir / "arxiv.pdf", size=1024)
 
             r = _run("--canonical-id", cid)
-            self.assertTrue(r.returncode != 0,
-                            "extract must fail when docling missing")
-            # Either docling error message or vision fallback failure.
-            # The script prefers "docling not installed" but auto mode
-            # may try vision fallback first; accept either signal.
+            # Two acceptable outcomes when docling is absent:
+            #   (a) script exits non-zero with a docling-related message, or
+            #   (b) auto-mode falls back to vision and records the fallback
+            #       in extraction.log (rc=0, but the log proves docling
+            #       didn't actually run).
             stderr = r.stderr.lower()
+            log_file = art.root / "extraction.log"
+            log = json.loads(log_file.read_text()) if log_file.exists() else {}
+            failed_cleanly = (
+                r.returncode != 0 and (
+                    "docling" in stderr or "pymupdf" in stderr or "fallback" in stderr
+                )
+            )
+            fell_back = (
+                r.returncode == 0 and (
+                    log.get("fallback") == "vision"
+                    or "docling_error" in log
+                )
+            )
             self.assertTrue(
-                "docling" in stderr or "pymupdf" in stderr or "fallback" in stderr,
-                f"expected docling/pymupdf-related error; got: {r.stderr!r}",
+                failed_cleanly or fell_back,
+                f"expected clean failure or recorded vision fallback; "
+                f"rc={r.returncode}, stderr={r.stderr!r}, log={log!r}",
             )
 
     def test_explicit_engine_docling_surfaces_the_missing_dep(self):

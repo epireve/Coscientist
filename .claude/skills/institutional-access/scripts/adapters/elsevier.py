@@ -20,6 +20,16 @@ async def fetch_pdf(context, doi: str, out_path: Path) -> Path:
     if looks_like_idp(page.url):
         raise SessionExpired(page.url)
 
+    # Let SD finish hydrating + bot-checks before hunting selectors.
+    try:
+        await page.wait_for_load_state("networkidle", timeout=20000)
+    except Exception:
+        pass  # networkidle on SD often never settles; selector cascade still tries
+
+    import sys as _sys
+    print(f"[elsevier] landed url={page.url} title={await page.title()!r}",
+          file=_sys.stderr)
+
     # ScienceDirect "View PDF" / "Download PDF" — selectors evolve;
     # try a cascade in order of specificity.
     selectors = [

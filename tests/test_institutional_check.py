@@ -108,12 +108,14 @@ class IdpRunnerTests(TestCase):
         import os
         env = {k: v for k, v in os.environ.items()
                if k not in ("UM_USERNAME", "UM_PASSWORD")}
+        env["COSCIENTIST_NO_ENV_FILE"] = "1"  # bypass repo .env
         r = subprocess.run(
             [sys.executable, str(IDP_RUNNER), "login",
              "--institution", "um", "--publisher", "openathens"],
             capture_output=True, text=True, env=env, cwd="/tmp",
         )
         self.assertFalse(r.returncode == 0)
+        self.assertIn("required", r.stderr)
 
     def test_login_unknown_institution_fails(self):
         r = subprocess.run(
