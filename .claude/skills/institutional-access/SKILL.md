@@ -31,7 +31,7 @@ Exit code 0 only when everything is ready for a real fetch. Run after upgrading 
 # 1. Install Chromium
 uv run playwright install chromium
 
-# 2. Bootstrap the OpenAthens session (opens a browser window)
+# 2a. Generic bootstrap (manual SSO, any institution)
 uv run python .claude/skills/institutional-access/scripts/login.py \
   --idp https://my.openathens.net/?passiveLogin=false
 ```
@@ -44,6 +44,33 @@ Steps inside the bootstrap:
 4. The script saves `storage_state.json` (cookies + local storage) to `.claude/skills/institutional-access/state/`
 
 The state directory is gitignored. Never commit it.
+
+### UM (University Malaya) auto-login
+
+UM federates via OpenAthens (entityID `https://idp.um.edu.my/entity`).
+Credentials read from `.env` at repo root (gitignored). Copy `.env.example`
+and fill in `UM_USERNAME` + `UM_PASSWORD`.
+
+```bash
+# Auto-fill UM Shibboleth/Microsoft IdP form, persist OpenAthens cookies.
+uv run python .claude/skills/institutional-access/scripts/idp_um.py login \
+  --interactive   # leave terminal open for MFA prompt
+```
+
+Per-publisher entry URLs:
+
+```bash
+# List known publishers + their UM-routed SSO entry URLs
+uv run python .claude/skills/institutional-access/scripts/idp_um.py publishers
+
+# Refresh cookies for one publisher (e.g. Elsevier/ScienceDirect)
+uv run python .claude/skills/institutional-access/scripts/idp_um.py login \
+  --publisher elsevier --interactive
+```
+
+The script auto-fills the Microsoft-style login form (MS Entra ID is what
+UM's IdP uses behind Shibboleth). MFA still requires a human — pass
+`--interactive` to wait for you to complete it before persisting cookies.
 
 ## How `paper-acquire` invokes it
 

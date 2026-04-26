@@ -73,5 +73,36 @@ class CheckCommandTests(TestCase):
         self.assertIn("installed", out["playwright"])
 
 
+IDP_UM = _ROOT / ".claude/skills/institutional-access/scripts/idp_um.py"
+
+
+class IdpUmTests(TestCase):
+    def test_publishers_command_emits_known_entries(self):
+        r = subprocess.run(
+            [sys.executable, str(IDP_UM), "publishers"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(r.returncode, 0, r.stderr)
+        out = json.loads(r.stdout)
+        self.assertEqual(out["entityID"], "https://idp.um.edu.my/entity")
+        self.assertEqual(out["openathens_org"], "80252862")
+        for key in ("elsevier", "acm", "openathens"):
+            self.assertIn(key, out["publishers"])
+
+    def test_login_requires_credentials(self):
+        # With no env / .env credentials, login must fail loud
+        import os
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("UM_USERNAME", "UM_PASSWORD")}
+        # Point script at a non-repo cwd so its .env loader sees nothing
+        r = subprocess.run(
+            [sys.executable, str(IDP_UM), "login", "--publisher", "openathens"],
+            capture_output=True, text=True, env=env, cwd="/tmp",
+        )
+        # Either credentials missing (expected) or playwright missing —
+        # both are SystemExit non-zero. We just want the exit-loud guarantee.
+        self.assertFalse(r.returncode == 0)
+
+
 if __name__ == "__main__":
-    sys.exit(run_tests(CheckCommandTests))
+    sys.exit(run_tests(CheckCommandTests, IdpUmTests))

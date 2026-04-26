@@ -78,6 +78,7 @@ from tests.test_evolve_loop import (
 )
 from tests.test_institutional_check import (
     CheckCommandTests as InstAccessCheckTests,
+    IdpUmTests as InstAccessIdpUmTests,
 )
 from tests.test_v0_12_1_hardening import (
     CalibrationHardFailTests,
@@ -401,6 +402,7 @@ if __name__ == "__main__":
         EvoLineageTests,
         EvoIntegrationTests,
         InstAccessCheckTests,
+        InstAccessIdpUmTests,
         PdfIntegrityTests,
         NoveltyAnchorUniquenessTests,
         HedgeQuotedContextTests,
