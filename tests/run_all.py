@@ -311,6 +311,20 @@ from tests.test_meta_research import (
     SummaryTests as MetaSummaryTests,
     TrajectoryTests as MetaTrajectoryTests,
 )
+from tests.test_sandbox import (
+    AuditTests as SandboxAuditTests,
+    BuildArgsTests as SandboxBuildArgsTests,
+    CheckCommandTests as SandboxCheckCommandTests,
+    HelperTests as SandboxHelperTests,
+    RunRequiresDaemonTests as SandboxRunRequiresDaemonTests,
+)
+from tests.test_experiment_reproduce import (
+    AnalyzeTests as ExpReproAnalyzeTests,
+    MetricExtractionTests as ExpReproMetricExtractionTests,
+    ReproduceCheckTests as ExpReproReproduceCheckTests,
+    RunStateTransitionTests as ExpReproRunStateTransitionTests,
+    StatusTests as ExpReproStatusTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -559,6 +573,18 @@ if __name__ == "__main__":
         MetaProductivityTests,
         MetaSummaryTests,
         MetaReadOnlyTests,
+        # Tier C Phase 3B — reproducibility-mcp (Docker sandbox)
+        SandboxHelperTests,
+        SandboxBuildArgsTests,
+        SandboxCheckCommandTests,
+        SandboxRunRequiresDaemonTests,
+        SandboxAuditTests,
+        # Tier C Phase 3C — experiment-reproduce
+        ExpReproMetricExtractionTests,
+        ExpReproRunStateTransitionTests,
+        ExpReproAnalyzeTests,
+        ExpReproReproduceCheckTests,
+        ExpReproStatusTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,

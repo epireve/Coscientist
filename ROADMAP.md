@@ -348,6 +348,19 @@ End-to-end run of `ingest → validate_citations → audit gate → critique gat
 
 User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
 
+### v0.34 — Tier C Phase 3 complete: Sakana experimentation loop closed
+
+2 new skills closing the experimentation pipeline. Suite at 923 passing, 0 failing (+29 tests vs v0.33).
+
+**reproducibility-mcp** (Phase 3B) — Docker-backed sandbox CLI (despite name, not an MCP server). Subcommands: `check / run / audit`. Hardened security model: `--network none`, memory + CPU caps, `--read-only` filesystem with writable `/workspace` bind mount + `--tmpfs /tmp`, non-root user (1000:1000), `--security-opt no-new-privileges`, `--rm` cleanup, OOM detection (exit 137), wall-time timeout via `subprocess.run(timeout=)`, append-only audit log at `~/.cache/coscientist/sandbox_audit.log` (JSONL). 15 tests (helpers + build-args verification + audit log; integration tests use stubbed `_docker_available`).
+
+**experiment-reproduce** (Phase 3C) — closes the Sakana loop. Subcommands: `run / analyze / reproduce-check / status`. Reads protocol.json budget + workspace, invokes sandbox, parses metric (priority: `result.json` → last stdout line as JSON), records per-run artifacts under `experiments/<eid>/runs/<audit_id>/`. State machine advances `preregistered → running → completed → analyzed → reproduced`. `analyze` computes pass/fail using protocol's comparison + target. `reproduce-check` runs second sandboxed pass and verifies metric within tolerance (default 5% relative diff). Rolls back state to `preregistered` on Docker failure. 14 tests (sandbox boundary mocked).
+
+The full Sakana iteration loop is now operational:
+- `experiment-design` — design + preregister with Karpathy discipline
+- `reproducibility-mcp` — sandboxed exec, isolation, audit
+- `experiment-reproduce` — orchestrate run + analyze + reproduce
+
 ### v0.33 — Tier C Phase 3 partial: experiment-design + project-manager + meta-research + cleanup
 
 3 new skills + 1 enhancement + 1 deletion. Suite at 894 passing, 0 failing (+61 tests vs v0.32).
@@ -635,7 +648,7 @@ High value but narrower or more domain-dependent.
 
 ## Tier C — longer horizon
 
-- **Sakana-style experimentation loop** (Phase 3 — partial): ✅ `experiment-design` (v0.33). Pending: `experiment-reproduce` + custom `reproducibility-mcp` Docker backend (v0.34/v0.35).
+- ✅ **Sakana-style experimentation loop**: `experiment-design` (v0.33) + `reproducibility-mcp` Docker sandbox + `experiment-reproduce` (v0.34). Full loop: design → preregister → run sandboxed → analyze pass/fail → reproduce-check within tolerance.
 - ✅ **Research project container**: `project-manager` skill — init/list/activate/archive/status; single global active marker. (v0.33)
 - ✅ **Dataset agent**: local registry of datasets with DOIs, licenses, versions, content hashes (sha256/blake2s/sha512). State machine: `registered → deposited → versioned`. Zenodo deposit pending Phase 2. (v0.31)
 - ✅ **Slide-draft skill**: manuscript → beamer/pptx/revealjs/slidev via pandoc. 4 styles (standard/short-talk/long-talk/poster) with section-aware content extraction. (v0.31)

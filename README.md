@@ -190,21 +190,21 @@ Major skills filling the medium-horizon roadmap:
 | `registered-reports` | Stage 1/Stage 2 RR pathway state machine (7 monotonic states) |
 | `zenodo-deposit` | Bridges `dataset-agent` to Zenodo REST API; mints DOIs (real auth + sandbox) |
 
-### Tier C Phase 3 partial (v0.33)
+### Tier C Phase 3 (v0.33 + v0.34)
 
-Karpathy-style experimentation pipeline (design + preregister), project lifecycle CLI, cross-project analytics:
+Karpathy-style experimentation pipeline + Sakana-style sandboxed execution loop + cross-project analytics:
 
 | Skill | Job |
 |---|---|
 | `experiment-design` | Karpathy-style discipline: single metric, fixed budget, hypothesis+falsifier, preregistration. New `experiment` artifact. |
+| `reproducibility-mcp` | Docker-backed sandbox: `--network none`, memory/CPU/wall-time caps, read-only FS, non-root user, audit log. |
+| `experiment-reproduce` | Closes Sakana loop: run preregistered protocol → analyze pass/fail → reproduce-check within tolerance. |
 | `project-manager` | Project lifecycle CLI + single global active-project marker. |
 | `meta-research` | Cross-project trajectory + concept overlap + productivity (read-only). |
 
 Plus `reference-agent --format csl-json` flag.
 
-Phase 3 incomplete: `experiment-reproduce` + `reproducibility-mcp` (Docker backend) deferred to dedicated session.
-
-Test suite progression: 251 (v0.13) → 310 (v0.17) → 507 (v0.28) → 651 (v0.29) → 673 (v0.30) → 789 (v0.31) → 833 (v0.32) → **894 (v0.33, current)**. All passing.
+Test suite progression: 251 (v0.13) → 310 (v0.17) → 507 (v0.28) → 651 (v0.29) → 673 (v0.30) → 789 (v0.31) → 833 (v0.32) → 894 (v0.33) → **923 (v0.34, current)**. All passing.
 
 ## MCP servers used
 
@@ -252,7 +252,7 @@ No pytest dependency; the harness is in-repo. Run the full smoke suite:
 python3 -m tests.run_all
 ```
 
-Currently **894 tests, 0 failing** across all skills, gates, lib primitives, dry-run harnesses, and integration regression checks.
+Currently **923 tests, 0 failing** across all skills, gates, lib primitives, dry-run harnesses, and integration regression checks.
 
 ## Where this is going
 
