@@ -348,6 +348,32 @@ End-to-end run of `ingest → validate_citations → audit gate → critique gat
 
 User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
 
+### v0.36 — tighten Docker error handling + edge cases
+
+Hardening pass on the sandbox boundary. Suite 927/0 (+4 net vs v0.35).
+
+**`reproducibility-mcp/sandbox.py`:**
+
+- `_docker_diagnose()` — structured readiness check returning `{ready, reason, detail, remediation}`. Reasons: `binary_missing`, `daemon_down`, `daemon_slow`, `permission_denied`, `binary_broken`, `unknown`. `cmd_check` now emits these fields so callers (and humans) get an actionable hint instead of "Docker unreachable."
+- `_classify_run_error(stderr, exit_code)` — maps Docker's actual failure modes to a tag: `image_not_found` (no such image / pull access denied / manifest unknown), `network_error`, `permission_denied`, `daemon_died`, `timeout` (exit 124), `killed_or_oom` (exit 137), `docker_invocation_error` (exit 125), `unknown`. Surfaced as `error_class` field in both audit log and run response.
+- `_validate_workspace(path)` — pre-flight for the bind mount: rejects nonexistent / non-directory / non-readable / non-writable paths, **rejects symlinks** (mount-escape vector), rejects paths inside `/etc /var/run /proc /sys /dev`. Replaces the old inline `exists() / is_dir()` checks in `cmd_run`.
+- Numeric guards in `cmd_run`: `memory_mb >= 16`, `cpus > 0`, `timeout_seconds > 0` — silently misconfigured runs are now SystemExit before invoking Docker.
+- Audit-id collision guard: when caller passes `--audit-id` (e.g. from `experiment-reproduce`), refuses if the ID is already in the log. Auto-generated IDs are unique by `time_ns()` so unaffected.
+- Audit-log writes now wrapped in `try/except OSError`. Disk-full / permission failures no longer crash the run; the run result is returned with a top-level `audit_log_warning` field instead. Run result is authoritative; audit log is best-effort.
+
+**`experiment-reproduce/reproduce.py`:**
+
+- `_is_finite_number(v)` helper. `_extract_metric()` now rejects non-finite values (NaN, ±Infinity) and Python booleans (which are `isinstance(_, int)` and would have slipped through). `cmd_analyze` re-validates the recorded `metric_value` and refuses to compare NaN/Inf to a target.
+
+**Tests added:**
+
+- `DiagnoseTests` (6) — error classification per Docker failure mode
+- `ValidateWorkspaceTests` (5) — nonexistent / not-dir / symlink rejected / sensitive-path rejected / valid passes
+- `CmdRunValidationTests` (4) — invalid memory / cpus / timeout / audit-id collision all SystemExit
+- `MetricExtractionTests` extended (4) — NaN / Infinity / bool / `_is_finite_number` rounds
+
+What's still deferred to a Docker session: real-Docker exit-124 (timeout) and exit-137 (OOM) end-to-end paths. The error-classification tags are wired and unit-tested, but I haven't yet run a script that genuinely OOMs on real Docker to confirm `error_class: killed_or_oom` shows up in the audit log. Same for a sleep-past-timeout. Mocked control flow is covered.
+
 ### v0.35 — Sub-agent personas + live Sakana loop validated end-to-end
 
 4 new personas + first successful end-to-end run of the Sakana experimentation loop on real Docker. Suite still 923 passing.
@@ -380,6 +406,8 @@ After Docker Desktop daemon came up (intermittent on this machine due to broken 
 `tests/test_agents.py` allowlist updated; LayoutRegressionTests still passes.
 
 **Known intermittent issue:** Docker Desktop on this machine has a stale symlink (`/usr/local/bin/docker → /Applications/Docker.app/Contents/Resources/bin/docker`, which doesn't exist in Docker Desktop 4.x). The daemon comes up after `open /Applications/Docker.app` and stays reachable from already-running shells, but new shells sometimes can't find the binary. Workaround: reinstall Docker Desktop, or symlink to wherever the actual binary lives in this Docker version. Doesn't affect the skill itself — `sandbox.py check` correctly reports `ready: false` and refuses to run when daemon is unreachable.
+
+**Failure-mode dogfood deferred:** Real-Docker tests of timeout / OOM / non-zero-exit paths are still pending — they run via the same sandbox.py `run` command, but the testbed lost docker-binary access mid-session before they could be exercised. Stub-mode tests (`tests/test_sandbox.py::RunRequiresDaemonTests` and `test_experiment_reproduce.py`) cover the *control-flow* of these failures via mocked `_docker_available`; what's not yet validated on real Docker is that exit code 137 (OOM) and exit code 124 (timeout) actually surface correctly through the audit log + `last_run` fields. Re-run after Docker is reinstalled with: a script that allocates >memory_mb and a script that sleeps past timeout_seconds.
 
 **4 new sub-agent personas:**
 

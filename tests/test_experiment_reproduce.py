@@ -130,6 +130,45 @@ class MetricExtractionTests(CoscientistTestCase):
             value, source = mod._extract_metric(ws, "no metric here\n", "accuracy")
             self.assertIsNone(value)
 
+    def test_extract_nan_rejected(self):
+        with isolated_cache() as cache:
+            mod = _load_reproduce()
+            ws = cache / "ws"
+            ws.mkdir()
+            # JSON NaN is non-standard but Python json accepts it
+            (ws / "result.json").write_text('{"accuracy": NaN}')
+            value, _ = mod._extract_metric(ws, "", "accuracy")
+            self.assertIsNone(value)
+
+    def test_extract_infinity_rejected(self):
+        with isolated_cache() as cache:
+            mod = _load_reproduce()
+            ws = cache / "ws"
+            ws.mkdir()
+            (ws / "result.json").write_text('{"accuracy": Infinity}')
+            value, _ = mod._extract_metric(ws, "", "accuracy")
+            self.assertIsNone(value)
+
+    def test_extract_bool_rejected(self):
+        with isolated_cache() as cache:
+            mod = _load_reproduce()
+            ws = cache / "ws"
+            ws.mkdir()
+            (ws / "result.json").write_text(json.dumps({"accuracy": True}))
+            value, _ = mod._extract_metric(ws, "", "accuracy")
+            self.assertIsNone(value)
+
+    def test_is_finite_number_helper(self):
+        mod = _load_reproduce()
+        self.assertTrue(mod._is_finite_number(1.5))
+        self.assertTrue(mod._is_finite_number(0))
+        self.assertTrue(mod._is_finite_number(-3.2))
+        self.assertFalse(mod._is_finite_number(True))
+        self.assertFalse(mod._is_finite_number("0.5"))
+        self.assertFalse(mod._is_finite_number(None))
+        self.assertFalse(mod._is_finite_number(float("nan")))
+        self.assertFalse(mod._is_finite_number(float("inf")))
+
 
 class RunStateTransitionTests(CoscientistTestCase):
     def test_run_advances_to_completed(self):

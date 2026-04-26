@@ -45,19 +45,123 @@ def _docker_available() -> bool:
             ["docker", "info"], capture_output=True, timeout=5,
         )
         return result.returncode == 0
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         return False
 
 
+def _docker_diagnose() -> dict:
+    """Return structured diagnosis of why Docker is/isn't usable.
+
+    Distinguishes binary-missing, daemon-down, daemon-slow, permission-denied.
+    """
+    if not shutil.which("docker"):
+        return {
+            "ready": False,
+            "reason": "binary_missing",
+            "detail": "`docker` not on PATH",
+            "remediation": "Install Docker (e.g. brew install --cask docker) or fix PATH.",
+        }
+    try:
+        result = subprocess.run(
+            ["docker", "info"], capture_output=True, timeout=5, text=True,
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "ready": False,
+            "reason": "daemon_slow",
+            "detail": "`docker info` timed out after 5s",
+            "remediation": "Daemon may be starting. Wait + retry, or restart Docker.",
+        }
+    except (FileNotFoundError, OSError) as e:
+        return {
+            "ready": False,
+            "reason": "binary_broken",
+            "detail": f"Failed to invoke docker binary: {e}",
+            "remediation": "Reinstall Docker; check that /usr/local/bin/docker symlink resolves.",
+        }
+    if result.returncode == 0:
+        return {"ready": True, "reason": None}
+    stderr = (result.stderr or "").lower()
+    if "permission denied" in stderr:
+        return {
+            "ready": False,
+            "reason": "permission_denied",
+            "detail": result.stderr.strip()[:200],
+            "remediation": "Add user to docker group (Linux) or restart Docker Desktop.",
+        }
+    if "cannot connect" in stderr or "is the docker daemon running" in stderr:
+        return {
+            "ready": False,
+            "reason": "daemon_down",
+            "detail": result.stderr.strip()[:200],
+            "remediation": "Start Docker Desktop (`open /Applications/Docker.app`) or `systemctl start docker`.",
+        }
+    return {
+        "ready": False,
+        "reason": "unknown",
+        "detail": result.stderr.strip()[:200] or f"docker info returned {result.returncode}",
+        "remediation": "Run `docker info` directly to diagnose.",
+    }
+
+
+def _classify_run_error(stderr: str, exit_code: int) -> str | None:
+    """Classify common Docker run-time error patterns. None if normal."""
+    if exit_code == 0:
+        return None
+    s = (stderr or "").lower()
+    if "no such image" in s or "manifest unknown" in s or "pull access denied" in s:
+        return "image_not_found"
+    if "network" in s and ("failed" in s or "timeout" in s or "unreachable" in s):
+        return "network_error"
+    if "permission denied" in s:
+        return "permission_denied"
+    if "is the docker daemon running" in s or "cannot connect to the docker daemon" in s:
+        return "daemon_died"
+    if exit_code == 124:
+        return "timeout"
+    if exit_code == 137:
+        return "killed_or_oom"
+    if exit_code == 125:
+        # docker run's own error (bad flags, bad image)
+        return "docker_invocation_error"
+    return None
+
+
+def _validate_workspace(workspace: Path) -> tuple[bool, str]:
+    """Pre-flight checks on workspace dir. Returns (ok, error_message)."""
+    if not workspace.exists():
+        return False, f"workspace not found: {workspace}"
+    if not workspace.is_dir():
+        return False, f"workspace is not a directory: {workspace}"
+    if not os.access(workspace, os.R_OK):
+        return False, f"workspace not readable: {workspace}"
+    if not os.access(workspace, os.W_OK):
+        return False, f"workspace not writable: {workspace}"
+    # Reject symlink workspace (bind mount of symlink can escape)
+    if workspace.is_symlink():
+        return False, f"workspace is a symlink (refusing for security): {workspace}"
+    # Sensitive paths — refuse mounting host config dirs
+    sensitive_prefixes = ("/etc", "/var/run", "/proc", "/sys", "/dev")
+    rp = str(workspace.resolve())
+    for prefix in sensitive_prefixes:
+        if rp == prefix or rp.startswith(prefix + "/"):
+            return False, f"workspace inside sensitive system path {prefix}: {rp}"
+    return True, ""
+
+
 def cmd_check(args: argparse.Namespace) -> None:
+    diag = _docker_diagnose()
     has_binary = bool(shutil.which("docker"))
-    daemon_ok = _docker_available()
-    print(json.dumps({
+    out = {
         "docker_binary_present": has_binary,
-        "docker_daemon_reachable": daemon_ok,
-        "ready": has_binary and daemon_ok,
-    }, indent=2))
-    if not (has_binary and daemon_ok):
+        "docker_daemon_reachable": diag["ready"],
+        "ready": diag["ready"],
+        "reason": diag.get("reason"),
+        "detail": diag.get("detail"),
+        "remediation": diag.get("remediation"),
+    }
+    print(json.dumps(out, indent=2))
+    if not diag["ready"]:
         sys.exit(1)
 
 
@@ -99,17 +203,43 @@ def _detect_oom(stderr: str, exit_code: int) -> bool:
 
 def cmd_run(args: argparse.Namespace) -> None:
     if not _docker_available():
-        raise SystemExit("Docker daemon not reachable. Run `sandbox.py check`.")
+        diag = _docker_diagnose()
+        raise SystemExit(
+            f"Docker not ready ({diag.get('reason')}): {diag.get('detail')}. "
+            f"{diag.get('remediation', '')} Run `sandbox.py check` for details."
+        )
 
     workspace = Path(args.workspace).resolve()
-    if not workspace.exists():
-        raise SystemExit(f"workspace not found: {workspace}")
-    if not workspace.is_dir():
-        raise SystemExit(f"workspace is not a directory: {workspace}")
+    ok, err = _validate_workspace(workspace)
+    if not ok:
+        raise SystemExit(err)
     if not args.command.strip():
         raise SystemExit("--command must be non-empty")
+    if args.memory_mb is not None and args.memory_mb < 16:
+        raise SystemExit(f"memory_mb must be >= 16; got {args.memory_mb}")
+    if args.cpus is not None and args.cpus <= 0:
+        raise SystemExit(f"cpus must be > 0; got {args.cpus}")
+    if args.timeout_seconds is not None and args.timeout_seconds <= 0:
+        raise SystemExit(f"timeout_seconds must be > 0; got {args.timeout_seconds}")
 
     audit_id = args.audit_id or _make_audit_id(str(workspace), args.command)
+    # Reject audit_id collision when caller forced one
+    if args.audit_id:
+        log_path = _audit_log_path()
+        if log_path.exists():
+            try:
+                with log_path.open() as f:
+                    for line in f:
+                        try:
+                            e = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        if e.get("audit_id") == args.audit_id:
+                            raise SystemExit(
+                                f"audit_id collision: {args.audit_id!r} already in log"
+                            )
+            except OSError:
+                pass
     docker_args = _build_docker_args(args, workspace, audit_id)
     started_at = datetime.now(UTC).isoformat()
     t0 = time.monotonic()
@@ -148,6 +278,8 @@ def cmd_run(args: argparse.Namespace) -> None:
     stdout_t, stdout_truncated = _truncate(stdout, STDOUT_CAP_BYTES)
     stderr_t, stderr_truncated = _truncate(stderr, STDOUT_CAP_BYTES)
 
+    error_class = _classify_run_error(stderr, exit_code) if not timed_out else "timeout"
+
     audit_entry = {
         "audit_id": audit_id,
         "image": args.image,
@@ -162,21 +294,28 @@ def cmd_run(args: argparse.Namespace) -> None:
         "exit_code": exit_code,
         "timed_out": timed_out,
         "memory_oom": _detect_oom(stderr, exit_code),
+        "error_class": error_class,
         "stdout_bytes": len(stdout.encode("utf-8", "replace")),
         "stderr_bytes": len(stderr.encode("utf-8", "replace")),
         "stdout_truncated": stdout_truncated,
         "stderr_truncated": stderr_truncated,
     }
 
-    # Append to audit log (one JSON object per line)
-    log_path = _audit_log_path()
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_path.open("a") as f:
-        f.write(json.dumps(audit_entry) + "\n")
+    # Append to audit log (non-fatal on disk errors)
+    audit_log_warning = None
+    try:
+        log_path = _audit_log_path()
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with log_path.open("a") as f:
+            f.write(json.dumps(audit_entry) + "\n")
+    except OSError as e:
+        audit_log_warning = f"audit log write failed: {e}"
 
     response = dict(audit_entry)
     response["stdout"] = stdout_t
     response["stderr"] = stderr_t
+    if audit_log_warning:
+        response["audit_log_warning"] = audit_log_warning
     print(json.dumps(response, indent=2))
 
 

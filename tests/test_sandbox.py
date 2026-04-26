@@ -149,6 +149,149 @@ class RunRequiresDaemonTests(CoscientistTestCase):
                 mod.cmd_run(args)
 
 
+class DiagnoseTests(CoscientistTestCase):
+    def test_classify_image_not_found(self):
+        mod = _load()
+        self.assertEqual(
+            mod._classify_run_error("Error: No such image: foo:bar", 125),
+            "image_not_found",
+        )
+
+    def test_classify_pull_access_denied(self):
+        mod = _load()
+        self.assertEqual(
+            mod._classify_run_error("pull access denied for x", 125),
+            "image_not_found",
+        )
+
+    def test_classify_timeout_124(self):
+        mod = _load()
+        self.assertEqual(mod._classify_run_error("", 124), "timeout")
+
+    def test_classify_killed_137(self):
+        mod = _load()
+        self.assertEqual(mod._classify_run_error("", 137), "killed_or_oom")
+
+    def test_classify_daemon_died(self):
+        mod = _load()
+        self.assertEqual(
+            mod._classify_run_error("Cannot connect to the Docker daemon", 1),
+            "daemon_died",
+        )
+
+    def test_classify_normal_zero_returns_none(self):
+        mod = _load()
+        self.assertIsNone(mod._classify_run_error("", 0))
+
+
+class ValidateWorkspaceTests(CoscientistTestCase):
+    def test_nonexistent(self):
+        mod = _load()
+        ok, err = mod._validate_workspace(Path("/nonexistent/xyz/abc"))
+        self.assertFalse(ok)
+        self.assertIn("not found", err)
+
+    def test_not_directory(self):
+        with isolated_cache() as cache:
+            mod = _load()
+            f = cache / "afile"
+            f.write_text("hi")
+            ok, err = mod._validate_workspace(f)
+            self.assertFalse(ok)
+            self.assertIn("not a directory", err)
+
+    def test_symlink_rejected(self):
+        with isolated_cache() as cache:
+            mod = _load()
+            real = cache / "real_ws"
+            real.mkdir()
+            link = cache / "link_ws"
+            import os
+            os.symlink(real, link)
+            ok, err = mod._validate_workspace(link)
+            self.assertFalse(ok)
+            self.assertIn("symlink", err)
+
+    def test_sensitive_path_rejected(self):
+        mod = _load()
+        ok, err = mod._validate_workspace(Path("/etc"))
+        self.assertFalse(ok)
+        self.assertIn("sensitive", err)
+
+    def test_valid_workspace(self):
+        with isolated_cache() as cache:
+            mod = _load()
+            ws = cache / "ws"
+            ws.mkdir()
+            ok, err = mod._validate_workspace(ws)
+            self.assertTrue(ok)
+            self.assertEqual(err, "")
+
+
+class CmdRunValidationTests(CoscientistTestCase):
+    def test_run_invalid_memory_raises(self):
+        with isolated_cache() as cache:
+            mod = _load()
+            mod._docker_available = lambda: True
+            ws = cache / "ws"
+            ws.mkdir()
+            import argparse
+            args = argparse.Namespace(
+                workspace=str(ws), command="echo x",
+                image="python:3.12-slim", memory_mb=8, cpus=2.0,
+                timeout_seconds=30, audit_id=None,
+            )
+            with self.assertRaises(SystemExit):
+                mod.cmd_run(args)
+
+    def test_run_invalid_cpus_raises(self):
+        with isolated_cache() as cache:
+            mod = _load()
+            mod._docker_available = lambda: True
+            ws = cache / "ws"
+            ws.mkdir()
+            import argparse
+            args = argparse.Namespace(
+                workspace=str(ws), command="echo x",
+                image="python:3.12-slim", memory_mb=64, cpus=0,
+                timeout_seconds=30, audit_id=None,
+            )
+            with self.assertRaises(SystemExit):
+                mod.cmd_run(args)
+
+    def test_run_invalid_timeout_raises(self):
+        with isolated_cache() as cache:
+            mod = _load()
+            mod._docker_available = lambda: True
+            ws = cache / "ws"
+            ws.mkdir()
+            import argparse
+            args = argparse.Namespace(
+                workspace=str(ws), command="echo x",
+                image="python:3.12-slim", memory_mb=64, cpus=2.0,
+                timeout_seconds=0, audit_id=None,
+            )
+            with self.assertRaises(SystemExit):
+                mod.cmd_run(args)
+
+    def test_run_audit_id_collision_raises(self):
+        with isolated_cache() as cache:
+            mod = _load()
+            mod._docker_available = lambda: True
+            ws = cache / "ws"
+            ws.mkdir()
+            log = cache / "sandbox_audit.log"
+            log.write_text(json.dumps({"audit_id": "dup1"}) + "\n")
+            import argparse
+            args = argparse.Namespace(
+                workspace=str(ws), command="echo x",
+                image="python:3.12-slim", memory_mb=64, cpus=2.0,
+                timeout_seconds=30, audit_id="dup1",
+            )
+            with self.assertRaises(SystemExit):
+                mod.cmd_run(args)
+
+
 class AuditTests(CoscientistTestCase):
     def test_audit_empty(self):
         with isolated_cache():

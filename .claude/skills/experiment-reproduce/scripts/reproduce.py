@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import importlib.util as _ilu
 import json
+import math
 import operator as op
 import sys
 from datetime import UTC, datetime
@@ -81,16 +82,27 @@ def _save_run_artifact(eid: str, audit_id: str, response: dict) -> None:
     (rd / "stderr.log").write_text(response.get("stderr") or "")
 
 
+def _is_finite_number(v) -> bool:
+    if isinstance(v, bool):
+        return False
+    if not isinstance(v, (int, float)):
+        return False
+    try:
+        return math.isfinite(float(v))
+    except (TypeError, ValueError):
+        return False
+
+
 def _extract_metric(workspace: Path, stdout: str, metric_name: str) -> tuple[float | None, str]:
-    """Find primary metric. Returns (value, source) or (None, '')."""
+    """Find primary metric. Returns (value, source) or (None, '').
+    Rejects NaN, ±Infinity, and bool — only finite numerics count.
+    """
     rp = workspace / "result.json"
     if rp.exists():
         try:
             data = json.loads(rp.read_text())
-            if metric_name in data:
-                v = data[metric_name]
-                if isinstance(v, (int, float)):
-                    return float(v), "result.json"
+            if metric_name in data and _is_finite_number(data[metric_name]):
+                return float(data[metric_name]), "result.json"
         except (json.JSONDecodeError, OSError):
             pass
 
@@ -103,10 +115,8 @@ def _extract_metric(workspace: Path, stdout: str, metric_name: str) -> tuple[flo
             break
         try:
             data = json.loads(line)
-            if isinstance(data, dict) and metric_name in data:
-                v = data[metric_name]
-                if isinstance(v, (int, float)):
-                    return float(v), "stdout-json"
+            if isinstance(data, dict) and metric_name in data and _is_finite_number(data[metric_name]):
+                return float(data[metric_name]), "stdout-json"
         except json.JSONDecodeError:
             pass
         break
@@ -223,6 +233,8 @@ def cmd_analyze(args: argparse.Namespace) -> None:
     value = last_run.get("metric_value")
     if value is None:
         raise SystemExit("no metric value recorded; cannot analyze")
+    if not _is_finite_number(value):
+        raise SystemExit(f"metric_value not a finite number: {value!r}")
 
     pm = protocol["primary_metric"]
     target = pm["target"]
