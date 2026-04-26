@@ -268,6 +268,22 @@ from tests.test_reviewer_assistant import (
     RecommendationTests as ReviewerRecommendationTests,
     StatusTests as ReviewerStatusTests,
 )
+from tests.test_citation_alerts import (
+    AddRemoveTests as CitationAlertsAddRemoveTests,
+    DigestTests as CitationAlertsDigestTests,
+    ListCheckTests as CitationAlertsListCheckTests,
+    ListTrackedTests as CitationAlertsListTrackedTests,
+    PersistTests as CitationAlertsPersistTests,
+    StatusTests as CitationAlertsStatusTests,
+)
+from tests.test_field_trends import (
+    AuthorsTests as FieldTrendsAuthorsTests,
+    ConceptsTests as FieldTrendsConceptsTests,
+    MomentumTests as FieldTrendsMomentumTests,
+    PapersTests as FieldTrendsPapersTests,
+    ReadOnlyTests as FieldTrendsReadOnlyTests,
+    SummaryTests as FieldTrendsSummaryTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -479,6 +495,20 @@ if __name__ == "__main__":
         ReviewerExportTests,
         ReviewerStatusTests,
         ReviewerIdStabilityTests,
+        # Tier C Phase 2 — citation-alerts
+        CitationAlertsAddRemoveTests,
+        CitationAlertsListTrackedTests,
+        CitationAlertsListCheckTests,
+        CitationAlertsPersistTests,
+        CitationAlertsDigestTests,
+        CitationAlertsStatusTests,
+        # Tier C Phase 2 — field-trends-analyzer
+        FieldTrendsConceptsTests,
+        FieldTrendsPapersTests,
+        FieldTrendsAuthorsTests,
+        FieldTrendsMomentumTests,
+        FieldTrendsSummaryTests,
+        FieldTrendsReadOnlyTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,
