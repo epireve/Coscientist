@@ -89,6 +89,7 @@ from tests.test_audit_rotate import (
     ListArchivesTests as AuditRotateListArchivesTests,
     RotateTests as AuditRotateTests,
 )
+from tests.test_lib_cache import ArchivesForTests
 from tests.test_institutional_check import (
     CheckCommandTests as InstAccessCheckTests,
     IdpRunnerTests as InstAccessIdpRunnerTests,
@@ -425,6 +426,7 @@ if __name__ == "__main__":
         AuditRotateTests,
         AuditRotateListArchivesTests,
         AuditRotateCliTests,
+        ArchivesForTests,
         PdfIntegrityTests,
         NoveltyAnchorUniquenessTests,
         HedgeQuotedContextTests,

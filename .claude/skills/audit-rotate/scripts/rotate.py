@@ -21,9 +21,11 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from lib.cache import audit_log_path, cache_root  # noqa: E402
+from lib.cache import archives_for, audit_log_path, cache_root  # noqa: E402
 
 DEFAULT_MAX_BYTES = 10 * 1024 * 1024  # 10 MiB
+# list-archives still wants to extract the stamp string; matches the
+# canonical form (no collision suffix) since list output is for humans.
 ARCHIVE_RE = re.compile(r"^(.+)\.(\d{8}T\d{6}Z)$")
 
 
@@ -115,16 +117,13 @@ def cmd_list_archives(args: argparse.Namespace) -> dict:
     """All archive files sitting next to the two live logs."""
     archives: list[dict] = []
     for live in (audit_log_path(), _sandbox_log_path()):
-        for sib in live.parent.iterdir():
-            if not sib.is_file():
-                continue
+        for sib in archives_for(live):
             m = ARCHIVE_RE.match(sib.name)
-            if not m or m.group(1) != live.name:
-                continue
+            stamp = m.group(2) if m else sib.name.rsplit(".", 1)[-1]
             archives.append({
                 "archive": sib.name,
                 "live_path": str(live),
-                "stamp": m.group(2),
+                "stamp": stamp,
                 "size_bytes": sib.stat().st_size,
             })
     archives.sort(key=lambda d: d["stamp"], reverse=True)

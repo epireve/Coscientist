@@ -6,7 +6,35 @@ Never hand-build paths. Import from here.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
+
+
+# audit-rotate stamps archives as <name>.<8-digit-date>T<6-digit-time>Z
+# (with optional `_<size>` suffix on rare same-second collisions).
+_ARCHIVE_STAMP_RE = re.compile(r"^(.+)\.\d{8}T\d{6}Z(_\d+)?$")
+
+
+def archives_for(live: Path) -> list[Path]:
+    """Rotated archives sitting next to a live append-only log.
+
+    Returns a list of sibling files matching `<live.name>.<UTC-stamp>`,
+    sorted oldest→newest by stamp. The live file itself is NOT included.
+    Used by audit-query --include-archives and any other read-side tool
+    that wants to walk the full history. Never raises on missing dirs.
+    """
+    if not live.parent.exists():
+        return []
+    out: list[Path] = []
+    for sib in live.parent.iterdir():
+        if not sib.is_file():
+            continue
+        m = _ARCHIVE_STAMP_RE.match(sib.name)
+        if m and m.group(1) == live.name:
+            out.append(sib)
+    # Stamp is ISO-ish so name sort = chronological sort.
+    out.sort(key=lambda p: p.name)
+    return out
 
 
 def cache_root() -> Path:

@@ -23,10 +23,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from lib.cache import audit_log_path, cache_root  # noqa: E402
-
-# Match audit-rotate's archive naming: <live>.<8-digit-date>T<6-digit-time>Z
-_ARCHIVE_RE = re.compile(r"^(.+)\.\d{8}T\d{6}Z(_\d+)?$")
+from lib.cache import archives_for, audit_log_path, cache_root  # noqa: E402
 
 
 def _sandbox_log_path() -> Path:
@@ -34,20 +31,11 @@ def _sandbox_log_path() -> Path:
 
 
 def _expand_with_archives(live: Path) -> list[Path]:
-    """Live log first, then all rotated archives sorted oldest→newest."""
-    out = [live] if live.exists() else []
-    if not live.parent.exists():
-        return out
-    archives: list[Path] = []
-    for sib in live.parent.iterdir():
-        if not sib.is_file():
-            continue
-        m = _ARCHIVE_RE.match(sib.name)
-        if m and m.group(1) == live.name:
-            archives.append(sib)
-    # Stamp is lexicographically sortable
-    archives.sort(key=lambda p: p.name)
-    return archives + out
+    """Archives oldest→newest, then live log last (so newest record wins)."""
+    paths = archives_for(live)
+    if live.exists():
+        paths.append(live)
+    return paths
 
 
 # Legacy line: "2026-04-26T01:22:38.481316 doi=None arxiv=2010.11929 tier=arxiv status=ok"
