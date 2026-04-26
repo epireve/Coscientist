@@ -90,6 +90,10 @@ from tests.test_audit_rotate import (
     RotateTests as AuditRotateTests,
 )
 from tests.test_lib_cache import ArchivesForTests
+from tests.test_rate_limit import (
+    DomainParseTests as RateLimitDomainParseTests,
+    WaitTests as RateLimitWaitTests,
+)
 from tests.test_arxiv_to_markdown import (
     CliTests as ArxivToMarkdownCliTests,
     NormalizeArxivIdTests,
@@ -441,6 +445,8 @@ if __name__ == "__main__":
         AuditRotateListArchivesTests,
         AuditRotateCliTests,
         ArchivesForTests,
+        RateLimitDomainParseTests,
+        RateLimitWaitTests,
         EvalReferencesTests,
         EvalClaimsTests,
         MergeEntriesTests,
