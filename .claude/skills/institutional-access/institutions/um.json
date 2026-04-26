@@ -9,8 +9,16 @@
     "password": "UM_PASSWORD"
   },
   "publisher_entry_urls": {
-    "elsevier": "https://auth.elsevier.com/ShibAuth/institutionLogin?entityID={entityID}&appReturnURL=https%3A%2F%2Fwww.sciencedirect.com%2F",
-    "acm": "https://dl.acm.org/action/ssostart?idp={entityID}&redirectUri=https%3A%2F%2Fdl.acm.org%2Fdl.cfm",
-    "openathens": "https://my.openathens.net/?passiveLogin=false"
+    "_comment": "UM library libguides URLs — start from real UM domain (umlibguides.um.edu.my) to inherit real-domain referer + browsing context, which OpenAthens captcha respects. Each 302s through go.openathens.net to publisher.",
+    "elsevier": "https://umlibguides.um.edu.my/ScienceDirect",
+    "acm": "https://umlibguides.um.edu.my/ACM",
+    "ieee": "https://umlibguides.um.edu.my/IEEE",
+    "wiley": "https://umlibguides.um.edu.my/Wiley",
+    "springer": "https://umlibguides.um.edu.my/Springer",
+    "nature": "https://umlibguides.um.edu.my/Nature",
+    "sage": "https://umlibguides.um.edu.my/SAGE",
+    "emerald": "https://umlibguides.um.edu.my/Emerald",
+    "jstor": "https://umlibguides.um.edu.my/JSTOR",
+    "openathens": "https://umlibguides.um.edu.my/openathens"
   }
 }

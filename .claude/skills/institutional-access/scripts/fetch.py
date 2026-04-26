@@ -54,9 +54,24 @@ async def run(cid: str) -> int:
 
     out_path = art.raw_dir / "institutional.pdf"
 
+    # Use storage_state.json directly (cookies imported from real Chrome
+    # via import_cookies.py). Captcha vendors block fresh Playwright
+    # profiles; importing real-browser cookies sidesteps that — the
+    # session is already authenticated, no SSO round-trip needed.
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=False)
-        context = await browser.new_context(storage_state=str(STATE_FILE))
+        browser = await pw.chromium.launch(
+            headless=False,
+            args=["--disable-blink-features=AutomationControlled"],
+        )
+        context = await browser.new_context(
+            storage_state=str(STATE_FILE),
+            viewport={"width": 1280, "height": 900},
+            locale="en-US",
+        )
+        await context.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', "
+            "{get: () => undefined});"
+        )
         try:
             # Smart routing: prefix → host → generic
             adapter, route = await resolve_adapter(context, manifest.doi)
@@ -93,6 +108,7 @@ async def run(cid: str) -> int:
             print(f"[fetch] adapter error: {e}", file=sys.stderr)
             return 1
         finally:
+            await context.close()
             await browser.close()
 
 

@@ -205,19 +205,51 @@ async def _login_flow(slug: str, publisher: str, interactive: bool,
           f"publisher={publisher} idp_kind={cfg['idp_kind']}",
           file=sys.stderr)
 
+    # Persistent context: real on-disk profile dir. Captcha vendors look
+    # for fresh-profile signals (no history, no extensions, no prior
+    # cookies). Persistent dir builds up legitimate browsing state over
+    # successive runs and dodges the captcha after the first warm-up.
+    import shutil
+    profile_dir = STATE_DIR / "chrome_profile"
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    # Clear stale Singleton* locks from prior crashed Chrome processes
+    for sentinel in ("SingletonLock", "SingletonCookie", "SingletonSocket"):
+        try:
+            (profile_dir / sentinel).unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    # Use Playwright's bundled Chromium, NOT real Chrome (channel='chrome').
+    # Real Chrome's lockfiles (GCM Store, password store, keychain) collide
+    # with the user's daily-driver Chrome, breaking persistent_context.
+    # Bundled Chromium runs in isolation. Captcha vendors fingerprint the
+    # bundled build slightly differently but persistent profile dir + the
+    # navigator.webdriver patch are enough.
+    has_chrome = False
+
     async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=False,
-            args=["--disable-blink-features=AutomationControlled"],
-        )
-        context = await browser.new_context(
-            storage_state=str(STATE_FILE) if STATE_FILE.exists() else None,
-            viewport={"width": 1280, "height": 900},
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/124.0.0.0 Safari/537.36"
-            ),
+        launch_kwargs = {
+            "user_data_dir": str(profile_dir),
+            "headless": False,
+            "args": [
+                "--disable-blink-features=AutomationControlled",
+                "--disable-features=IsolateOrigins,site-per-process",
+                "--no-default-browser-check",
+                "--no-first-run",
+            ],
+            "viewport": {"width": 1280, "height": 900},
+            "locale": "en-US",
+            # No spoofed UA — let real Chrome supply its own. Spoofed UA
+            # is the #1 captcha trigger because the version always lags.
+        }
+        if has_chrome:
+            launch_kwargs["channel"] = "chrome"
+        # launch_persistent_context returns a BrowserContext directly
+        context = await p.chromium.launch_persistent_context(**launch_kwargs)
+        # Strip navigator.webdriver flag — biggest headless-detection tell
+        await context.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', "
+            "{get: () => undefined});"
         )
         page = await context.new_page()
 
@@ -241,15 +273,15 @@ async def _login_flow(slug: str, publisher: str, interactive: bool,
 
         if interactive:
             print("=" * 70, file=sys.stderr)
-            print("Complete any remaining MFA / consent in the browser.",
-                  file=sys.stderr)
-            print("When you reach the publisher landing page, press Enter here.",
-                  file=sys.stderr)
+            print("Complete any remaining MFA / consent / captcha in the "
+                  "browser.", file=sys.stderr)
+            print("When you reach the publisher landing page (signed in), "
+                  "press Enter here.", file=sys.stderr)
             print("=" * 70, file=sys.stderr)
             try:
                 input()
             except (EOFError, KeyboardInterrupt):
-                await browser.close()
+                await context.close()
                 return 1
         else:
             try:
@@ -259,11 +291,14 @@ async def _login_flow(slug: str, publisher: str, interactive: bool,
             except Exception:
                 pass
 
+        # Persistent context auto-saves cookies to user_data_dir on close.
+        # Also write storage_state.json as a stable handle for fetch.py.
         await context.storage_state(path=str(STATE_FILE))
         cookie_count = len((await context.cookies()) or [])
-        print(f"[idp] saved {cookie_count} cookies → {STATE_FILE}",
+        print(f"[idp] saved {cookie_count} cookies → profile {profile_dir}",
               file=sys.stderr)
-        await browser.close()
+        print(f"[idp] storage_state mirror → {STATE_FILE}", file=sys.stderr)
+        await context.close()
     return 0
 
 

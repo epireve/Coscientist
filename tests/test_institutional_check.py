@@ -99,8 +99,10 @@ class IdpRunnerTests(TestCase):
         self.assertEqual(out["entityID"], "https://idp.um.edu.my/entity")
         for key in ("elsevier", "acm", "openathens"):
             self.assertIn(key, out["publishers"])
-        # entityID actually substituted into URLs
-        self.assertIn("idp.um.edu.my", out["publishers"]["elsevier"])
+        # URL is well-formed http(s)
+        self.assertTrue(
+            out["publishers"]["elsevier"].startswith("https://")
+        )
 
     def test_login_requires_credentials(self):
         import os
