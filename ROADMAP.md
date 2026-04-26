@@ -372,7 +372,16 @@ Hardening pass on the sandbox boundary. Suite 927/0 (+4 net vs v0.35).
 - `CmdRunValidationTests` (4) — invalid memory / cpus / timeout / audit-id collision all SystemExit
 - `MetricExtractionTests` extended (4) — NaN / Infinity / bool / `_is_finite_number` rounds
 
-What's still deferred to a Docker session: real-Docker exit-124 (timeout) and exit-137 (OOM) end-to-end paths. The error-classification tags are wired and unit-tested, but I haven't yet run a script that genuinely OOMs on real Docker to confirm `error_class: killed_or_oom` shows up in the audit log. Same for a sleep-past-timeout. Mocked control flow is covered.
+**Failure-mode dogfood — validated on real Docker (Desktop 4.70.0, Engine 29.4.0, darwin/arm64):**
+
+| Test | Setup | Result |
+|---|---|---|
+| Timeout | `time.sleep(60)`, `--timeout-seconds 5` | audit `14dc8adb`: exit=124, `timed_out: true`, `error_class: "timeout"`, wall=5.06s |
+| OOM | `bytearray(512 MB)`, `--memory-mb 64` | audit `ef9aeaf0`: exit=137, `memory_oom: true`, `error_class: "killed_or_oom"`, wall=0.12s |
+| Script crash | `sys.exit(7)` | audit `f02c739f`: exit=7, `error_class: null` (passed through, not infra failure) |
+| Image not found | `--image definitely-not-a-real-image:v999` | audit `03dff8d9`: exit=125, `error_class: "image_not_found"` |
+
+All four paths classify correctly through the audit log + run response. Container teardown clean (no zombie containers via `docker ps -a`). The exit-code → `error_class` mapping that v0.36 wired is now live-validated.
 
 ### v0.35 — Sub-agent personas + live Sakana loop validated end-to-end
 
