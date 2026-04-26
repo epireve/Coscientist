@@ -31,9 +31,9 @@ class CheckCommandTests(TestCase):
         r = _run()
         out = json.loads(r.stdout)
         names = {a["name"] for a in out["adapters"]}
-        # Current registry: 6 publishers
-        for expected in ("acs", "elsevier", "ieee", "nature",
-                         "springer", "wiley"):
+        # Current registry: 9 specific publishers + generic fallback
+        for expected in ("acm", "acs", "elsevier", "emerald", "generic",
+                         "ieee", "nature", "sage", "springer", "wiley"):
             self.assertIn(expected, names)
 
     def test_check_all_adapter_signatures_valid(self):
@@ -45,13 +45,14 @@ class CheckCommandTests(TestCase):
                             f"{a['name']} adapter failed: {a.get('errors')}")
             self.assertIn("domain", a)
 
-    def test_check_registry_has_six_prefixes(self):
+    def test_check_registry_has_nine_prefixes(self):
         r = _run()
         out = json.loads(r.stdout)
-        self.assertEqual(out["registry"]["count"], 6)
-        # DOI prefixes are stable
+        self.assertEqual(out["registry"]["count"], 9)
+        # DOI prefixes covering UM's A-Z core subscriptions + extras
         for p in ("10.1002", "10.1007", "10.1016", "10.1021",
-                  "10.1038", "10.1109"):
+                  "10.1038", "10.1108", "10.1109", "10.1145",
+                  "10.1177"):
             self.assertIn(p, out["registry"]["prefixes"])
 
     def test_check_summary_counts_match(self):

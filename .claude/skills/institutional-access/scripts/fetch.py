@@ -36,13 +36,14 @@ async def run(cid: str) -> int:
 
     # Python packages can't be imported as `.adapters` from a plain script — fix path
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from adapters import registry  # type: ignore
+    from adapters import registry, fallback  # type: ignore
 
     prefix = manifest.doi.split("/", 1)[0]
     adapter = registry.get(prefix)
     if adapter is None:
-        print(f"[fetch] no adapter for prefix {prefix}", file=sys.stderr)
-        return 3
+        print(f"[fetch] no specific adapter for prefix {prefix}; "
+              f"using generic fallback", file=sys.stderr)
+        adapter = fallback
 
     if not STATE_FILE.exists():
         print("[fetch] no storage_state.json — run login.py first", file=sys.stderr)
