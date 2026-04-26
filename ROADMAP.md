@@ -348,6 +348,24 @@ End-to-end run of `ingest → validate_citations → audit gate → critique gat
 
 User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
 
+### v0.31 — Tier C Phase 1: 6 quick-win skills
+
+Six skills using established CLI-script + filesystem-state patterns. 116 new tests; suite at 789 passing, 0 failing.
+
+**negative-results-logger**: New artifact kind `negative-result` added to `lib.artifact` (STATES + kind_root mapping). Captures hypothesis/approach/expected/observed → root_cause/lessons → shared_via. Pure filesystem. 18 tests.
+
+**dataset-agent**: Local registry under `datasets/<dataset_id>/` with manifest + record + versions. Hash subcommand walks path lists, computes sha256/blake2s/sha512 with 100MB safety threshold (`--force-large` to override). License field validated against OSI/CC list with warnings on unknown values. 19 tests.
+
+**credit-tracker**: 14 CRediT roles per author per manuscript under `manuscripts/<mid>/credit/contributions.json`. Audit gate: required roles (conceptualization, methodology, writing-original-draft) must each have ≥1 author; non-zero exit if not. Statement export in narrative + table styles. 23 tests.
+
+**reading-pace-analytics**: Read-only across all `project.db`s with `reading_state` table. velocity (papers/week in window), backlog (counts by state + untouched-to-read count + oldest age), trend (12-week buckets with 4-week rolling avg), summary (combined). Verified read-only via mtime check; handles missing-table gracefully. 13 tests.
+
+**slide-draft**: Manuscript → slide deck via pandoc. Two-stage: `outline` (style template → outline.json) + `render` (pandoc to beamer/pptx/revealjs, or direct markdown for slidev). 4 styles: standard/short-talk/long-talk/poster. Section-aware content extraction with case-insensitive prefix matching; placeholder stripping before pandoc. 20 tests.
+
+**reviewer-assistant**: Structured peer-review scaffold under `reviews/<review_id>/`. 5 sections (summary/strengths/weaknesses/specific/required) + recommendation (5-level) + confidence (1-5). 4 venue templates (NeurIPS/ICLR/Nature/generic) with venue-specific extra sections. Markdown + JSON export; status flags ready_to_submit when complete. Distinct from manuscript-critique (own work) and peer-review (own paper). 23 tests.
+
+ROADMAP.md updated to mark all six as shipped; Phase 2 items tagged for next iteration.
+
 ### v0.29 — Tier B completion: statistics, figure-agent, peer-review, retraction-watch, preprint-alerts, grant-draft
 
 Six remaining high-leverage Tier B skills shipped. All pure stdlib Python, no sub-agents required (skills orchestrate via CLI scripts). 124 new tests; suite at 651.
@@ -590,21 +608,21 @@ High value but narrower or more domain-dependent.
 
 ## Tier C — longer horizon
 
-- **Sakana-style experimentation loop**: `experiment-design` + `experiment-reproduce` + a custom `reproducibility-mcp` that sandboxes exec (Docker / E2B / Modal). Measure with fixed compute + single metric per karpathy/autoresearch. This is what turns Coscientist from assistant → co-scientist.
-- **Research project container**: persistent top-level object wrapping multiple runs, manuscripts, experiments, reading lists, knowledge graphs. Zotero collection per project.
-- **Dataset agent**: track datasets used in your work with DOIs, licenses, versions, hashes. Zenodo/OSF deposit.
-- **Slide-draft skill**: paper → beamer/pptx with key figures.
-- **Data management plan generator**: for grants (NIH DMSP, NSF DMP).
-- **Citation alerts**: "someone just cited your paper — here's context".
-- **Reviewer-assistant skill**: when reviewing others' work, extract claims + check methods + draft structured review.
-- **Negative-results logger**: dedicated artifact type for failed experiments.
-- **Credit tracker**: CRediT taxonomy, who did what per paper.
-- **Field-trends analyzer**: citation-momentum for approaches, topics rising/declining.
-- **Reading-pace analytics**: your own velocity metrics.
-- **Open-data deposit**: Zenodo/OSF/Figshare submission + DOI assignment.
-- **Registered reports pathway** support.
-- **Ethics/IRB skill**: IRB application drafting, conflict-of-interest tracker.
-- **Meta-research skill**: publication trends, career trajectory analysis.
+- **Sakana-style experimentation loop** (Phase 3): `experiment-design` + `experiment-reproduce` + a custom `reproducibility-mcp` that sandboxes exec (Docker first; E2B/Modal later). Measure with fixed compute + single metric per karpathy/autoresearch. This is what turns Coscientist from assistant → co-scientist.
+- **Research project container** (Phase 3): persistent top-level object wrapping multiple runs, manuscripts, experiments, reading lists, knowledge graphs. Zotero collection per project.
+- ✅ **Dataset agent**: local registry of datasets with DOIs, licenses, versions, content hashes (sha256/blake2s/sha512). State machine: `registered → deposited → versioned`. Zenodo deposit pending Phase 2. (v0.31)
+- ✅ **Slide-draft skill**: manuscript → beamer/pptx/revealjs/slidev via pandoc. 4 styles (standard/short-talk/long-talk/poster) with section-aware content extraction. (v0.31)
+- **Data management plan generator** (Phase 2): for grants (NIH DMSP, NSF DMP).
+- **Citation alerts** (Phase 2): "someone just cited your paper — here's context". S2 wrapping.
+- ✅ **Reviewer-assistant skill**: scaffold a structured peer review (5 sections + recommendation + confidence). 4 venue templates (NeurIPS/ICLR/Nature/generic). (v0.31)
+- ✅ **Negative-results logger**: dedicated artifact kind `negative-result`. State: `logged → analyzed → shared`. (v0.31)
+- ✅ **Credit tracker**: CRediT taxonomy (14 roles); per-manuscript with audit + statement export (narrative + table). (v0.31)
+- **Field-trends analyzer** (Phase 2): citation-momentum for approaches, topics rising/declining.
+- ✅ **Reading-pace analytics**: read-only velocity + backlog + trend over `reading_state` across projects. (v0.31)
+- **Open-data deposit** (Phase 2): Zenodo/OSF/Figshare submission + DOI assignment.
+- **Registered reports pathway** (Phase 2): Stage 1/Stage 2 manuscript states.
+- **Ethics/IRB skill** (Phase 2): IRB application drafting, conflict-of-interest tracker.
+- **Meta-research skill** (Phase 3): publication trends, career trajectory analysis.
 
 ## Structural refactor (prerequisite to most Tier-A work)
 
