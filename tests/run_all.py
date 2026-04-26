@@ -90,6 +90,10 @@ from tests.test_audit_rotate import (
     RotateTests as AuditRotateTests,
 )
 from tests.test_lib_cache import ArchivesForTests
+from tests.test_research_eval import (
+    EvalClaimsTests,
+    EvalReferencesTests,
+)
 from tests.test_institutional_check import (
     CheckCommandTests as InstAccessCheckTests,
     IdpRunnerTests as InstAccessIdpRunnerTests,
@@ -427,6 +431,8 @@ if __name__ == "__main__":
         AuditRotateListArchivesTests,
         AuditRotateCliTests,
         ArchivesForTests,
+        EvalReferencesTests,
+        EvalClaimsTests,
         PdfIntegrityTests,
         NoveltyAnchorUniquenessTests,
         HedgeQuotedContextTests,
