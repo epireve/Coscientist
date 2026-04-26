@@ -90,6 +90,11 @@ from tests.test_audit_rotate import (
     RotateTests as AuditRotateTests,
 )
 from tests.test_lib_cache import ArchivesForTests
+from tests.test_arxiv_to_markdown import (
+    CliTests as ArxivToMarkdownCliTests,
+    NormalizeArxivIdTests,
+    RunFunctionTests as ArxivToMarkdownRunTests,
+)
 from tests.test_paper_discovery import (
     CliTests as PaperDiscoveryCliTests,
     MergeEntriesTests,
@@ -441,6 +446,9 @@ if __name__ == "__main__":
         MergeEntriesTests,
         PaperDiscoveryRankTests,
         PaperDiscoveryCliTests,
+        NormalizeArxivIdTests,
+        ArxivToMarkdownRunTests,
+        ArxivToMarkdownCliTests,
         PdfIntegrityTests,
         NoveltyAnchorUniquenessTests,
         HedgeQuotedContextTests,
