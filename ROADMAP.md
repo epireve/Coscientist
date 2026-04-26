@@ -348,9 +348,38 @@ End-to-end run of `ingest → validate_citations → audit gate → critique gat
 
 User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
 
-### v0.35 — Sub-agent personas for Tier C skills + live-test blocker noted
+### v0.35 — Sub-agent personas + live Sakana loop validated end-to-end
 
-4 new personas; suite still 923 passing. Live integration test of the Sakana loop was blocked: Docker Desktop binary missing (broken symlink at `/usr/local/bin/docker → /Applications/Docker.app/Contents/Resources/bin/docker`, which no longer exists in Docker Desktop 4.x layout). Reinstall Docker Desktop to restore. Mock-based tests still pass; real-Docker dogfood deferred to next session.
+4 new personas + first successful end-to-end run of the Sakana experimentation loop on real Docker. Suite still 923 passing.
+
+**Live integration test (Sakana loop, run `sakana_live_test_aca278`):**
+
+After Docker Desktop daemon came up (intermittent on this machine due to broken symlink at `/usr/local/bin/docker`), the full pipeline ran:
+
+| Phase | Audit ID | Wall time | Result |
+|---|---|---|---|
+| sandbox `check` | — | — | `ready: true` (Docker 29.4.0) |
+| sandbox `run` (warmup) | `66518ce3` | 7.4s | exit 0, image pulled (~37 MB) |
+| `experiment-design init` | — | — | state=`designed` |
+| `variable` × 3 (indep+dep+control) | — | — | gates passed |
+| `metric` (accuracy ≥ 0.85) | — | — | recorded |
+| `preregister` (60s, 512MB) | — | — | state=`preregistered`; preregistration.md written |
+| `experiment-reproduce run` | `96a32cf0` | 0.148s | state=`completed`, metric=0.92 from `result.json` |
+| `analyze` | — | — | state=`analyzed`, `passed: true` (0.92 ≥ 0.85) |
+| `reproduce-check` (5% tolerance) | `2215c728` | 0.148s | state=`reproduced`, diff=0%, within tolerance |
+
+3 entries in `~/.cache/coscientist/sandbox_audit.log`. Per-run artifacts in `experiments/<eid>/runs/<audit_id>/`. The Sakana iteration loop is **operational on real Docker**, not just mocked.
+
+**4 new sub-agent personas:**
+
+- **experimentalist** — orchestrates the full Sakana loop (design → preregister → sandbox run → analyze → reproduce-check). Hard rules: single primary metric, fixed budget, hypothesis ≠ falsifier, sandbox-only execution, reproduce-check before believing. Names every failure mode (Docker down, OOM, timeout, script error, no metric, reproduction outside tolerance) with explicit recovery.
+- **dataset-curator** — manages dataset artifacts end-to-end (register → hash → version → Zenodo prepare → deposit). Hard rules: hash before deposit, validate via prepare first, license required + explicit, sandbox before production, frozen on deposit.
+- **peer-reviewer** — drafts structured peer review of someone else's manuscript. Distinct from manuscript-critic (own work) and peer-review simulator (own paper). Hard rules: no anonymous reasoning, steelman before each weakness, no pile-on, calibrated confidence, no self-reveal.
+- **grant-writer** — funder-specific grant scaffolds (NIH/NSF/ERC/Wellcome). Specific Aims first, premortem each aim, Significance ≠ Innovation, parallel not serial aims, budget reality check, companion DMP/IRB.
+
+`tests/test_agents.py` allowlist updated; LayoutRegressionTests still passes.
+
+**Known intermittent issue:** Docker Desktop on this machine has a stale symlink (`/usr/local/bin/docker → /Applications/Docker.app/Contents/Resources/bin/docker`, which doesn't exist in Docker Desktop 4.x). The daemon comes up after `open /Applications/Docker.app` and stays reachable from already-running shells, but new shells sometimes can't find the binary. Workaround: reinstall Docker Desktop, or symlink to wherever the actual binary lives in this Docker version. Doesn't affect the skill itself — `sandbox.py check` correctly reports `ready: false` and refuses to run when daemon is unreachable.
 
 **4 new sub-agent personas:**
 
