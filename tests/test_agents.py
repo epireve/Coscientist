@@ -32,6 +32,8 @@ EXPECTED_AGENTS = {
     "research-journal", "project-dashboard", "cross-project-memory",
     # Tier B tournament + evolution
     "ranker", "evolver",
+    # Tier B standalone adversarial
+    "idea-attacker",
 }
 
 

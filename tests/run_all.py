@@ -220,6 +220,11 @@ from tests.test_grant_draft import (
     FundersListTests,
     OutlineTests,
 )
+from tests.test_idea_attacker import (
+    GateCliTests as IdeaAttackerCliTests,
+    GatePersistTests as IdeaAttackerPersistTests,
+    GateValidationTests as IdeaAttackerValidationTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -390,6 +395,10 @@ if __name__ == "__main__":
         DraftSectionTests,
         DraftStatusTests,
         FundersListTests,
+        # idea-attacker skill
+        IdeaAttackerValidationTests,
+        IdeaAttackerPersistTests,
+        IdeaAttackerCliTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,

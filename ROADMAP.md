@@ -585,7 +585,7 @@ High value but narrower or more domain-dependent.
 - ✅ **Retraction watch**: scan cited papers for retraction status, alert + journal entry on retractions, status table. Two-phase: `scan list` → MCP lookup by caller → `scan persist`. (v0.29)
 - ✅ **Preprint alerts**: subscribe per project to topics + authors + sources; daily digest filtering; history. (v0.29)
 - ✅ **Grant-draft skill**: funder-specific templates (NIH, NSF, ERC, Wellcome). `init` → `section` → `status`; significance+impact framing distinct from papers. (v0.29)
-- **Red-team agent**: meaner than Rude. Specifically tries to disprove your best ideas. Separate persona, explicit trigger.
+- ✅ **Idea-attacker agent**: standalone adversarial stress-tester for working hypotheses (outside deep-research runs). 10-attack checklist (untestable, already-known, confounded-by-design, base-rate-neglect, scope-too-broad, implementation-wall, incentive-problem, measurement-gap, wrong-level, status-quo-survives). Gate script enforces all 10 present + steelman on fatals + killer_test on non-pass verdicts. Persists to `projects/<pid>/idea_attacks/`. (v0.30)
 - ✅ **Overnight mode**: breaks queued via `overnight.py queue-break` instead of blocking; `digest.md` written at end; `--overnight` flag on `db.py init`. (v0.28)
 
 ## Tier C — longer horizon
