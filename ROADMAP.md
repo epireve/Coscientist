@@ -348,6 +348,107 @@ End-to-end run of `ingest → validate_citations → audit gate → critique gat
 
 User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
 
+### v0.44 — audit-query: read-only forensic view over both audit logs
+
+New `audit-query` skill aggregates over `~/.cache/coscientist/audit.log`
+(PDF fetches) and `~/.cache/coscientist/sandbox_audit.log` (Docker runs).
+Subcommands: `fetches | sandbox | summary`. Pure stdlib. Handles both
+JSONL and the legacy free-text `key=value` lines paper-acquire wrote in
+v0.1. `--format md` for one-screen forensic markdown render. Read-only
+— never mutates either file. 12 new tests (FetchesTests, SandboxTests,
+SummaryTests, CliTests). Suite 977/0 (+12).
+
+### v0.43.1 — green suite hotfix
+
+Two test regressions surfaced after v0.43:
+
+1. `test_login_requires_credentials` passed only when developer had no
+   `.env`. The script's `_load_env_file()` reads repo-root `.env`
+   regardless of cwd, so stripping env vars wasn't sufficient. Added
+   `COSCIENTIST_NO_ENV_FILE=1` opt-out the test sets explicitly;
+   production behavior unchanged.
+
+2. `test_docling_missing_errors_cleanly_on_default_engine` assumed
+   `docling` absence → non-zero exit. With `pymupdf` installed,
+   auto-mode `vision_fallback` opens the synthetic PDF and writes
+   placeholder content.md, so extract.py succeeds. Test now accepts
+   either clean-failure OR a recorded vision fallback in
+   `extraction.log`.
+
+Also: tightened Elsevier adapter with `wait_for_load_state("networkidle")`
++ debug print of landed URL/title before selector cascade. Suite 965/0.
+
+### v0.43 — cookie-import bypass for captcha-walled OpenAthens
+
+Direct Playwright login to UM's OpenAthens portal hit an endless
+"Are you a robot?" captcha loop even with anti-detection (UA spoof,
+`navigator.webdriver` patch, persistent context, real Chrome via
+`channel="chrome"`). Pivoted to a workaround: log in via real Chrome,
+export cookies via Cookie-Editor extension, import to Playwright
+`storage_state.json` via new `import_cookies.py`. Normalises Cookie-Editor
+JSON → Playwright schema (sameSite mapping, expirationDate→expires).
+26 cookies imported across 7 domains; auth round-trip works.
+
+`fetch.py` refactored from `launch_persistent_context` (which collided
+with daily-driver Chrome's lockfiles) to `launch` + `new_context` with
+`storage_state` only. Captcha vendors block fresh Playwright profiles
+even with cookies; using a real-Chrome export sidesteps the bot check.
+
+### v0.42 + v0.42.1 — institution-agnostic IdP runner + smart DOI router + JSTOR
+
+Generalised `idp_um.py` → `idp_runner.py`. Reads
+`institutions/<slug>.json` config; `IDP_PROFILES` dict per IdP kind
+(MS Entra, Shibboleth classic, CAS, SimpleSAML, Okta, Auth0, manual).
+Any institution adds a JSON; no code changes.
+
+Smart adapter resolver (`adapters/__init__.py`): prefix-first
+(10.1016 → Elsevier, etc.) → host-fallback (HEAD-resolve `doi.org`) →
+generic. JSTOR adapter added (10.2307). Clearer error message on
+unknown publisher, dogfood paper artifact seeded for testing.
+
+### v0.41 — ACM, Emerald, SAGE adapters + generic fallback
+
+Three more publisher adapters + a `generic.py` fallback that tries
+common PDF-link patterns. Total registry: ACM (10.1145), ACS (10.1021),
+Elsevier (10.1016), Emerald (10.1108), IEEE (10.1109), JSTOR (10.2307),
+Nature (10.1038), SAGE (10.1177), Springer (10.1007), Wiley (10.1002),
+plus generic.
+
+### v0.40 — UM (University Malaya) auto-login
+
+First concrete institution config. OpenAthens federation entry through
+UM's IdP. Stores `storage_state.json` under
+`institutional-access/state/`. Headful Playwright; honours real-profile
+constraints.
+
+### v0.39 — institutional-access health check (dry-run)
+
+`check.py` — adapter-signature regression check + Playwright readiness
++ `storage_state.json` presence + adapter registry size. Distinct from
+`paper-acquire` (which fetches); this one validates the toolchain
+without making a single network request. JSON output for `paper-acquire`
+to consume before invoking institutional-access tier.
+
+### v0.38 + v0.38.1 — tournament evolve-loop orchestration ledger
+
+Out-of-band ledger (`evolution_rounds` table, schema migration v3) for
+the tournament/evolution loop. `evolve_loop.py` subcommands:
+`open-round | close-round | status | lineage`. Plateau detection
+chains via prior-closed-round lookup (so consecutive rounds without
+top-Elo improvement increment a counter). End-to-end integration test
+spans open → record_match → record_hypothesis (child) → close → repeat.
+
+### v0.37 — workspace lockfile + register v0.36 tests in run_all
+
+`reproducibility-mcp/sandbox.py` cmd_run now wrapped in
+`artifact_lock(workspace, timeout=lock_timeout)` to prevent concurrent
+runs from racing on the same workspace dir. New `--lock-timeout` flag
+(default 0 = fail fast). Also caught 15 v0.36 tests that had been
+authored but not registered in `tests/run_all.py`
+(DiagnoseTests, ValidateWorkspaceTests, CmdRunValidationTests,
+WorkspaceLockTests). Wiring bug — not behavior bug. Suite jumped
+from 912 → 927.
+
 ### v0.36 — tighten Docker error handling + edge cases
 
 Hardening pass on the sandbox boundary. Suite 927/0 (+4 net vs v0.35).
