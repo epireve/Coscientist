@@ -82,6 +82,12 @@ from tests.test_audit_query import (
     SandboxTests as AuditSandboxTests,
     SummaryTests as AuditSummaryTests,
 )
+from tests.test_audit_rotate import (
+    CliTests as AuditRotateCliTests,
+    InspectTests as AuditRotateInspectTests,
+    ListArchivesTests as AuditRotateListArchivesTests,
+    RotateTests as AuditRotateTests,
+)
 from tests.test_institutional_check import (
     CheckCommandTests as InstAccessCheckTests,
     IdpRunnerTests as InstAccessIdpRunnerTests,
@@ -413,6 +419,10 @@ if __name__ == "__main__":
         AuditSandboxTests,
         AuditSummaryTests,
         AuditCliTests,
+        AuditRotateInspectTests,
+        AuditRotateTests,
+        AuditRotateListArchivesTests,
+        AuditRotateCliTests,
         PdfIntegrityTests,
         NoveltyAnchorUniquenessTests,
         HedgeQuotedContextTests,
