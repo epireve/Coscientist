@@ -76,6 +76,9 @@ from tests.test_evolve_loop import (
     OpenRoundTests as EvoOpenRoundTests,
     StatusTests as EvoStatusTests,
 )
+from tests.test_institutional_check import (
+    CheckCommandTests as InstAccessCheckTests,
+)
 from tests.test_v0_12_1_hardening import (
     CalibrationHardFailTests,
     HedgeQuotedContextTests,
@@ -397,6 +400,7 @@ if __name__ == "__main__":
         EvoStatusTests,
         EvoLineageTests,
         EvoIntegrationTests,
+        InstAccessCheckTests,
         PdfIntegrityTests,
         NoveltyAnchorUniquenessTests,
         HedgeQuotedContextTests,

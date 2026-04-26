@@ -8,6 +8,23 @@ when_to_use: Invoked by `paper-acquire` after all OA tiers fail. Not called dire
 
 A local-browser adapter for entitled publisher access. Runs headful Chromium with a persistent storage state — so you log in through OpenAthens (including MFA) exactly once, and the session is reused until cookies expire.
 
+## Health check
+
+Before any real fetch, dry-run the harness:
+
+```bash
+uv run python .claude/skills/institutional-access/scripts/check.py check
+```
+
+JSON report covers:
+
+- **Adapters**: each module imports OK, exposes async `fetch_pdf(context, doi, out_path)`, declares `DOMAIN`
+- **Playwright**: installed + importable
+- **storage_state.json**: present, valid JSON, cookie count, age in hours, stale (>14d) flag
+- **Registry**: DOI prefixes mapped to adapters
+
+Exit code 0 only when everything is ready for a real fetch. Run after upgrading Playwright, after rotating storage state, or before kicking off any paywalled-DOI batch.
+
 ## One-time setup
 
 ```bash
