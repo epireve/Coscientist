@@ -71,6 +71,7 @@ from tests.test_tournament import (
 )
 from tests.test_evolve_loop import (
     CloseRoundTests as EvoCloseRoundTests,
+    IntegrationTests as EvoIntegrationTests,
     LineageTests as EvoLineageTests,
     OpenRoundTests as EvoOpenRoundTests,
     StatusTests as EvoStatusTests,
@@ -395,6 +396,7 @@ if __name__ == "__main__":
         EvoCloseRoundTests,
         EvoStatusTests,
         EvoLineageTests,
+        EvoIntegrationTests,
         PdfIntegrityTests,
         NoveltyAnchorUniquenessTests,
         HedgeQuotedContextTests,

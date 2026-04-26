@@ -192,6 +192,64 @@ class LineageTests(TestCase):
             self.assertIn("hyp-grand", r.stdout)
 
 
+REC_MATCH = _ROOT / ".claude/skills/tournament/scripts/record_match.py"
+
+
+def _record_match(run_id: str, a: str, b: str, winner: str) -> None:
+    r = _run(str(REC_MATCH), "--run-id", run_id, "--hyp-a", a, "--hyp-b", b,
+             "--winner", winner, "--judge-reasoning", "test")
+    assert r.returncode == 0, r.stderr
+
+
+class IntegrationTests(TestCase):
+    """Full rank → evolve → re-rank cycle exercising real Elo + ledger."""
+
+    def test_full_cycle_top_changes_after_mutation(self):
+        with isolated_cache() as cache:
+            run_id = _seed_run(cache, "integ_run")
+            # Seed 4 hypotheses, all default Elo 1200
+            for h in ("hyp-1", "hyp-2", "hyp-3", "hyp-4"):
+                _add_hyp(run_id, h)
+
+            # Round 0: hyp-1 dominates via 3 wins
+            _run(str(EVOLVE), "open-round", "--run-id", run_id)
+            _record_match(run_id, "hyp-1", "hyp-2", "hyp-1")
+            _record_match(run_id, "hyp-1", "hyp-3", "hyp-1")
+            _record_match(run_id, "hyp-1", "hyp-4", "hyp-1")
+            r = _run(str(EVOLVE), "close-round", "--run-id", run_id)
+            out = json.loads(r.stdout)
+            self.assertEqual(out["top_hyp_id"], "hyp-1")
+            self.assertEqual(out["n_matches"], 3)
+
+            # Round 1: same matches confirm — plateau increments
+            _run(str(EVOLVE), "open-round", "--run-id", run_id)
+            _record_match(run_id, "hyp-1", "hyp-2", "hyp-1")
+            r = _run(str(EVOLVE), "close-round", "--run-id", run_id)
+            out = json.loads(r.stdout)
+            self.assertEqual(out["top_hyp_id"], "hyp-1")
+            self.assertGreaterEqual(out["plateau_count"], 1)
+
+            # Round 2: evolver mutates hyp-1 → hyp-1-mut, which sweeps
+            _run(str(EVOLVE), "open-round", "--run-id", run_id)
+            _add_hyp(run_id, "hyp-1-mut", parent="hyp-1")
+            _record_match(run_id, "hyp-1-mut", "hyp-1", "hyp-1-mut")
+            _record_match(run_id, "hyp-1-mut", "hyp-2", "hyp-1-mut")
+            _record_match(run_id, "hyp-1-mut", "hyp-3", "hyp-1-mut")
+            _record_match(run_id, "hyp-1-mut", "hyp-4", "hyp-1-mut")
+            r = _run(str(EVOLVE), "close-round", "--run-id", run_id)
+            out = json.loads(r.stdout)
+            self.assertEqual(out["top_hyp_id"], "hyp-1-mut")
+            self.assertTrue(out["top_changed"])
+            self.assertEqual(out["plateau_count"], 0)
+            self.assertEqual(out["n_new_children"], 1)
+
+            # Lineage walks the parent edge
+            r = _run(str(EVOLVE), "lineage", "--run-id", run_id)
+            self.assertIn("hyp-1-mut", r.stdout)
+            self.assertIn("hyp-1", r.stdout)
+
+
 if __name__ == "__main__":
     import sys
-    sys.exit(run_tests(OpenRoundTests, CloseRoundTests, StatusTests, LineageTests))
+    sys.exit(run_tests(OpenRoundTests, CloseRoundTests, StatusTests,
+                       LineageTests, IntegrationTests))
