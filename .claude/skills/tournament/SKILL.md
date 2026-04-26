@@ -13,7 +13,7 @@ Implements pairwise self-play ranking over hypotheses. Inspired by Google AI Co-
 - `hypotheses` — id, run_id, agent_name, gap_ref, parent_hyp_id, statement, method_sketch, predicted_observables (JSON), falsifiers (JSON), supporting_ids (JSON), elo (default 1200), n_matches, n_wins, n_losses, created_at
 - `tournament_matches` — match_id, run_id, hyp_a, hyp_b, winner (hyp_id or 'draw'), judge_reasoning, at
 
-## Four scripts
+## Five scripts
 
 | Script | Job |
 |---|---|
@@ -21,6 +21,33 @@ Implements pairwise self-play ranking over hypotheses. Inspired by Google AI Co-
 | `record_match.py` | Record a pairwise match outcome; update both hypotheses' Elo via the standard formula (K=32) |
 | `pairwise.py` | Given a list of hypotheses, emit the round-robin or top-K-vs-rest pairings the `ranker` sub-agent should judge |
 | `leaderboard.py` | Top-N by Elo with match-count stats and lineage info |
+| `evolve_loop.py` | Round-by-round ledger for the rank → evolve → repeat orchestration |
+
+## evolve-loop
+
+Out-of-band orchestration ledger. Does NOT call `ranker` or `evolver` —
+caller drives those. Each round:
+
+```bash
+# 1. Open round (snapshots top-1 + hypothesis count)
+uv run python .claude/skills/tournament/scripts/evolve_loop.py open-round --run-id R
+
+# 2. Caller runs ranker matches → record_match.py
+# 3. Caller runs evolver agent → record_hypothesis.py with --parent-hyp-id
+
+# 4. Close round (counts deltas, detects plateau)
+uv run python .claude/skills/tournament/scripts/evolve_loop.py close-round \
+    --run-id R --plateau-threshold 2
+# → JSON includes should_stop=true when top-1 unchanged for N rounds
+
+# Inspection
+uv run python .claude/skills/tournament/scripts/evolve_loop.py status --run-id R
+uv run python .claude/skills/tournament/scripts/evolve_loop.py lineage --run-id R
+```
+
+Plateau detection: top-1 by Elo unchanged across rounds. `plateau_count`
+increments while top stays put, resets to 0 when top changes. Caller
+decides when to stop based on `should_stop`. No automatic termination.
 
 ## record-hypothesis
 

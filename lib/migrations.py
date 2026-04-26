@@ -41,6 +41,25 @@ MIGRATIONS: list[tuple[int, str, str]] = [
         -- on the migration framework to call this exactly once per DB.
         ALTER TABLE runs ADD COLUMN overnight INTEGER NOT NULL DEFAULT 0;
     """),
+    (3, "v0.38_evolution_rounds", """
+        -- Tournament evolve-loop ledger. One row per round.
+        CREATE TABLE IF NOT EXISTS evolution_rounds (
+            round_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id          TEXT NOT NULL,
+            round_index     INTEGER NOT NULL,
+            top_hyp_id      TEXT,
+            top_elo         REAL,
+            n_hypotheses    INTEGER NOT NULL,
+            n_matches       INTEGER NOT NULL,
+            n_new_children  INTEGER NOT NULL DEFAULT 0,
+            plateau_count   INTEGER NOT NULL DEFAULT 0,
+            started_at      TEXT NOT NULL,
+            closed_at       TEXT,
+            UNIQUE(run_id, round_index)
+        );
+        CREATE INDEX IF NOT EXISTS idx_evo_rounds_run
+            ON evolution_rounds(run_id);
+    """),
 ]
 
 

@@ -69,6 +69,12 @@ from tests.test_tournament import (
     RecordHypothesisTests,
     RecordMatchTests,
 )
+from tests.test_evolve_loop import (
+    CloseRoundTests as EvoCloseRoundTests,
+    LineageTests as EvoLineageTests,
+    OpenRoundTests as EvoOpenRoundTests,
+    StatusTests as EvoStatusTests,
+)
 from tests.test_v0_12_1_hardening import (
     CalibrationHardFailTests,
     HedgeQuotedContextTests,
@@ -385,6 +391,10 @@ if __name__ == "__main__":
         PairwiseTests,
         LeaderboardTests,
         EloMathTests,
+        EvoOpenRoundTests,
+        EvoCloseRoundTests,
+        EvoStatusTests,
+        EvoLineageTests,
         PdfIntegrityTests,
         NoveltyAnchorUniquenessTests,
         HedgeQuotedContextTests,
