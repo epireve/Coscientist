@@ -201,6 +201,25 @@ from tests.test_statistics import (
     TestPower,
     TestTestSelect,
 )
+from tests.test_preprint_alerts import (
+    DigestTests as PreprintDigestTests,
+    HistoryTests as PreprintHistoryTests,
+    ListSubsTests,
+    SubscribeTests,
+)
+from tests.test_peer_review import (
+    ReviewTests,
+    RespondTests,
+    DecideTests,
+    StatusTests as PeerReviewStatusTests,
+)
+from tests.test_grant_draft import (
+    DraftInitTests,
+    DraftSectionTests,
+    DraftStatusTests,
+    FundersListTests,
+    OutlineTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -355,6 +374,22 @@ if __name__ == "__main__":
         TestMetaAnalysis,
         TestTestSelect,
         TestAssumptionCheck,
+        # preprint-alerts skill
+        SubscribeTests,
+        PreprintDigestTests,
+        ListSubsTests,
+        PreprintHistoryTests,
+        # peer-review skill
+        ReviewTests,
+        RespondTests,
+        DecideTests,
+        PeerReviewStatusTests,
+        # grant-draft skill
+        OutlineTests,
+        DraftInitTests,
+        DraftSectionTests,
+        DraftStatusTests,
+        FundersListTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,

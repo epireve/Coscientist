@@ -348,6 +348,45 @@ End-to-end run of `ingest → validate_citations → audit gate → critique gat
 
 User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
 
+### v0.29 — Tier B completion: statistics, figure-agent, peer-review, retraction-watch, preprint-alerts, grant-draft
+
+Six remaining high-leverage Tier B skills shipped. All pure stdlib Python, no sub-agents required (skills orchestrate via CLI scripts). 124 new tests; suite at 651.
+
+**statistics** (new skill, 6 modules):
+- `math_utils.py` — mean, variance, std, SEM, Cohen's d, r from t, pooled std; all pure math
+- `effect_size.py` — Cohen's d, Hedges' g, Glass's delta, r from t, r from F, eta squared, omega squared, Cramér's V
+- `power.py` — approximate power for t-test, ANOVA, chi-square, correlation (z-transform); sample-size solver via binary search
+- `meta_analysis.py` — fixed-effects + random-effects (DerSimonian-Laird); Q statistic, I², tau²; forest-plot data
+- `test_select.py` — decision-tree recommender (paired/independent t, ANOVA, Kruskal, Wilcoxon, Mann-Whitney, Fisher, chi-square, Pearson/Spearman, regression)
+- `assumption_check.py` — Shapiro-Wilk approximation, Levene's test, autocorrelation check; returns pass/warn/fail per assumption
+
+**figure-agent** (new skill, 4 scripts):
+- `register.py` — register a figure artifact; assigns `figure_id = slug(title)_blake2s[:6]`; stores `manifest.json`
+- `audit.py` — checks: palette colorblind-safe (validates named palettes), alt_text present, caption ≥20 chars, format matches venue (vector for print, raster OK for web); writes `audit_report.json`
+- `caption.py` — generate/update caption; word-count check against venue floor
+- `list.py` — list all figures for a manuscript with status summary
+
+**peer-review** (new skill, 4 scripts):
+- `review.py` — `generate_review(mid, venue, round_num)`; NeurIPS/ACL/Nature/Science → 3 reviewers, others → 2; `FileExistsError` on duplicate round
+- `respond.py` — `record_response(mid, round_num, response_data)`; `FileNotFoundError` if no review for that round
+- `decide.py` — `make_decision(mid, decision, rationale)`; validates `{accept,reject,major_revision,minor_revision}`; `ValueError` if no reviews yet
+- `status.py` — per-round has_review/has_response + final decision
+
+**retraction-watch** (new skill, 3 scripts):
+- `scan.py` — two modes: `list` (dry-run, unions artifact_index + manuscript_citations + graph_nodes) and `persist` (upsert MCP results into `retraction_flags`); stale-flag check via `checked_at` age
+- `alert.py` — reads `retraction_flags WHERE retracted=1`; writes `retraction_alerts.json`; calls `research-journal/scripts/add_entry.py` via subprocess if retractions found
+- `status.py` — counts + ASCII table; handles missing table in old DBs
+
+**preprint-alerts** (new skill, 4 scripts):
+- `subscribe.py` — merge or replace subscription (topics, authors, sources ∈ {arxiv,biorxiv,medrxiv})
+- `digest.py` — case-insensitive topic substring match on title+abstract; author substring match; writes `digest_YYYY-MM-DD.json`
+- `list_subs.py` — current subscription + ASCII table
+- `history.py` — list past digests newest-first with cap
+
+**grant-draft** (new skill, 2 scripts):
+- `outline.py` — FUNDERS dict (NIH R01/R21/K99/F31, NSF Standard/CAREER/RAPID/EAGER, ERC Starting/Consolidator/Advanced, Wellcome Discovery/Investigator/Collaborative); `build_outline`, `build_source_md`, `make_grant_id`, `count_words`, `extract_section`
+- `draft.py` — 4 subcommands: `init` (scaffold with YAML frontmatter + per-section PLACEHOLDERs), `section` (fill/replace + word-count update in outline), `status` (drafted vs placeholder counts + word totals), `funders` (list all templates)
+
 ### v0.28 — systematic-review skill + overnight mode (Tier B second cut)
 
 Two parallel builds, both pure filesystem + SQLite, no sub-agents.
@@ -540,12 +579,12 @@ High value but narrower or more domain-dependent.
 
 - **Tournament ranker + Evolution agent** (Google Co-scientist pattern): new sub-agents `ranker` (pairwise Elo tournament over Theorist/Thinker proposals) and `evolver` (mutate top-Elo candidates and re-tournament). Table `hypotheses` with Elo.
 - ✅ **Systematic review (PRISMA)**: `systematic-review` skill — protocol-first init, search (freeze), two-stage screen, extract, bias, prisma, status. 4 new DB tables. (v0.28)
-- **Statistics MCP**: effect sizes, power analysis, meta-analysis, test selection, assumption checks. Reusable across manuscript-audit + systematic-review + experiment-design.
-- **Figure agent**: venue-styled plots, caption consistency, alt-text, colorblind-safe palettes, vector vs raster decisions.
-- **Peer-review simulator**: multi-round (initial review → revision → final decision), not single-shot critique.
-- **Retraction watch daemon**: background alert when any paper you've cited is retracted.
-- **Preprint alerts daemon**: daily arXiv/bioRxiv digest filtered to your topics + followed authors.
-- **Grant-draft skill**: funder-specific templates (NIH, NSF, ERC, Wellcome). Significance + impact framing distinct from papers.
+- ✅ **Statistics skill**: effect sizes, power analysis, meta-analysis, test selection, assumption checks. Pure stdlib — no external deps. 6 modules. (v0.29)
+- ✅ **Figure agent**: register figures, audit palette/captions/alt-text, list by manuscript. (v0.29)
+- ✅ **Peer-review simulator**: multi-round (review → respond → decide), per-manuscript storage under `manuscripts/<mid>/peer_review/`. (v0.29)
+- ✅ **Retraction watch**: scan cited papers for retraction status, alert + journal entry on retractions, status table. Two-phase: `scan list` → MCP lookup by caller → `scan persist`. (v0.29)
+- ✅ **Preprint alerts**: subscribe per project to topics + authors + sources; daily digest filtering; history. (v0.29)
+- ✅ **Grant-draft skill**: funder-specific templates (NIH, NSF, ERC, Wellcome). `init` → `section` → `status`; significance+impact framing distinct from papers. (v0.29)
 - **Red-team agent**: meaner than Rude. Specifically tries to disprove your best ideas. Separate persona, explicit trigger.
 - ✅ **Overnight mode**: breaks queued via `overnight.py queue-break` instead of blocking; `digest.md` written at end; `--overnight` flag on `db.py init`. (v0.28)
 
