@@ -292,6 +292,52 @@ class CmdRunValidationTests(CoscientistTestCase):
                 mod.cmd_run(args)
 
 
+class WorkspaceLockTests(CoscientistTestCase):
+    def test_concurrent_run_rejected_when_locked(self):
+        """Second cmd_run on a locked workspace must SystemExit fast."""
+        from lib.lockfile import artifact_lock
+        with isolated_cache() as cache:
+            mod = _load()
+            mod._docker_available = lambda: True
+            ws = cache / "ws"
+            ws.mkdir()
+            import argparse
+            args = argparse.Namespace(
+                workspace=str(ws), command="echo x",
+                image="python:3.12-slim", memory_mb=64, cpus=2.0,
+                timeout_seconds=30, audit_id=None, lock_timeout=0.0,
+            )
+            # Hold the lock from a "concurrent" caller
+            with artifact_lock(ws, timeout=1.0):
+                with self.assertRaises(SystemExit):
+                    mod.cmd_run(args)
+
+    def test_lock_released_on_normal_exit(self):
+        """After cmd_run completes (or errors), lock must be free."""
+        from lib.lockfile import artifact_lock, LockTimeout
+        with isolated_cache() as cache:
+            mod = _load()
+            mod._docker_available = lambda: False  # forces SystemExit inside
+            ws = cache / "ws"
+            ws.mkdir()
+            import argparse
+            args = argparse.Namespace(
+                workspace=str(ws), command="echo x",
+                image="python:3.12-slim", memory_mb=64, cpus=2.0,
+                timeout_seconds=30, audit_id=None, lock_timeout=0.0,
+            )
+            try:
+                mod.cmd_run(args)
+            except SystemExit:
+                pass
+            # Lock should be free now
+            try:
+                with artifact_lock(ws, timeout=0.5):
+                    pass  # acquired cleanly
+            except LockTimeout:
+                self.fail("lock not released after cmd_run")
+
+
 class AuditTests(CoscientistTestCase):
     def test_audit_empty(self):
         with isolated_cache():

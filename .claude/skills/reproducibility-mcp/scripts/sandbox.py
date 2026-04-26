@@ -18,6 +18,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from lib.cache import cache_root  # noqa: E402
+from lib.lockfile import LockTimeout, artifact_lock  # noqa: E402
 
 DEFAULT_IMAGE = "python:3.12-slim"
 DEFAULT_MEMORY_MB = 4096
@@ -133,19 +134,28 @@ def _validate_workspace(workspace: Path) -> tuple[bool, str]:
         return False, f"workspace not found: {workspace}"
     if not workspace.is_dir():
         return False, f"workspace is not a directory: {workspace}"
+    # Sensitive-path check first — applies to both raw input path and its
+    # symlink-resolved form. macOS /etc → /private/etc; both are sensitive.
+    # NOTE: /private/var is NOT sensitive (macOS tmpdirs live there).
+    # /var/run is — and resolves to /private/var/run on macOS — so we list
+    # both forms explicitly rather than blanket-block /private/var.
+    sensitive_prefixes = ("/etc", "/var/run", "/proc", "/sys", "/dev",
+                          "/private/etc", "/private/var/run")
+    rp = str(workspace.resolve())
+    raw = str(workspace)
+    for prefix in sensitive_prefixes:
+        for candidate in (raw, rp):
+            if candidate == prefix or candidate.startswith(prefix + "/"):
+                return False, (
+                    f"workspace inside sensitive system path {prefix}: {candidate}"
+                )
+    # Reject symlink workspace (bind mount of symlink can escape)
+    if workspace.is_symlink():
+        return False, f"workspace is a symlink (refusing for security): {workspace}"
     if not os.access(workspace, os.R_OK):
         return False, f"workspace not readable: {workspace}"
     if not os.access(workspace, os.W_OK):
         return False, f"workspace not writable: {workspace}"
-    # Reject symlink workspace (bind mount of symlink can escape)
-    if workspace.is_symlink():
-        return False, f"workspace is a symlink (refusing for security): {workspace}"
-    # Sensitive paths — refuse mounting host config dirs
-    sensitive_prefixes = ("/etc", "/var/run", "/proc", "/sys", "/dev")
-    rp = str(workspace.resolve())
-    for prefix in sensitive_prefixes:
-        if rp == prefix or rp.startswith(prefix + "/"):
-            return False, f"workspace inside sensitive system path {prefix}: {rp}"
     return True, ""
 
 
@@ -202,6 +212,24 @@ def _detect_oom(stderr: str, exit_code: int) -> bool:
 
 
 def cmd_run(args: argparse.Namespace) -> None:
+    """Acquire workspace lock then delegate to _cmd_run_locked."""
+    workspace = Path(args.workspace).resolve()
+    # Lockfile lives in workspace if valid; otherwise let _cmd_run_locked
+    # raise the right error for the bad path.
+    if not workspace.exists() or not workspace.is_dir():
+        return _cmd_run_locked(args)
+    lock_timeout = getattr(args, "lock_timeout", 0.0) or 0.0
+    try:
+        with artifact_lock(workspace, timeout=lock_timeout):
+            _cmd_run_locked(args)
+    except LockTimeout as e:
+        raise SystemExit(
+            f"Concurrent run on workspace {workspace}; "
+            f"lock held by another process. {e}"
+        )
+
+
+def _cmd_run_locked(args: argparse.Namespace) -> None:
     if not _docker_available():
         diag = _docker_diagnose()
         raise SystemExit(
@@ -361,6 +389,8 @@ def main() -> None:
     pr.add_argument("--timeout-seconds", type=int, default=DEFAULT_TIMEOUT_SECONDS)
     pr.add_argument("--audit-id", default=None,
                     help="Pre-set audit ID (links to experiment run)")
+    pr.add_argument("--lock-timeout", type=float, default=0.0,
+                    help="Seconds to wait for workspace lock (default 0 = fail fast)")
     pr.set_defaults(func=cmd_run)
 
     pa = sub.add_parser("audit")

@@ -315,8 +315,12 @@ from tests.test_sandbox import (
     AuditTests as SandboxAuditTests,
     BuildArgsTests as SandboxBuildArgsTests,
     CheckCommandTests as SandboxCheckCommandTests,
+    CmdRunValidationTests as SandboxCmdRunValidationTests,
+    DiagnoseTests as SandboxDiagnoseTests,
     HelperTests as SandboxHelperTests,
     RunRequiresDaemonTests as SandboxRunRequiresDaemonTests,
+    ValidateWorkspaceTests as SandboxValidateWorkspaceTests,
+    WorkspaceLockTests as SandboxWorkspaceLockTests,
 )
 from tests.test_experiment_reproduce import (
     AnalyzeTests as ExpReproAnalyzeTests,
@@ -578,6 +582,10 @@ if __name__ == "__main__":
         SandboxBuildArgsTests,
         SandboxCheckCommandTests,
         SandboxRunRequiresDaemonTests,
+        SandboxDiagnoseTests,
+        SandboxValidateWorkspaceTests,
+        SandboxCmdRunValidationTests,
+        SandboxWorkspaceLockTests,
         SandboxAuditTests,
         # Tier C Phase 3C — experiment-reproduce
         ExpReproMetricExtractionTests,
