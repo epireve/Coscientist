@@ -36,6 +36,7 @@ class ArtifactKind(str, Enum):
     grant = "grant"
     journal_entry = "journal-entry"
     protocol = "protocol"
+    negative_result = "negative-result"
 
 
 # state machines per kind
@@ -49,6 +50,7 @@ STATES = {
     ArtifactKind.grant: ("drafted", "submitted", "awarded", "rejected"),
     ArtifactKind.journal_entry: ("written",),
     ArtifactKind.protocol: ("drafted", "approved", "executed"),
+    ArtifactKind.negative_result: ("logged", "analyzed", "shared"),
 }
 
 
@@ -64,6 +66,7 @@ def kind_root(kind: ArtifactKind) -> Path:
         ArtifactKind.grant: "grants",
         ArtifactKind.journal_entry: "journal",
         ArtifactKind.protocol: "protocols",
+        ArtifactKind.negative_result: "negative_results",
     }
     p = cache_root() / mapping[kind]
     p.mkdir(parents=True, exist_ok=True)

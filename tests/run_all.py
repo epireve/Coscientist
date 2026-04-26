@@ -225,6 +225,49 @@ from tests.test_idea_attacker import (
     GatePersistTests as IdeaAttackerPersistTests,
     GateValidationTests as IdeaAttackerValidationTests,
 )
+from tests.test_negative_results import (
+    AnalyzeTests as NegResAnalyzeTests,
+    InitTests as NegResInitTests,
+    IntegrationTests as NegResIntegrationTests,
+    ShareTests as NegResShareTests,
+    StatusListTests as NegResStatusListTests,
+)
+from tests.test_dataset_agent import (
+    HashTests as DatasetHashTests,
+    ListStatusTests as DatasetListStatusTests,
+    RegisterTests as DatasetRegisterTests,
+    VersionTests as DatasetVersionTests,
+)
+from tests.test_credit_tracker import (
+    AssignTests as CreditAssignTests,
+    AuditTests as CreditAuditTests,
+    ListTests as CreditListTests,
+    RolesListTests as CreditRolesListTests,
+    StatementTests as CreditStatementTests,
+    UnassignTests as CreditUnassignTests,
+)
+from tests.test_reading_pace import (
+    BacklogTests as ReadingPaceBacklogTests,
+    ReadOnlyContractTests as ReadingPaceReadOnlyTests,
+    SummaryTests as ReadingPaceSummaryTests,
+    TrendTests as ReadingPaceTrendTests,
+    VelocityTests as ReadingPaceVelocityTests,
+)
+from tests.test_slide_draft import (
+    FormatsListTests as SlideFormatsListTests,
+    ListCleanTests as SlideListCleanTests,
+    OutlineTests as SlideOutlineTests,
+    RenderTests as SlideRenderTests,
+    SlideMdBuildTests as SlideMdBuildTests,
+)
+from tests.test_reviewer_assistant import (
+    AddCommentTests as ReviewerAddCommentTests,
+    ExportTests as ReviewerExportTests,
+    IdStabilityTests as ReviewerIdStabilityTests,
+    InitTests as ReviewerInitTests,
+    RecommendationTests as ReviewerRecommendationTests,
+    StatusTests as ReviewerStatusTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -399,6 +442,43 @@ if __name__ == "__main__":
         IdeaAttackerValidationTests,
         IdeaAttackerPersistTests,
         IdeaAttackerCliTests,
+        # Tier C Phase 1 — negative-results-logger
+        NegResInitTests,
+        NegResAnalyzeTests,
+        NegResShareTests,
+        NegResStatusListTests,
+        NegResIntegrationTests,
+        # Tier C Phase 1 — dataset-agent
+        DatasetRegisterTests,
+        DatasetHashTests,
+        DatasetVersionTests,
+        DatasetListStatusTests,
+        # Tier C Phase 1 — credit-tracker
+        CreditAssignTests,
+        CreditUnassignTests,
+        CreditAuditTests,
+        CreditStatementTests,
+        CreditRolesListTests,
+        CreditListTests,
+        # Tier C Phase 1 — reading-pace-analytics
+        ReadingPaceVelocityTests,
+        ReadingPaceBacklogTests,
+        ReadingPaceTrendTests,
+        ReadingPaceSummaryTests,
+        ReadingPaceReadOnlyTests,
+        # Tier C Phase 1 — slide-draft
+        SlideOutlineTests,
+        SlideMdBuildTests,
+        SlideRenderTests,
+        SlideListCleanTests,
+        SlideFormatsListTests,
+        # Tier C Phase 1 — reviewer-assistant
+        ReviewerInitTests,
+        ReviewerAddCommentTests,
+        ReviewerRecommendationTests,
+        ReviewerExportTests,
+        ReviewerStatusTests,
+        ReviewerIdStabilityTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,
