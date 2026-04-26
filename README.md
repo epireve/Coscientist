@@ -123,18 +123,74 @@ Pairwise self-play over candidate hypotheses with Elo ranking, plus parent-track
 
 Associated sub-agents: `ranker` (pairwise judge), `evolver` (sharpen / recombine / re-aim top-K).
 
-### Infrastructure & smoke tests (v0.12.1 → v0.18)
+### Infrastructure & smoke tests (v0.12.1 → v0.23)
 
-After the feature surface stabilised we did six tightening passes — five primitives + their adoption + two dry-run harnesses + the persona-quality cleanup that came out of the first live attempt:
+After the feature surface stabilised we did multiple tightening passes — primitives, adoption, dry-run harnesses, persona-quality cleanup, plus full subsystem dogfooding:
 
 - **v0.12.1** — five hardening fixes (hedge-word context-stripping, PDF magic-byte integrity check, novelty-anchor uniqueness, Elo K-factor decay, calibration band hard-fail).
 - **v0.13** — five infrastructure primitives in `lib/`: `migrations.py` (idempotent schema migrations), `transaction.py` (multi-DB atomic writes), `lockfile.py` (concurrent-write serialisation), `retry.py` (sync + async retry-with-backoff), and journal disk-mirror drift detection.
 - **v0.14** — wired those primitives into the seven skills that needed them. Atomicity proof: dropping a target table mid-run rolls back the run-DB write too.
 - **v0.15** — dry-run harness for the deep-research run-pipeline state machine. Surfaced + fixed a silent no-op on unknown phase names.
-- **v0.16** — dry-run harness for the per-paper state machine (`discovered → … → cited`). Surfaced two cracks (audit-log gap on integrity reject; non-monotonic triage) which **v0.17** then closed with the two CRACK-pinning tests flipped to assert correct behaviour.
-- **v0.18** — persona output specs tightened on `grounder` / `historian` / `gaper` after the live smoke-test on run `aa41d0cb` exposed shape-ambiguity as the cause of `social`'s first-invocation failure.
+- **v0.16-v0.17** — dry-run harness for the per-paper state machine + closed two cracks (audit-log gap on integrity reject; non-monotonic triage).
+- **v0.18-v0.19** — persona output JSON schemas tightened on all 9 deep-research personas (grounder/historian/gaper, then vision/theorist/rude/synthesizer/thinker/scribe) after live smoke-test exposed shape ambiguity.
+- **v0.20** — pdf-extract dry-run harness with 4 CRACK-pinning tests; **v0.23** closed all four (state guard, PDF integrity, artifact_lock, pandoc-style bib parser).
+- **v0.21** — manuscript subsystem end-to-end dogfood across `ingest → validate → audit → critique → reflect`.
+- **v0.22** — `docs/MCP-SETUP.md` consolidated MCP API-key requirements.
 
-Test suite: 251 → 310 passing across the six iterations. Live deep-research smoke-test status, including resume checklist and architectural findings on sub-agent MCP propagation, is tracked in [`ROADMAP.md`](./ROADMAP.md#live-smoke-test-status-run-aa41d0cb-paused-2026-04-25).
+### A1 manuscript-subsystem completion (v0.26 → v0.27)
+
+Four sub-skills completing the A1 manuscript lifecycle:
+
+| Skill | Job |
+|---|---|
+| `manuscript-draft` | Outline → section → revision scaffold with 5 venue templates (IMRaD, NeurIPS, ACL, Nature, thesis) |
+| `manuscript-format` | Pandoc-driven export to LaTeX/.docx/PDF; strips placeholders; venue-aware |
+| `manuscript-revise` | Respond-to-reviewers — parses structured review, emits response letter + revision plan; advances to `revised` |
+| `manuscript-version` | Lightweight snapshot history (snapshot/log/diff/restore); auto-snapshots before restore; pure filesystem |
+
+### Tier B completion (v0.28 → v0.30)
+
+Major skills filling the medium-horizon roadmap:
+
+| Skill | Job |
+|---|---|
+| `systematic-review` | PRISMA pipeline: protocol → search → 2-stage screen → extract → bias → flow diagram |
+| `deep-research` *(overnight)* | `--overnight` mode: queue breaks instead of blocking; auto-digest |
+| `statistics` | Effect sizes, power analysis, meta-analysis, test selection, assumption checks (pure stdlib) |
+| `figure-agent` | Register/audit/caption figures; colorblind-safe palette validation (Machado 2009) |
+| `peer-review` | Multi-round full peer-review cycle simulation per manuscript |
+| `retraction-watch` | Two-phase scan of cited papers; alert + journal entry; status table |
+| `preprint-alerts` | Per-project subscription to topics/authors/sources; daily digest filtering |
+| `grant-draft` | NIH/NSF/ERC/Wellcome funder-specific section templates |
+| `idea-attacker` | Standalone adversarial stress-tester for working hypotheses (10-attack checklist; gate-enforced) |
+
+### Tier C Phases 1+2 (v0.31 → v0.32)
+
+12 additional skills covering full research-life ergonomics:
+
+**Phase 1 — quick wins** (v0.31):
+
+| Skill | Job |
+|---|---|
+| `negative-results-logger` | First-class artifact for failed experiments (`logged → analyzed → shared`) |
+| `dataset-agent` | Local registry with DOI/license/sha256 hash tracking + versions |
+| `credit-tracker` | CRediT taxonomy (14 roles) per author per manuscript; audit + statement export |
+| `reading-pace-analytics` | Read-only velocity/backlog/trend metrics over `reading_state` |
+| `slide-draft` | Manuscript → beamer/pptx/revealjs/slidev via pandoc; 4 styles |
+| `reviewer-assistant` | Scaffold for *your* peer review of someone else's paper (NeurIPS/ICLR/Nature/generic) |
+
+**Phase 2 — medium-value** (v0.32):
+
+| Skill | Job |
+|---|---|
+| `citation-alerts` | Two-phase tracker for who's citing your published papers; daily digests |
+| `field-trends-analyzer` | Read-only graph aggregations: top concepts/papers/authors + rising/declining momentum |
+| `dmp-generator` | NIH DMSP, NSF DMP, Wellcome OMP, ERC FAIR templates |
+| `ethics-irb` | IRB application (exempt/expedited/full-board) + per-project COI registry |
+| `registered-reports` | Stage 1/Stage 2 RR pathway state machine (7 monotonic states) |
+| `zenodo-deposit` | Bridges `dataset-agent` to Zenodo REST API; mints DOIs (real auth + sandbox) |
+
+Test suite progression: 251 (v0.13) → 310 (v0.17) → 507 (v0.28) → 651 (v0.29) → 673 (v0.30) → 789 (v0.31) → **833 (v0.32, current)**. All passing.
 
 ## MCP servers used
 
@@ -182,7 +238,7 @@ No pytest dependency; the harness is in-repo. Run the full smoke suite:
 python3 -m tests.run_all
 ```
 
-Currently 53 tests across schema, artifact contract, project/artifact/graph lib, deep-research state machine, the three A5 gate scripts, and agent frontmatter.
+Currently **833 tests, 0 failing** across all skills, gates, lib primitives, dry-run harnesses, and integration regression checks.
 
 ## Where this is going
 

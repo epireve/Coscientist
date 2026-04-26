@@ -21,6 +21,10 @@ Every skill reads/writes one of several kinds of artifact, each with its own sta
   grants/<gid>/                 # kind=grant
   journal/<jid>/                # kind=journal-entry
   protocols/<pid>/              # kind=protocol
+  negative_results/<id>/        # kind=negative-result (v0.31)
+  dmps/<dmp_id>/                # data management plans (v0.32)
+  irb/<application_id>/         # IRB applications (v0.32)
+  registered_reports/<rr_id>/   # Stage 1/2 RR pathway (v0.32)
   runs/run-<run_id>.db          # deep-research run logs (SQLite)
   projects/<project_id>/        # project-level container
     project.db                  # project-scoped SQLite (tables: projects,
@@ -60,6 +64,7 @@ papers/<paper_id>/
 - review: `drafted → submitted`
 - grant: `drafted → submitted → awarded|rejected`
 - protocol: `drafted → approved → executed`
+- negative-result: `logged → analyzed → shared`
 
 Only skills move artifacts between states. Kind-specific helpers live in `lib.artifact` (new kinds) and `lib.paper_artifact` (existing PaperArtifact — kept stable, not migrated).
 
@@ -94,7 +99,7 @@ API is deliberately small (`lib/graph.py`): `add_node`, `add_edge`, `neighbors`,
 
 ## Sub-agents (under `deep-research`)
 
-13 personas live in `.claude/agents/`. Each has its own context window and a minimal `tools:` restriction. The orchestrator invokes the deep-research pipeline in order:
+27 personas live in `.claude/agents/`. Each has its own context window and a minimal `tools:` restriction. The orchestrator invokes the deep-research pipeline in order:
 
 `social → grounder → historian → gaper → [BREAK 1] → vision → theorist → rude → synthesizer → [BREAK 2] → thinker → scribe`
 
