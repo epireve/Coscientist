@@ -190,7 +190,21 @@ Major skills filling the medium-horizon roadmap:
 | `registered-reports` | Stage 1/Stage 2 RR pathway state machine (7 monotonic states) |
 | `zenodo-deposit` | Bridges `dataset-agent` to Zenodo REST API; mints DOIs (real auth + sandbox) |
 
-Test suite progression: 251 (v0.13) → 310 (v0.17) → 507 (v0.28) → 651 (v0.29) → 673 (v0.30) → 789 (v0.31) → **833 (v0.32, current)**. All passing.
+### Tier C Phase 3 partial (v0.33)
+
+Karpathy-style experimentation pipeline (design + preregister), project lifecycle CLI, cross-project analytics:
+
+| Skill | Job |
+|---|---|
+| `experiment-design` | Karpathy-style discipline: single metric, fixed budget, hypothesis+falsifier, preregistration. New `experiment` artifact. |
+| `project-manager` | Project lifecycle CLI + single global active-project marker. |
+| `meta-research` | Cross-project trajectory + concept overlap + productivity (read-only). |
+
+Plus `reference-agent --format csl-json` flag.
+
+Phase 3 incomplete: `experiment-reproduce` + `reproducibility-mcp` (Docker backend) deferred to dedicated session.
+
+Test suite progression: 251 (v0.13) → 310 (v0.17) → 507 (v0.28) → 651 (v0.29) → 673 (v0.30) → 789 (v0.31) → 833 (v0.32) → **894 (v0.33, current)**. All passing.
 
 ## MCP servers used
 
@@ -238,7 +252,7 @@ No pytest dependency; the harness is in-repo. Run the full smoke suite:
 python3 -m tests.run_all
 ```
 
-Currently **833 tests, 0 failing** across all skills, gates, lib primitives, dry-run harnesses, and integration regression checks.
+Currently **894 tests, 0 failing** across all skills, gates, lib primitives, dry-run harnesses, and integration regression checks.
 
 ## Where this is going
 
