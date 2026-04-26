@@ -94,6 +94,11 @@ from tests.test_rate_limit import (
     DomainParseTests as RateLimitDomainParseTests,
     WaitTests as RateLimitWaitTests,
 )
+from tests.test_agent_frontmatter import (
+    BodyContentTests as AgentBodyContentTests,
+    FrontmatterShapeTests as AgentFrontmatterShapeTests,
+    ToolsFieldTests as AgentToolsFieldTests,
+)
 from tests.test_arxiv_to_markdown import (
     CliTests as ArxivToMarkdownCliTests,
     NormalizeArxivIdTests,
@@ -447,6 +452,9 @@ if __name__ == "__main__":
         ArchivesForTests,
         RateLimitDomainParseTests,
         RateLimitWaitTests,
+        AgentFrontmatterShapeTests,
+        AgentToolsFieldTests,
+        AgentBodyContentTests,
         EvalReferencesTests,
         EvalClaimsTests,
         MergeEntriesTests,
