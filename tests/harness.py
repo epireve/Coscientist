@@ -57,6 +57,34 @@ class TestCase:
         if x:
             raise AssertionError(f"{msg}: {x!r} is truthy")
 
+    def assertGreater(self, a, b, msg: str = ""):
+        if not a > b:
+            raise AssertionError(f"{msg}: {a!r} not > {b!r}")
+
+    def assertGreaterEqual(self, a, b, msg: str = ""):
+        if not a >= b:
+            raise AssertionError(f"{msg}: {a!r} not >= {b!r}")
+
+    def assertLess(self, a, b, msg: str = ""):
+        if not a < b:
+            raise AssertionError(f"{msg}: {a!r} not < {b!r}")
+
+    def assertLessEqual(self, a, b, msg: str = ""):
+        if not a <= b:
+            raise AssertionError(f"{msg}: {a!r} not <= {b!r}")
+
+    def assertIsInstance(self, obj, types, msg: str = ""):
+        if not isinstance(obj, types):
+            raise AssertionError(f"{msg}: {obj!r} is not an instance of {types!r}")
+
+    def assertIsNone(self, obj, msg: str = ""):
+        if obj is not None:
+            raise AssertionError(f"{msg}: {obj!r} is not None")
+
+    def assertIsNotNone(self, obj, msg: str = ""):
+        if obj is None:
+            raise AssertionError(f"{msg}: unexpected None")
+
     def assertRaises(self, exc_type):
         class _Ctx:
             def __enter__(self): return self
@@ -118,3 +146,7 @@ class _CacheScope:
 
 def isolated_cache() -> _CacheScope:
     return _CacheScope()
+
+
+# Alias for test modules that import this name
+CoscientistTestCase = TestCase

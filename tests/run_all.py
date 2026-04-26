@@ -181,6 +181,26 @@ from tests.test_systematic_review import (
     SearchTests,
     StatusTests as ReviewStatusTests,
 )
+from tests.test_figure_agent import (
+    TestAudit,
+    TestCaption,
+    TestCheckPalette,
+    TestList,
+    TestRegister,
+)
+from tests.test_retraction_watch import (
+    AlertTests,
+    ScanTests,
+    StatusTests as RetractionStatusTests,
+)
+from tests.test_statistics import (
+    TestAssumptionCheck,
+    TestEffectSize,
+    TestMathUtils,
+    TestMetaAnalysis,
+    TestPower,
+    TestTestSelect,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -318,6 +338,23 @@ if __name__ == "__main__":
         PrismaTests,
         ReviewStatusTests,
         ReviewCliEdgeTests,
+        # figure-agent
+        TestRegister,
+        TestAudit,
+        TestCaption,
+        TestList,
+        TestCheckPalette,
+        # retraction-watch skill
+        ScanTests,
+        AlertTests,
+        RetractionStatusTests,
+        # statistics skill
+        TestMathUtils,
+        TestEffectSize,
+        TestPower,
+        TestMetaAnalysis,
+        TestTestSelect,
+        TestAssumptionCheck,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,
