@@ -348,6 +348,17 @@ End-to-end run of `ingest → validate_citations → audit gate → critique gat
 
 User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
 
+### v0.32 — Tier C Phase 2: 6 medium-value skills
+
+Six more skills extending coverage. Suite at 833 passing, 0 failing.
+
+- **citation-alerts** (`projects/<pid>/citation_alerts/`): two-phase tracker like retraction-watch — `list` papers needing refresh → caller queries S2 `get_paper_citations` → `persist` deltas. Daily digest output. 14 tests.
+- **field-trends-analyzer**: read-only over project graph (`graph_nodes` + `graph_edges`). Top concepts by paper-count, top papers by in-degree, top authors, momentum (recent vs past windows: rising/plateau/declining). 9 tests.
+- **dmp-generator**: funder-specific DMP scaffolds (NIH DMSP, NSF DMP, Wellcome OMP, ERC FAIR). Section templates with target words and notes. 6 tests.
+- **ethics-irb**: IRB application templates (exempt 3 sections / expedited 6 / full-board 9) + COI registry per project (6 types: funding/consulting/stock/family/advisory/other). 6 tests.
+- **registered-reports**: 7-state monotonic machine (stage-1-drafted → submitted → in-principle-accepted → data-collected → stage-2-drafted → submitted → published). History tracking; `--force` for backwards. 5 tests.
+- **zenodo-deposit**: bridges dataset-agent to Zenodo REST API. `prepare` validates + emits metadata.json (no network). `upload` makes real API calls (requires `$ZENODO_TOKEN`). Sandbox mode. 4 tests (prepare-only; upload tested by user with real token).
+
 ### v0.31 — Tier C Phase 1: 6 quick-win skills
 
 Six skills using established CLI-script + filesystem-state patterns. 116 new tests; suite at 789 passing, 0 failing.
@@ -612,16 +623,16 @@ High value but narrower or more domain-dependent.
 - **Research project container** (Phase 3): persistent top-level object wrapping multiple runs, manuscripts, experiments, reading lists, knowledge graphs. Zotero collection per project.
 - ✅ **Dataset agent**: local registry of datasets with DOIs, licenses, versions, content hashes (sha256/blake2s/sha512). State machine: `registered → deposited → versioned`. Zenodo deposit pending Phase 2. (v0.31)
 - ✅ **Slide-draft skill**: manuscript → beamer/pptx/revealjs/slidev via pandoc. 4 styles (standard/short-talk/long-talk/poster) with section-aware content extraction. (v0.31)
-- **Data management plan generator** (Phase 2): for grants (NIH DMSP, NSF DMP).
-- **Citation alerts** (Phase 2): "someone just cited your paper — here's context". S2 wrapping.
+- ✅ **Data management plan generator**: NIH DMSP, NSF DMP, Wellcome, ERC templates. (v0.32)
+- ✅ **Citation alerts**: two-phase tracker (`list` → S2 lookup → `persist`); per-tracked-paper snapshots; daily digests. (v0.32)
 - ✅ **Reviewer-assistant skill**: scaffold a structured peer review (5 sections + recommendation + confidence). 4 venue templates (NeurIPS/ICLR/Nature/generic). (v0.31)
 - ✅ **Negative-results logger**: dedicated artifact kind `negative-result`. State: `logged → analyzed → shared`. (v0.31)
 - ✅ **Credit tracker**: CRediT taxonomy (14 roles); per-manuscript with audit + statement export (narrative + table). (v0.31)
-- **Field-trends analyzer** (Phase 2): citation-momentum for approaches, topics rising/declining.
+- ✅ **Field-trends analyzer**: read-only graph aggregations (concepts, papers, authors, rising/declining momentum). (v0.32)
 - ✅ **Reading-pace analytics**: read-only velocity + backlog + trend over `reading_state` across projects. (v0.31)
-- **Open-data deposit** (Phase 2): Zenodo/OSF/Figshare submission + DOI assignment.
-- **Registered reports pathway** (Phase 2): Stage 1/Stage 2 manuscript states.
-- **Ethics/IRB skill** (Phase 2): IRB application drafting, conflict-of-interest tracker.
+- ✅ **Open-data deposit**: zenodo-deposit skill — bridges dataset-agent to Zenodo REST API; mints DOIs; sandbox option. (v0.32)
+- ✅ **Registered reports pathway**: Stage 1/Stage 2 state machine with monotonic transitions; `--force` overrides. (v0.32)
+- ✅ **Ethics/IRB skill**: IRB application templates (exempt/expedited/full-board) + per-project COI registry. (v0.32)
 - **Meta-research skill** (Phase 3): publication trends, career trajectory analysis.
 
 ## Structural refactor (prerequisite to most Tier-A work)

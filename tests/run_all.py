@@ -284,6 +284,12 @@ from tests.test_field_trends import (
     ReadOnlyTests as FieldTrendsReadOnlyTests,
     SummaryTests as FieldTrendsSummaryTests,
 )
+from tests.test_phase2_remaining import (
+    DmpGeneratorTests,
+    EthicsIrbTests,
+    RegisteredReportsTests,
+    ZenodoPrepareTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -509,6 +515,11 @@ if __name__ == "__main__":
         FieldTrendsMomentumTests,
         FieldTrendsSummaryTests,
         FieldTrendsReadOnlyTests,
+        # Tier C Phase 2 — dmp/ethics/regrep/zenodo
+        DmpGeneratorTests,
+        EthicsIrbTests,
+        RegisteredReportsTests,
+        ZenodoPrepareTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,
