@@ -31,9 +31,10 @@ class CheckCommandTests(TestCase):
         r = _run()
         out = json.loads(r.stdout)
         names = {a["name"] for a in out["adapters"]}
-        # Current registry: 9 specific publishers + generic fallback
+        # Current registry: 10 specific publishers + generic fallback
         for expected in ("acm", "acs", "elsevier", "emerald", "generic",
-                         "ieee", "nature", "sage", "springer", "wiley"):
+                         "ieee", "jstor", "nature", "sage", "springer",
+                         "wiley"):
             self.assertIn(expected, names)
 
     def test_check_all_adapter_signatures_valid(self):
@@ -45,14 +46,13 @@ class CheckCommandTests(TestCase):
                             f"{a['name']} adapter failed: {a.get('errors')}")
             self.assertIn("domain", a)
 
-    def test_check_registry_has_nine_prefixes(self):
+    def test_check_registry_has_ten_prefixes(self):
         r = _run()
         out = json.loads(r.stdout)
-        self.assertEqual(out["registry"]["count"], 9)
-        # DOI prefixes covering UM's A-Z core subscriptions + extras
+        self.assertEqual(out["registry"]["count"], 10)
         for p in ("10.1002", "10.1007", "10.1016", "10.1021",
                   "10.1038", "10.1108", "10.1109", "10.1145",
-                  "10.1177"):
+                  "10.1177", "10.2307"):
             self.assertIn(p, out["registry"]["prefixes"])
 
     def test_check_summary_counts_match(self):
@@ -74,36 +74,54 @@ class CheckCommandTests(TestCase):
         self.assertIn("installed", out["playwright"])
 
 
-IDP_UM = _ROOT / ".claude/skills/institutional-access/scripts/idp_um.py"
+IDP_RUNNER = _ROOT / ".claude/skills/institutional-access/scripts/idp_runner.py"
 
 
-class IdpUmTests(TestCase):
-    def test_publishers_command_emits_known_entries(self):
+class IdpRunnerTests(TestCase):
+    def test_institutions_command_lists_um(self):
         r = subprocess.run(
-            [sys.executable, str(IDP_UM), "publishers"],
+            [sys.executable, str(IDP_RUNNER), "institutions"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(r.returncode, 0, r.stderr)
+        out = json.loads(r.stdout)
+        slugs = {i["slug"] for i in out["institutions"]}
+        self.assertIn("um", slugs)
+
+    def test_publishers_command_emits_resolved_urls(self):
+        r = subprocess.run(
+            [sys.executable, str(IDP_RUNNER), "publishers",
+             "--institution", "um"],
             capture_output=True, text=True,
         )
         self.assertEqual(r.returncode, 0, r.stderr)
         out = json.loads(r.stdout)
         self.assertEqual(out["entityID"], "https://idp.um.edu.my/entity")
-        self.assertEqual(out["openathens_org"], "80252862")
         for key in ("elsevier", "acm", "openathens"):
             self.assertIn(key, out["publishers"])
+        # entityID actually substituted into URLs
+        self.assertIn("idp.um.edu.my", out["publishers"]["elsevier"])
 
     def test_login_requires_credentials(self):
-        # With no env / .env credentials, login must fail loud
         import os
         env = {k: v for k, v in os.environ.items()
                if k not in ("UM_USERNAME", "UM_PASSWORD")}
-        # Point script at a non-repo cwd so its .env loader sees nothing
         r = subprocess.run(
-            [sys.executable, str(IDP_UM), "login", "--publisher", "openathens"],
+            [sys.executable, str(IDP_RUNNER), "login",
+             "--institution", "um", "--publisher", "openathens"],
             capture_output=True, text=True, env=env, cwd="/tmp",
         )
-        # Either credentials missing (expected) or playwright missing —
-        # both are SystemExit non-zero. We just want the exit-loud guarantee.
         self.assertFalse(r.returncode == 0)
+
+    def test_login_unknown_institution_fails(self):
+        r = subprocess.run(
+            [sys.executable, str(IDP_RUNNER), "publishers",
+             "--institution", "nonexistent_xyz"],
+            capture_output=True, text=True,
+        )
+        self.assertFalse(r.returncode == 0)
+        self.assertIn("not found", r.stderr)
 
 
 if __name__ == "__main__":
-    sys.exit(run_tests(CheckCommandTests, IdpUmTests))
+    sys.exit(run_tests(CheckCommandTests, IdpRunnerTests))

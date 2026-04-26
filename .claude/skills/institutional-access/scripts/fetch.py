@@ -36,14 +36,7 @@ async def run(cid: str) -> int:
 
     # Python packages can't be imported as `.adapters` from a plain script — fix path
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from adapters import registry, fallback  # type: ignore
-
-    prefix = manifest.doi.split("/", 1)[0]
-    adapter = registry.get(prefix)
-    if adapter is None:
-        print(f"[fetch] no specific adapter for prefix {prefix}; "
-              f"using generic fallback", file=sys.stderr)
-        adapter = fallback
+    from adapters import resolve_adapter  # type: ignore
 
     if not STATE_FILE.exists():
         print("[fetch] no storage_state.json — run login.py first", file=sys.stderr)
@@ -60,6 +53,10 @@ async def run(cid: str) -> int:
         browser = await pw.chromium.launch(headless=False)
         context = await browser.new_context(storage_state=str(STATE_FILE))
         try:
+            # Smart routing: prefix → host → generic
+            adapter, route = await resolve_adapter(context, manifest.doi)
+            print(f"[fetch] adapter={adapter.__name__.rsplit('.',1)[-1]} "
+                  f"route={route}", file=sys.stderr)
             rate_limit_wait(adapter.DOMAIN)
 
             # v0.14: retry transient adapter errors (timeouts, network blips,

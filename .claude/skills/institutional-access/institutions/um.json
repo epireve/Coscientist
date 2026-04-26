@@ -1,0 +1,16 @@
+{
+  "name": "University Malaya",
+  "country": "MY",
+  "entityID": "https://idp.um.edu.my/entity",
+  "openathens_org": "80252862",
+  "idp_kind": "ms_entra",
+  "credential_env": {
+    "username": "UM_USERNAME",
+    "password": "UM_PASSWORD"
+  },
+  "publisher_entry_urls": {
+    "elsevier": "https://auth.elsevier.com/ShibAuth/institutionLogin?entityID={entityID}&appReturnURL=https%3A%2F%2Fwww.sciencedirect.com%2F",
+    "acm": "https://dl.acm.org/action/ssostart?idp={entityID}&redirectUri=https%3A%2F%2Fdl.acm.org%2Fdl.cfm",
+    "openathens": "https://my.openathens.net/?passiveLogin=false"
+  }
+}

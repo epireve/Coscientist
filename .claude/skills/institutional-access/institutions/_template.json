@@ -1,0 +1,34 @@
+{
+  "_comment": "Copy this file to <slug>.json and fill in your institution details. Slug is what you pass via --institution flag.",
+
+  "name": "Example University",
+  "country": "XX",
+
+  "entityID": "https://idp.example.edu/entity",
+  "_entityID_help": "Your institution's SAML entityID. Find it on your library proxy/SSO setup page or by inspecting an OpenAthens redirect URL.",
+
+  "openathens_org": "00000000",
+  "_openathens_org_help": "Numeric OpenAthens organisation ID. Visible in the my.openathens.net URL after login or in the OpenAthens admin console.",
+
+  "idp_kind": "ms_entra",
+  "_idp_kind_help": "Form-fill profile. Options: ms_entra | shibboleth_classic | cas | simplesaml | okta | auth0 | manual. 'manual' disables auto-fill (user types credentials in browser).",
+
+  "credential_env": {
+    "username": "EXAMPLE_USERNAME",
+    "password": "EXAMPLE_PASSWORD"
+  },
+  "_credential_env_help": "Names of env vars (or .env keys) that hold credentials. Never commit credentials. .env is gitignored.",
+
+  "publisher_entry_urls": {
+    "elsevier": "https://auth.elsevier.com/ShibAuth/institutionLogin?entityID={entityID}&appReturnURL=https%3A%2F%2Fwww.sciencedirect.com%2F",
+    "acm": "https://dl.acm.org/action/ssostart?idp={entityID}&redirectUri=https%3A%2F%2Fdl.acm.org%2Fdl.cfm",
+    "ieee": "https://ieeexplore.ieee.org/Xplore/login.jsp?reason=concurrent&url={entityID}",
+    "wiley": "https://onlinelibrary.wiley.com/action/ssostart?federationName={entityID}",
+    "springer": "https://link.springer.com/oa/openathens?redirectUri=https%3A%2F%2Flink.springer.com%2F",
+    "nature": "https://idp.nature.com/login/federated?federation_id={entityID}",
+    "sage": "https://journals.sagepub.com/action/ssostart?idp={entityID}",
+    "emerald": "https://www.emerald.com/insight/openathens-login",
+    "openathens": "https://my.openathens.net/?passiveLogin=false"
+  },
+  "_publisher_entry_urls_help": "{entityID} substituted at runtime. Most publishers accept the OpenAthens entryID as their SAML identifier. If a publisher rejects it, swap in your specific WAYF URL."
+}
