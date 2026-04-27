@@ -491,6 +491,26 @@ from tests.test_graph_viz import (
     RenderMermaidTests,
     SubgraphTests as GraphVizSubgraphTests,
 )
+# v0.60 — writing-style venue overlays
+from tests.test_venue_style_overlay import (
+    CliTests as VenueOverlayCliTests,
+    EdgeCaseTests as VenueOverlayEdgeCaseTests,
+    HedgeDensityTests as VenueOverlayHedgeTests,
+    PronounDetectionTests as VenueOverlayPronounTests,
+    RegistryTests as VenueOverlayRegistryTests,
+    TenseDetectionTests as VenueOverlayTenseTests,
+    VoiceDetectionTests as VenueOverlayVoiceTests,
+)
+# v0.61 — calibration set tooling
+from tests.test_calibration import (
+    AddRemoveTests as CalibrationAddRemoveTests,
+    CalibrationCaseTests,
+    CliSmokeTests as CalibrationCliSmokeTests,
+    CoverageCheckTests as CalibrationCoverageCheckTests,
+    PersistenceTests as CalibrationPersistenceTests,
+    RenderSummaryTests as CalibrationRenderSummaryTests,
+    SlugifyTests as CalibrationSlugifyTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -871,6 +891,22 @@ if __name__ == "__main__":
         RenderMermaidTests,
         GraphVizSubgraphTests,
         GraphVizCliTests,
+        # v0.60 — writing-style venue overlays
+        VenueOverlayRegistryTests,
+        VenueOverlayVoiceTests,
+        VenueOverlayTenseTests,
+        VenueOverlayPronounTests,
+        VenueOverlayHedgeTests,
+        VenueOverlayEdgeCaseTests,
+        VenueOverlayCliTests,
+        # v0.61 — calibration set tooling
+        CalibrationCaseTests,
+        CalibrationSlugifyTests,
+        CalibrationAddRemoveTests,
+        CalibrationPersistenceTests,
+        CalibrationRenderSummaryTests,
+        CalibrationCoverageCheckTests,
+        CalibrationCliSmokeTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,

@@ -793,6 +793,14 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 
 All items in this section are landed. See per-version notes.
 
+### v0.58 — resolve-citation skill ✅
+
+Closes the long-pending "given a partial reference like 'Smith 2020', resolve it to a canonical paper" item. Pure-stdlib heuristic resolver feeding off orchestrator-harvested Semantic Scholar candidates.
+
+- `lib/citation_resolver.py` — `parse_partial`, `score_match`, `pick_best`. Frozen `PartialCitation` dataclass; weighted score (45% authors, 25% year, 30% title token Jaccard); 0.5 acceptance threshold.
+- `.claude/skills/resolve-citation/` — SKILL.md + `scripts/resolve.py` CLI with `--interactive` (parse-only) and `--candidates <path>` (score) modes. Orchestrator-harvest pattern; never calls MCPs itself. `--persist-db` emits a `[db-notify]` placeholder; full table persistence deferred.
+- 17 new tests (1352 total; 0 failures). Handles "Smith 2020", "Vaswani et al., 2017 — Attention", multi-author with em-dash, and keyword-only-with-year inputs.
+
 ### v0.59 — graph-viz mermaid renderer ✅
 
 Closes the leftover from earlier roadmap entries — "Visualization (mermaid embed; Cytoscape.js if a web dashboard emerges)". Pure-stdlib mermaid renderer over `graph_nodes` + `graph_edges`.
