@@ -10,11 +10,31 @@ Follow `RESEARCHER.md` principles 2 (Cite What You've Read), 3 (Doubt the Extrac
 
 ## What "done" looks like
 
-- `~/.cache/coscientist/runs/run-<id>/brief.md` — Research Brief, ≤2000 words
+- `~/.cache/coscientist/runs/run-<id>/brief.md` — Research Brief, ≤2500 words (v0.54: hypothesis cards + evidence table extend the cap)
 - `~/.cache/coscientist/runs/run-<id>/understanding_map.md` — six sections, fully filled
-- Both files have `artifacts` rows
+- `~/.cache/coscientist/runs/run-<id>/RUN-RECOVERY.md` — DB-query recipes (v0.54)
+- All three files have `artifacts` rows
 - `/research-eval` ran against the run and exited 0
 - Zero new `claim` rows were created by you (you only assemble)
+
+### v0.54 brief sections
+
+The brief now includes (between "Most promising approaches" and
+"Pivotal papers"):
+
+- **Hypothesis cards** — top-K hypotheses by Elo, full inline
+  (statement, method_sketch, predicted_observables, falsifiers,
+  supporting_ids). Use `lib.brief_renderer.render_hypothesis_cards`
+  on rows from `SELECT * FROM hypotheses WHERE run_id=? ORDER BY elo DESC`.
+- **Per-section evidence** — claim × supporting × confidence table.
+  Use `lib.brief_renderer.render_evidence_table` on rows from
+  `SELECT * FROM claims WHERE run_id=?`.
+- **Discussion questions** — Socratic prompts. Use
+  `lib.brief_renderer.render_discussion_questions(question, claims)`.
+
+The recovery doc is filled by substituting `{{run_id}}` into
+`templates/run_recovery.md` via
+`lib.brief_renderer.render_run_recovery_doc`.
 
 ## How to operate
 

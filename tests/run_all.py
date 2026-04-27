@@ -445,6 +445,13 @@ from tests.test_phase_groups import (
     CmdNextPhaseBatchTests,
     GroupForTests as PhaseGroupsForTests,
 )
+# v0.54 — brief richness + retention transparency
+from tests.test_brief_renderer import (
+    DiscussionQuestionsTests as BriefDiscussionQuestionsTests,
+    EvidenceTableTests as BriefEvidenceTableTests,
+    HypothesisCardsTests as BriefHypothesisCardsTests,
+    RunRecoveryTests as BriefRunRecoveryTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -791,6 +798,11 @@ if __name__ == "__main__":
         PhaseGroupsForTests,
         PhaseGroupsBatchableTests,
         CmdNextPhaseBatchTests,
+        # v0.54 — brief renderer
+        BriefHypothesisCardsTests,
+        BriefEvidenceTableTests,
+        BriefDiscussionQuestionsTests,
+        BriefRunRecoveryTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,
