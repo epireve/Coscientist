@@ -822,7 +822,29 @@ Sequential plan: foundation first (framework + sub-area decomposition), then lay
 
 - **v0.52.6** — Concept-velocity metric. Per term in abstracts, track citation-pool growth/decline trajectory. Mechanical emerging-vs-deprecated vocabulary detection.
 
-### v0.53 — Brief richness + retention transparency (optional)
+### v0.53 — Wide Research mode (orchestrator-worker fan-out)
+
+Quality audit of run a933c2db (see `docs/QUALITY-AUDIT-a933c2db.md`) plus user-supplied Manus Wide Research blueprint motivate a third research mode.
+
+**Three modes**:
+- **Quick** — single-agent, single fact-finding, 30s-2min, $0.05-0.30
+- **Deep** — existing 10-phase Expedition pipeline, 15-30 min, $3-5
+- **Wide** — orchestrator-worker fan-out across N items (10-250), 5-20 min, $5-30
+
+Wide complements Deep — use Wide to triage 100 papers → 30 → feed those 30 to Deep as scout's seed.
+
+Architecture: orchestrator decomposes into N TaskSpecs → fan-out parallel sub-agents (each with fresh context, filesystem-as-memory, tool-masking state machine, error-retention policy, todo-recitation anti-drift) → synthesizer with fresh context receiving file refs + summaries (NOT raw content).
+
+Phasing:
+- **v0.53.1** — TaskSpec dataclass + orchestrator decomposition + single sub-agent POC
+- **v0.53.2** — 3-5 sub-agent fan-out via asyncio.gather + HITL Gate 1
+- **v0.53.3** — Scale to 30+ with concurrency caps, observability, HITL Gates 2+3
+- **v0.53.4** — Synthesis quality (dedicated synthesizer, citation roll-up, per-mode templates)
+- **v0.53.5** — Mode-selector at /deep-research entry; auto-detect Quick/Deep/Wide
+
+Full design in `docs/RESEARCH-MODES-PLAN.md`. References Manus (KV-cache stability, filesystem-as-memory, error retention, todo recitation, attention recitation) + Anthropic (orchestrator-worker, 15× token multiplier, 80% variance explained by token usage).
+
+### v0.54 — Brief richness + retention transparency (optional)
 
 User concern from run 79fa3b38: brief.md is 12K, looks short relative to upstream phase output (~21K total in DB). Reality: nothing lost — three orthogonal stores (brief, DB phase outputs, harvest shortlists) — but brief is summary view that hides depth.
 
