@@ -113,15 +113,34 @@ def cmd_resolve(args: argparse.Namespace) -> int:
         }
 
     if args.persist_db:
-        # v0.58: persistence deferred. Emit the db-notify line shape only.
-        notice = {
-            "kind": "db-notify",
-            "skill": "resolve-citation",
-            "target_table": "citation_resolutions",
-            "n_rows": 0,
-            "detail": "persistence deferred; v0.58 emits notice only",
-        }
-        sys.stderr.write(f"[db-notify] {json.dumps(notice)}\n")
+        # v0.63: real persistence to citation_resolutions table.
+        from lib.cache import cache_root, run_db_path
+        from lib.skill_persist import persist_citation_resolution
+        if args.db_path:
+            db_path = Path(args.db_path).expanduser().resolve()
+        elif args.run_id:
+            db_path = run_db_path(args.run_id)
+        elif args.project_id:
+            db_path = cache_root() / "projects" / args.project_id / "project.db"
+        else:
+            print("error: --persist-db requires --db-path, --run-id, or "
+                  "--project-id", file=sys.stderr)
+            return 2
+        persist_citation_resolution(
+            db_path,
+            run_id=args.run_id,
+            project_id=args.project_id,
+            input_text=args.text,
+            partial=partial.to_dict(),
+            matched=out.get("matched", False),
+            score=out.get("score", 0.0),
+            threshold=args.threshold,
+            canonical_id=out.get("canonical_id"),
+            doi=out.get("doi"),
+            title=out.get("title"),
+            year=out.get("year"),
+            candidate=out.get("candidate"),
+        )
 
     json.dump(out, sys.stdout, indent=2, sort_keys=True)
     sys.stdout.write("\n")
@@ -142,8 +161,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--threshold", type=float, default=ACCEPT_THRESHOLD,
                    help=f"acceptance threshold (default {ACCEPT_THRESHOLD})")
     p.add_argument("--persist-db", action="store_true",
-                   help="emit a [db-notify] line (v0.58 placeholder; "
-                        "actual table write deferred)")
+                   help="record outcome to citation_resolutions table "
+                        "(v0.63). Requires --db-path, --run-id, or "
+                        "--project-id.")
+    p.add_argument("--db-path", default=None,
+                   help="explicit SQLite path; overrides --run-id / "
+                        "--project-id resolution")
+    p.add_argument("--run-id", default=None,
+                   help="resolve to runs/run-<id>.db")
+    p.add_argument("--project-id", default=None,
+                   help="resolve to projects/<id>/project.db")
     args = p.parse_args(argv)
     return cmd_resolve(args)
 

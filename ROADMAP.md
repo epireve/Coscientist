@@ -789,9 +789,31 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.62
+## Shipped: v0.51 → v0.63
 
 All items in this section are landed. See per-version notes.
+
+### v0.63 — citation_resolutions persistence ✅ (2026-04-27)
+
+Closes the v0.58 deferred persistence stub. resolve-citation now
+records every resolution attempt — matched and below-threshold
+alike — to the `citation_resolutions` table.
+
+- Migration v10 — new table `citation_resolutions` (resolution_id,
+  run_id, project_id, input_text, partial_json, matched, score,
+  threshold, canonical_id, doi, title, year, candidate_json, at) +
+  3 indexes. Same coscientist-DB guard pattern as v9.
+- `lib/skill_persist.py` — `persist_citation_resolution()` helper
+  + db-notify line. Mirrors persist_debate / persist_gap_analyses
+  shape.
+- `resolve-citation/scripts/resolve.py` — `--persist-db` is no
+  longer a stub. Accepts `--db-path` (explicit), `--run-id` (resolves
+  to runs/run-<id>.db), or `--project-id` (resolves to
+  projects/<id>/project.db). Errors clearly when none provided.
+- 7 new tests (1405 total; 0 failures): v10 migration creates table
+  + idempotency, persist for matched, persist for below-threshold,
+  db_writes audit row written, CLI smoke writes a row, CLI errors
+  without target.
 
 ### v0.62 — calibration anchors integration ✅ (2026-04-27)
 

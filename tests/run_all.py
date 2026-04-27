@@ -501,6 +501,12 @@ from tests.test_venue_style_overlay import (
     TenseDetectionTests as VenueOverlayTenseTests,
     VoiceDetectionTests as VenueOverlayVoiceTests,
 )
+# v0.63 — citation_resolutions persistence
+from tests.test_v0_63_citation_resolutions import (
+    MigrationV10Tests,
+    PersistCitationResolutionTests,
+    ResolveCliPersistTests,
+)
 # v0.61 — calibration set tooling
 from tests.test_calibration import (
     AddRemoveTests as CalibrationAddRemoveTests,
@@ -899,6 +905,10 @@ if __name__ == "__main__":
         VenueOverlayHedgeTests,
         VenueOverlayEdgeCaseTests,
         VenueOverlayCliTests,
+        # v0.63 — citation_resolutions persistence
+        MigrationV10Tests,
+        PersistCitationResolutionTests,
+        ResolveCliPersistTests,
         # v0.61 — calibration set tooling
         CalibrationCaseTests,
         CalibrationSlugifyTests,

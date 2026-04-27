@@ -103,7 +103,7 @@ Threshold for acceptance: **0.5**. Below that, the script reports `matched: fals
 - No MCP calls of its own. Orchestrator harvests, hands script the JSON.
 - No PDF fetching. `paper-acquire` does that, with the triage gate.
 - No artifact stub creation. Use `paper-discovery`'s merge step or call `lib.paper_artifact.canonical_id()` directly if you need to materialize the resolved paper.
-- No DB persistence in v0.58 — emits a `[db-notify]` line if `--persist-db` is supplied; the actual table write is deferred to a later version. Keeps scope tight.
+- DB persistence (v0.63): `--persist-db` writes the outcome (matched + score + canonical_id, or below-threshold + best candidate) to the `citation_resolutions` table. Requires one of `--db-path`, `--run-id`, or `--project-id` to locate the SQLite DB. Migration v10 creates the table on first call. Both matched and below-threshold attempts are recorded so you can later audit "what couldn't I resolve".
 
 ## Examples
 

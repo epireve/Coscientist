@@ -214,6 +214,18 @@ def ensure_current(db_path: Path,
                     (9, "v0.57_persistence_for_recent_skills", now),
                 )
             newly_applied.append(9)
+
+        # v0.63 — citation_resolutions table for resolve-citation skill.
+        # Same coscientist-DB guard as v9.
+        if 10 not in applied and is_coscientist_db:
+            _ensure_v10_tables(con)
+            with con:
+                con.execute(
+                    "INSERT INTO schema_versions (version, name, applied_at) "
+                    "VALUES (?, ?, ?)",
+                    (10, "v0.63_citation_resolutions", now),
+                )
+            newly_applied.append(10)
     finally:
         con.close()
     return newly_applied
@@ -341,6 +353,39 @@ def _ensure_v9_tables(con: sqlite3.Connection) -> None:
         "CREATE INDEX IF NOT EXISTS idx_landscapes_ms ON contribution_landscapes(manuscript_id)",
         "CREATE INDEX IF NOT EXISTS idx_db_writes_at ON db_writes(at)",
         "CREATE INDEX IF NOT EXISTS idx_db_writes_table ON db_writes(target_table)",
+    ]
+    with con:
+        for stmt in ddl:
+            con.execute(stmt)
+
+
+def _ensure_v10_tables(con: sqlite3.Connection) -> None:
+    """Create v0.63 citation_resolutions table (resolve-citation skill).
+
+    Records every resolution attempt — partial input, scored best
+    candidate (or below-threshold fallback), match decision, and the
+    canonical_id derived if matched.
+    """
+    ddl = [
+        """CREATE TABLE IF NOT EXISTS citation_resolutions (
+            resolution_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id TEXT,
+            project_id TEXT,
+            input_text TEXT NOT NULL,
+            partial_json TEXT NOT NULL,
+            matched INTEGER NOT NULL,
+            score REAL NOT NULL,
+            threshold REAL NOT NULL,
+            canonical_id TEXT,
+            doi TEXT,
+            title TEXT,
+            year INTEGER,
+            candidate_json TEXT,
+            at TEXT NOT NULL
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_citres_run ON citation_resolutions(run_id)",
+        "CREATE INDEX IF NOT EXISTS idx_citres_project ON citation_resolutions(project_id)",
+        "CREATE INDEX IF NOT EXISTS idx_citres_canonical ON citation_resolutions(canonical_id)",
     ]
     with con:
         for stmt in ddl:

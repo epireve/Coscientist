@@ -251,3 +251,57 @@ def persist_mode_selection(
         return note
     finally:
         con.close()
+
+
+# ---------- Citation resolver (v0.63) ----------
+
+def persist_citation_resolution(
+    db_path: Path,
+    *,
+    run_id: str | None = None,
+    project_id: str | None = None,
+    input_text: str,
+    partial: dict,
+    matched: bool,
+    score: float,
+    threshold: float,
+    canonical_id: str | None = None,
+    doi: str | None = None,
+    title: str | None = None,
+    year: int | None = None,
+    candidate: dict | None = None,
+) -> dict:
+    """Persist a resolve-citation outcome to citation_resolutions.
+
+    Always writes — both matched and below-threshold attempts are
+    recorded so the user can later audit "what couldn't I resolve".
+    """
+    from lib.db_notify import record_write
+    con = _ensure_db(db_path)
+    try:
+        now = datetime.now(UTC).isoformat()
+        with con:
+            con.execute(
+                "INSERT INTO citation_resolutions "
+                "(run_id, project_id, input_text, partial_json, matched, "
+                "score, threshold, canonical_id, doi, title, year, "
+                "candidate_json, at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (run_id, project_id, input_text,
+                 json.dumps(partial, sort_keys=True),
+                 1 if matched else 0,
+                 float(score), float(threshold),
+                 canonical_id, doi, title, year,
+                 json.dumps(candidate, sort_keys=True) if candidate else None,
+                 now),
+            )
+        note = record_write(
+            con, "citation_resolutions", 1, "resolve-citation",
+            run_id=run_id,
+            detail=("matched" if matched else "below-threshold")
+                   + f" score={score:.3f}",
+        )
+        _emit(note)
+        return note
+    finally:
+        con.close()
