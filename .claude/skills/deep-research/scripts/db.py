@@ -31,6 +31,7 @@ from lib.disagreement import (  # noqa: E402
 from lib.concept_velocity import (  # noqa: E402
     compute_velocities, render_summary as _velocity_render,
 )
+from lib.phase_groups import batchable as _phase_batchable  # noqa: E402
 
 SCHEMA_PATH = _REPO_ROOT / "lib" / "sqlite_schema.sql"
 
@@ -382,6 +383,96 @@ def cmd_next_phase(args: argparse.Namespace) -> None:
     print("DONE")
 
 
+def cmd_next_phase_batch(args: argparse.Namespace) -> None:
+    """v0.51 — return next batch of phases that can run concurrently.
+
+    Behavior parallels cmd_next_phase, but instead of one phase, may
+    return up to N phases that share a concurrency group (defined in
+    lib.phase_groups.PHASE_GROUPS). Output JSON shape:
+
+      {"action": "run", "phases": ["cartographer","chronicler","surveyor"]}
+      {"action": "break", "break_number": 1}
+      {"action": "done"}
+      {"action": "error", "phase": "...", "error": "..."}
+
+    Honors BREAK_AFTER — never returns a batch that crosses a break.
+    Honors per-phase error state — stops at first errored phase.
+    Uses ORDER BY ordinal (not started_at) so output is stable
+    regardless of completion timing.
+    """
+    con = _connect(args.run_id)
+    rows = con.execute(
+        "SELECT name, started_at, completed_at, error "
+        "FROM phases WHERE run_id=? ORDER BY ordinal",
+        (args.run_id,),
+    ).fetchall()
+    con.close()
+
+    # Find first incomplete phase
+    first_incomplete_idx = None
+    for i, row in enumerate(rows):
+        if row["error"]:
+            print(json.dumps({
+                "action": "error",
+                "phase": row["name"],
+                "error": row["error"],
+            }))
+            return
+        if row["completed_at"] is None:
+            first_incomplete_idx = i
+            break
+
+    if first_incomplete_idx is None:
+        print(json.dumps({"action": "done"}))
+        return
+
+    # Check for unresolved break before first_incomplete
+    first = rows[first_incomplete_idx]
+    prev_idx = PHASES_IN_ORDER.index(first["name"]) - 1
+    if prev_idx >= 0:
+        prev_name = PHASES_IN_ORDER[prev_idx]
+        if prev_name in BREAK_AFTER:
+            bn = BREAK_AFTER[prev_name]
+            con = _connect(args.run_id)
+            unresolved = con.execute(
+                "SELECT 1 FROM breaks WHERE run_id=? AND "
+                "break_number=? AND resolved_at IS NULL",
+                (args.run_id, bn),
+            ).fetchone()
+            exists = con.execute(
+                "SELECT 1 FROM breaks WHERE run_id=? AND break_number=?",
+                (args.run_id, bn),
+            ).fetchone()
+            con.close()
+            prev_row = next(r for r in rows if r["name"] == prev_name)
+            if prev_row["completed_at"] is not None and (
+                unresolved or not exists
+            ):
+                print(json.dumps({
+                    "action": "break", "break_number": bn,
+                }))
+                return
+
+    # Compute the largest concurrent batch from this point.
+    # Restrict to incomplete phases only — skip any that are already
+    # complete (could happen mid-batch on resume).
+    remaining = [
+        r["name"] for r in rows[first_incomplete_idx:]
+        if r["completed_at"] is None
+    ]
+    # Don't let a batch cross a break — trim at any phase that has a
+    # BREAK_AFTER, *including* the trigger itself in the same batch
+    # (the break fires AFTER the phase completes).
+    trimmed: list[str] = []
+    for p in remaining:
+        trimmed.append(p)
+        if p in BREAK_AFTER:
+            break
+    batch = _phase_batchable(trimmed)
+
+    print(json.dumps({"action": "run", "phases": batch}))
+
+
 def cmd_resume(args: argparse.Namespace) -> None:
     """Print a summary of current state + next action + harvest status.
 
@@ -647,6 +738,11 @@ def main() -> None:
 
     pn = sub.add_parser("next-phase"); pn.add_argument("--run-id", required=True)
     pn.set_defaults(func=cmd_next_phase)
+
+    pnb = sub.add_parser("next-phase-batch",
+                          help="v0.51 — return next concurrent phase batch as JSON")
+    pnb.add_argument("--run-id", required=True)
+    pnb.set_defaults(func=cmd_next_phase_batch)
 
     pr = sub.add_parser("resume"); pr.add_argument("--run-id", required=True)
     pr.set_defaults(func=cmd_resume)

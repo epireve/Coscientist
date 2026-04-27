@@ -417,6 +417,34 @@ from tests.test_experiment_reproduce import (
     RunStateTransitionTests as ExpReproRunStateTransitionTests,
     StatusTests as ExpReproStatusTests,
 )
+# v0.53.x — Wide Research, mode selector, phase parallelization
+from tests.test_wide_research import (
+    CLITests as WideCLITests,
+    CollectResultsTests as WideCollectResultsTests,
+    CostEstimateTests as WideCostEstimateTests,
+    DecomposeTests as WideDecomposeTests,
+    EdgeCaseTests as WideEdgeCaseTests,
+    Gate23ObserveTests as WideGate23ObserveTests,
+    HandoffEdgeCaseTests as WideHandoffEdgeCaseTests,
+    SynthesisTests as WideSynthesisTests,
+    SynthesizeCLITests as WideSynthesizeCLITests,
+    TaskSpecTests as WideTaskSpecTests,
+    TaskTypeDefaultsTests as WideTaskTypeDefaultsTests,
+    V537Tests as WideV537Tests,
+    WideToDeepHandoffTests,
+    WorkspaceTests as WideWorkspaceTests,
+)
+from tests.test_mode_selector import (
+    ConfidenceTests as ModeConfidenceTests,
+    ExplicitOverrideTests as ModeExplicitOverrideTests,
+    ItemDrivenTests as ModeItemDrivenTests,
+    QuestionDrivenTests as ModeQuestionDrivenTests,
+)
+from tests.test_phase_groups import (
+    BatchableTests as PhaseGroupsBatchableTests,
+    CmdNextPhaseBatchTests,
+    GroupForTests as PhaseGroupsForTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -739,6 +767,30 @@ if __name__ == "__main__":
         ExpReproAnalyzeTests,
         ExpReproReproduceCheckTests,
         ExpReproStatusTests,
+        # v0.53.x — Wide Research suite
+        WideTaskSpecTests,
+        WideDecomposeTests,
+        WideCostEstimateTests,
+        WideWorkspaceTests,
+        WideCollectResultsTests,
+        WideTaskTypeDefaultsTests,
+        WideCLITests,
+        WideGate23ObserveTests,
+        WideSynthesisTests,
+        WideSynthesizeCLITests,
+        WideToDeepHandoffTests,
+        WideEdgeCaseTests,
+        WideHandoffEdgeCaseTests,
+        WideV537Tests,
+        # v0.53.6 — mode auto-selector
+        ModeItemDrivenTests,
+        ModeQuestionDrivenTests,
+        ModeExplicitOverrideTests,
+        ModeConfidenceTests,
+        # v0.51 — phase concurrency groups
+        PhaseGroupsForTests,
+        PhaseGroupsBatchableTests,
+        CmdNextPhaseBatchTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,
