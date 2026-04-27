@@ -87,6 +87,14 @@ CREATE TABLE IF NOT EXISTS schema_versions (
 """
 
 
+# v0.65d — every version emitted by `ensure_current`, including
+# in-code-only migrations (v4..v8 add columns via `_ensure_vN_columns`,
+# v9..v10 add tables via `_ensure_vN_tables`). Kept as a single list
+# so the monotonicity test can assert no version is silently skipped
+# between the SQL-based MIGRATIONS list and the in-code migrations.
+ALL_VERSIONS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+
 def _table_exists(con: sqlite3.Connection, name: str) -> bool:
     row = con.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
