@@ -20,7 +20,7 @@ Best when you want the complete research workbench: manuscript drafting, peer-re
 ### Install
 
 ```bash
-git clone https://github.com/coscientist/coscientist
+git clone https://github.com/epireve/coscientist
 cd coscientist
 uv sync
 ```
@@ -87,11 +87,11 @@ Best when you want `/deep-research` available in any Cowork session without clon
 In Cowork (or any Claude Code session):
 
 ```
-/plugin marketplace add coscientist/coscientist
+/plugin marketplace add epireve/coscientist
 /plugin install coscientist-deep-research@coscientist
 ```
 
-That fetches the plugin from `https://github.com/coscientist/coscientist` (the `.claude-plugin/marketplace.json` at the repo root advertises the plugin source).
+That fetches the plugin from `https://github.com/epireve/coscientist` (the `.claude-plugin/marketplace.json` at the repo root advertises the plugin source).
 
 For local dev, point at your checkout:
 
