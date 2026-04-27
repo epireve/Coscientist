@@ -775,6 +775,7 @@ Tests: 4 CRACK-pinning tests replaced with fix-verification tests; 3 new behavio
 | [Google AI Co-scientist](https://research.google/blog/accelerating-scientific-breakthroughs-with-an-ai-co-scientist/) | Tournament/Elo ranking of hypotheses, evolution agent, hierarchical supervisor, wet-lab grounding |
 | [karpathy/autoresearch](https://github.com/karpathy/autoresearch) | Fixed time-budget per experiment, single comparable metric, minimal-scope file edits, `program.md` as canonical instruction file, overnight-iteration UX |
 | [karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) | Principle-as-antidote prose, "the test" verification clause per principle, declarative over imperative, composable single-file guidance |
+| [Consensus official skills](../docs/CONSENSUS-SKILLS-ANALYSIS.md) (April 2026) | Audit Log section as first-class output, three-counter discipline (queries/received/cited), plan-tier detection, repeat-hit + cites-per-year mechanical-foundation signals, source-discipline labeling, framework-driven sub-area decomposition (PICO/SPIDER/Decomposition), era-gated search planning |
 
 ## Design principles (derived)
 
@@ -787,6 +788,48 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 5. **Fixed budgets + single metric** — for anything experimental, one scalar comparable across iterations
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
+
+## Next iteration: v0.51 → v0.53 (post-v0.50 Consensus-skills absorption)
+
+Live validation run 79fa3b38 (April 2026, "human digital memory with adaptive forgetting mechanics") + analysis of Consensus's three official skills (literature-review-helper, consensus-grant-finder, recommended-reading-list) surfaced two action clusters: **speed/parallelization** and **search-strategy planning depth**.
+
+### v0.51 — Parallelization + speed (target: 30–60 min runs → 15–25 min)
+
+The Expedition pipeline currently runs 10 phases strictly sequentially. Most phases inside a phase-group are independent.
+
+- **Parallel Phase 1**: cartographer + chronicler + surveyor are independent (read different harvests, no shared state). Dispatch as 3 concurrent `Task` calls in one orchestrator message. Saves ~6 min.
+- **Partial parallel Phase 2**: synthesist + architect can run in parallel. Inquisitor depends on architect; weaver depends on synthesist + architect + inquisitor. Tree-DAG dispatch. Saves ~3 min.
+- **Parallel MCP harvest within persona**: orchestrator currently fires Consensus → S2 → paper-search sequentially per persona. Issue all 3 in single tool-call batch. Saves ~1 min × 6 personas.
+- **`--quiet` / `--milestone-only` flag for `db.py resume`**: suppress orchestrator narration tool calls between phases. Show only break points + final completion. Helps Cowork sessions stay readable. Saves ~2 min wall-clock on chatter alone.
+
+Architectural blockers: none. Claude Code Agent tool already supports parallel invocation (single message + multiple Agent calls). Just needs orchestrator to issue them in batches.
+
+Estimated total: 30–60 min → **15–25 min** (~50% faster).
+
+### v0.52 — Search-strategy planning (literature-review-helper imports)
+
+Coscientist already has 10-persona specialization, adversarial loop, and hypothesis tournament — all **wins** over single-agent literature-review-helper. But lit-review-helper has search-planning depth we lack:
+
+- **Pre-search framework selection** at Break 0 — PICO (clinical/behavioral), SPIDER (qualitative), Decomposition (technology). Currently Break 0 just confirms scout's harvest. Should also prompt user to confirm framework + sub-area decomposition before Phase 1.
+- **Sub-area decomposition checkpoint** — emit 5-row framework table + ask user to approve/adjust before chronicler/surveyor/cartographer fire. Currently each persona harvests on its own implicit angle; explicit sub-area mapping would tighten coverage.
+- **Era-gated chronicler harvest** — explicitly run pre-2015 + post-2021 splits per sub-area to surface terminology shifts + paradigm-shift detection. Currently chronicler does this implicitly; making it explicit catches more dead ends.
+- **Recurring-author tracking** — new column on `papers_in_run` (or computed view) for author co-occurrence across persona harvests. Surface "dominant research groups" mechanically. Complements harvest_count (foundational papers) shipped in v0.50.4.
+- **Boolean search-string emission** — per sub-area, emit ready-to-use Boolean strings the user can paste into Consensus/PubMed/Google Scholar. Useful artifact even if user never re-runs the pipeline.
+
+### v0.53 — Brief richness + retention transparency (optional)
+
+User concern from run 79fa3b38: brief.md is 12K, looks short relative to upstream phase output (~21K total in DB). Reality: nothing lost — three orthogonal stores (brief, DB phase outputs, harvest shortlists) — but brief is summary view that hides depth.
+
+- **Expanded brief.md template** — full hypothesis cards inline with method + falsifier + supporting_ids (currently 1-line summaries).
+- **Discussion-questions section** in steward output (Consensus reading-list pattern) — Socratic prompts tying claims back to research question facets.
+- **Per-section evidence tables** — claim × supporting_ids × confidence rendered as table not prose.
+- **Recovery doc** — short `RUN-RECOVERY.md` showing how to query DB to recover full phase outputs (`sqlite3 ... SELECT json_extract(output_json, '$.hypotheses[0].method')`). Builds user confidence in the persistence model.
+
+### Open question for v0.51
+
+Does parallel Phase 1 dispatch break the Audit Log section's per-phase ordering? Audit Log assumes time-ordered phases. Possible fix: tag each persona's harvest with monotonic seq + sort by seq in steward template. Trivial, but worth verifying before v0.51 ships.
+
+---
 
 ## Tier A — next iteration (v0.2)
 
