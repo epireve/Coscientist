@@ -1,6 +1,7 @@
 ---
 name: grant-draft
-description: Use when drafting a grant application scaffold. Generates funder-specific section templates (NIH, NSF, ERC, Wellcome) with significance and impact framing distinct from academic papers. Stores under grants/<grant_id>/.
+description: Funder-specific grant application scaffold. Generates section templates (NIH, NSF, ERC, Wellcome) with significance and impact framing distinct from academic papers. Stores under grants/<grant_id>/.
+when_to_use: User says "draft grant", "NIH application", "NSF proposal", "Specific Aims page", "grant scaffold", "ERC starter", "Wellcome application". Before any grant submission deadline. Pairs with `dmp-generator` (data plan) and `ethics-irb` (compliance).
 ---
 
 # grant-draft

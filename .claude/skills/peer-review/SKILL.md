@@ -1,6 +1,7 @@
 ---
 name: peer-review
-description: Use when simulating a full journal peer-review cycle — initial review, author response, and final decision. Multi-round, distinct from manuscript-critique which is single-shot. Run before submission to stress-test a manuscript across multiple rounds.
+description: Multi-round journal peer-review cycle simulator — initial review, author response, final decision. Per-manuscript storage under `manuscripts/<mid>/peer_review/`. Distinct from `manuscript-critique` (single-shot) and `reviewer-assistant` (drafting reviews of someone else's paper).
+when_to_use: User says "simulate peer review", "stress-test before submission", "what would reviewers ask", "rebut my own paper". Run before submitting to a journal to surface response-letter weak points across multiple revision rounds.
 ---
 
 # peer-review

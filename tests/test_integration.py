@@ -406,6 +406,28 @@ class LayoutRegressionTests(TestCase):
                 missing.append(skill_dir.name)
         self.assertFalse(missing, f"skills without SKILL.md: {missing}")
 
+    def test_every_skill_has_when_to_use(self):
+        """Every SKILL.md frontmatter must declare when_to_use so the
+        runtime trigger heuristic has something to match on. CLAUDE.md
+        spec lists it as a required frontmatter field."""
+        skills_dir = _ROOT / ".claude" / "skills"
+        missing: list[str] = []
+        for skill_dir in skills_dir.iterdir():
+            if not skill_dir.is_dir():
+                continue
+            sm = skill_dir / "SKILL.md"
+            if not sm.exists():
+                continue
+            parts = sm.read_text().split("---", 2)
+            if len(parts) < 3:
+                missing.append(f"{skill_dir.name}: no frontmatter")
+                continue
+            fm = parts[1]
+            if "when_to_use:" not in fm and "when-to-use:" not in fm:
+                missing.append(skill_dir.name)
+        self.assertFalse(missing,
+                         f"skills missing when_to_use frontmatter: {missing}")
+
     def test_every_agent_has_frontmatter(self):
         agents_dir = _ROOT / ".claude" / "agents"
         missing: list[str] = []

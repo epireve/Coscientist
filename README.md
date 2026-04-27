@@ -204,7 +204,32 @@ Karpathy-style experimentation pipeline + Sakana-style sandboxed execution loop 
 
 Plus `reference-agent --format csl-json` flag.
 
-Test suite progression: 251 (v0.13) → 310 (v0.17) → 507 (v0.28) → 651 (v0.29) → 673 (v0.30) → 789 (v0.31) → 833 (v0.32) → 894 (v0.33) → **923 (v0.34, current)**. All passing.
+### Sandbox + sub-agents + institutional-access (v0.35 → v0.43)
+
+Hardened the sandbox boundary, added 4 new sub-agent personas, and built out institutional-access for any university — not just the original UM-only path.
+
+| Version | What landed |
+|---|---|
+| v0.35 | 4 new personas (`experimentalist`, `dataset-curator`, `peer-reviewer`, `grant-writer`); first end-to-end live Sakana loop on real Docker. |
+| v0.36 | Sandbox tightening: structured Docker readiness diagnosis, `error_class` taxonomy (`timeout`/`killed_or_oom`/`image_not_found`/...), workspace-path validation, NaN/Inf metric guards. |
+| v0.37 | Workspace lockfile + 15 orphaned v0.36 tests wired in. |
+| v0.38 | Tournament evolve-loop ledger (`evolution_rounds` table + schema migration v3) with plateau detection chained across closed rounds. |
+| v0.39 | `institutional-access check` health check (adapter signatures, Playwright readiness, storage_state presence). |
+| v0.40 → v0.42 | UM auto-login → 11 publisher adapters (ACM/ACS/Elsevier/Emerald/IEEE/JSTOR/Nature/SAGE/Springer/Wiley + generic) → smart DOI prefix-first router with host-fallback → fully institution-agnostic IdP runner reading `institutions/<slug>.json`. |
+| v0.43 | Cookie-import bypass for captcha-walled OpenAthens portals: log in via real Chrome, export cookies, normalise into Playwright `storage_state.json`. |
+
+### Audit-tools family + final coverage push (v0.44 → v0.45.7)
+
+| Version | What landed |
+|---|---|
+| v0.44 | `audit-query` skill — read-only forensic view across `audit.log` (PDF fetches) + `sandbox_audit.log` (Docker runs). Subcommands `fetches | sandbox | summary`. Pure stdlib. Markdown render via `--format md`. |
+| v0.45 | `audit-rotate` skill — size/age-based rotation by atomic `Path.rename`. Never deletes. Subcommands `inspect | rotate | list-archives`. |
+| v0.45.1 | `audit-query --include-archives` flag unions over rotated archives. |
+| v0.45.2 | Deduped archive discovery into `lib.cache.archives_for`. |
+| v0.45.3 → v0.45.6 | Test coverage push: `research-eval` (eval_references + eval_claims), `paper-discovery` (merge/rank/CLI), `arxiv-to-markdown` (with mocked extractor), `lib.rate_limit`. Every skill + every lib module now has at least one test. |
+| v0.45.7 | Stricter agent-frontmatter regression: name/description/tools required, name matches filename, tools parses as list (inline JSON or YAML block sequence), each tool is a known surface or recognised MCP namespace. Pins all 31 personas. |
+
+Test suite progression: 251 (v0.13) → 310 (v0.17) → 507 (v0.28) → 651 (v0.29) → 673 (v0.30) → 789 (v0.31) → 833 (v0.32) → 894 (v0.33) → 923 (v0.34) → 927 (v0.36) → 965 (v0.43) → **1047 (v0.45.7, current)**. All passing.
 
 ## MCP servers used
 
@@ -252,7 +277,7 @@ No pytest dependency; the harness is in-repo. Run the full smoke suite:
 python3 -m tests.run_all
 ```
 
-Currently **923 tests, 0 failing** across all skills, gates, lib primitives, dry-run harnesses, and integration regression checks.
+Currently **1047 tests, 0 failing** across all skills, gates, lib primitives, dry-run harnesses, agent-frontmatter regression, and integration checks.
 
 ## Where this is going
 

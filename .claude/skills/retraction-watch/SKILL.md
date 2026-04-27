@@ -1,6 +1,7 @@
 ---
 name: retraction-watch
-description: Use when you want to check whether any papers you have cited across projects have been retracted. Run periodically or before manuscript submission. Writes structured alerts and journal entries for any newly-retracted papers found.
+description: Scan papers cited across projects for retraction status. Two-phase: `scan list` enumerates DOIs needing a check; the caller queries Retraction Watch / PubPeer / S2; `scan persist` records new retractions. Writes structured alerts and journal entries for any newly-retracted papers found.
+when_to_use: Before manuscript submission. Periodic citation hygiene check. User says "any of my cites retracted", "scan for retractions", "PubPeer check", "is paper X still good".
 ---
 
 # retraction-watch

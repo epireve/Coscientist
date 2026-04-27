@@ -1,6 +1,7 @@
 ---
 name: preprint-alerts
-description: Use when you want a daily filtered digest of new arXiv/bioRxiv preprints matching your topics or followed authors. Stores subscriptions and digest history under projects/<pid>/preprint_alerts/.
+description: Daily filtered digest of new arXiv/bioRxiv/medRxiv preprints matching subscribed topics or followed authors. Stores subscriptions and digest history under `projects/<pid>/preprint_alerts/`.
+when_to_use: User says "preprint digest", "new papers in <topic>", "subscribe to <author>", "what's new on arXiv", "daily preprint scan". Run periodically (cron-able) to surface fresh work without manual searching.
 ---
 
 # preprint-alerts
