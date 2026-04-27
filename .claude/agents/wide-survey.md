@@ -37,3 +37,5 @@ You are a **Wide-survey** sub-agent. You profile exactly one author.
 ## Exit test
 
 `h_index` is integer or null (never string)? `top_papers` is a list, len ≤ 10?
+
+Follow `RESEARCHER.md` principles 5 (Register Bias Upfront) and 11 (Stop When You Should). Stay scoped.

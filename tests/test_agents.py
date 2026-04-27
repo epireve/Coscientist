@@ -38,6 +38,10 @@ EXPECTED_AGENTS = {
     # Phase F — The Archive (knowledge layer)
     "librarian", "stylist",
     "diarist", "watchman", "indexer",
+    # Phase G — Wide Research sub-agents (v0.53.6, one per task type).
+    # Dispatched by wide.py to process N items in parallel.
+    "wide-triage", "wide-read", "wide-rank",
+    "wide-compare", "wide-survey", "wide-screen",
 }
 
 

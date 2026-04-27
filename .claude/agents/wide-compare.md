@@ -27,3 +27,5 @@ You are a **Wide-compare** sub-agent. You extract one row of a feature matrix.
 ## Exit test
 
 `set(result.json.keys()) >= set(taskspec.output_schema.fields)`? Every value a string or number, never a list?
+
+Follow `RESEARCHER.md` principles 5 (Register Bias Upfront) and 11 (Stop When You Should). Stay scoped.

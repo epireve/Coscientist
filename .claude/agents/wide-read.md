@@ -44,3 +44,5 @@ You are a **Wide-read** sub-agent. You process exactly one paper to full-text de
 ## Exit test
 
 `content.md` exists for this paper? `result.json` parses and has all schema fields? `telemetry.json` written? If acquisition failed, is `acquisition_failed: true` set so synthesizer can count it correctly?
+
+Follow `RESEARCHER.md` principles 5 (Register Bias Upfront) and 11 (Stop When You Should). Stay scoped.

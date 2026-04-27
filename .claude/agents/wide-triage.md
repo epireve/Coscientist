@@ -43,3 +43,5 @@ You are a **Wide-triage** sub-agent. You process exactly one paper. Stay in your
 ## Exit test
 
 Before declaring done: open your `result.json` — does every field in `taskspec.json["output_schema"]["fields"]` have a value? Is `relevance_score` a number, not a string? Is `recommend` one of the three exact strings? If any answer is no, fix and re-write.
+
+Follow `RESEARCHER.md` principles 5 (Register Bias Upfront) and 11 (Stop When You Should). Stay scoped.

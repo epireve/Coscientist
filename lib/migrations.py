@@ -83,6 +83,14 @@ CREATE TABLE IF NOT EXISTS schema_versions (
 """
 
 
+def _table_exists(con: sqlite3.Connection, name: str) -> bool:
+    row = con.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+        (name,),
+    ).fetchone()
+    return row is not None
+
+
 def applied_versions(db_path: Path) -> set[int]:
     """Return the set of migration versions already applied to this DB."""
     if not db_path.exists():
@@ -126,8 +134,11 @@ def ensure_current(db_path: Path,
                 )
             newly_applied.append(version)
 
-        # v0.50.4 audit-log columns — idempotent in-code migration
-        if 4 not in applied:
+        # v0.50.4 audit-log columns — idempotent in-code migration.
+        # Only record version if the target table exists in this DB; a
+        # custom-migrations DB (e.g. unit test) without papers_in_run
+        # should not be marked as having applied this baseline.
+        if 4 not in applied and _table_exists(con, "papers_in_run"):
             _ensure_v4_columns(con)
             with con:
                 con.execute(
@@ -138,7 +149,7 @@ def ensure_current(db_path: Path,
             newly_applied.append(4)
 
         # v0.52.1 search-strategy column on runs — same idempotent path
-        if 5 not in applied:
+        if 5 not in applied and _table_exists(con, "runs"):
             _ensure_v5_columns(con)
             with con:
                 con.execute(
@@ -149,7 +160,7 @@ def ensure_current(db_path: Path,
             newly_applied.append(5)
 
         # v0.52.2 strategy-critique column on runs
-        if 6 not in applied:
+        if 6 not in applied and _table_exists(con, "runs"):
             _ensure_v6_columns(con)
             with con:
                 con.execute(
@@ -160,7 +171,7 @@ def ensure_current(db_path: Path,
             newly_applied.append(6)
 
         # v0.52.4 disagreement-score column on papers_in_run
-        if 7 not in applied:
+        if 7 not in applied and _table_exists(con, "papers_in_run"):
             _ensure_v7_columns(con)
             with con:
                 con.execute(
@@ -171,7 +182,7 @@ def ensure_current(db_path: Path,
             newly_applied.append(7)
 
         # v0.53.5 Wide → Deep handoff lineage on runs
-        if 8 not in applied:
+        if 8 not in applied and _table_exists(con, "runs"):
             _ensure_v8_columns(con)
             with con:
                 con.execute(
@@ -192,6 +203,8 @@ def _ensure_v8_columns(con: sqlite3.Connection) -> None:
     at the Wide run that seeded this Deep run; seed_mode records the
     handoff level (none|abstract|full-text|cumulative).
     """
+    if not _table_exists(con, "runs"):
+        return
     cols = {row[1] for row in con.execute("PRAGMA table_info(runs)")}
     with con:
         if "parent_run_id" not in cols:
@@ -212,6 +225,8 @@ def _ensure_v7_columns(con: sqlite3.Connection) -> None:
     [0, 1] computed by lib.disagreement; persisted here for steward
     + weaver to surface in brief.
     """
+    if not _table_exists(con, "papers_in_run"):
+        return
     cols = {row[1] for row in con.execute("PRAGMA table_info(papers_in_run)")}
     with con:
         if "disagreement_score" not in cols:
@@ -227,6 +242,8 @@ def _ensure_v6_columns(con: sqlite3.Connection) -> None:
     from the search-strategy-critique skill. Inquisitor attacks the
     decomposition before Phase 1 fires.
     """
+    if not _table_exists(con, "runs"):
+        return
     cols = {row[1] for row in con.execute("PRAGMA table_info(runs)")}
     with con:
         if "strategy_critique_json" not in cols:
@@ -242,6 +259,8 @@ def _ensure_v5_columns(con: sqlite3.Connection) -> None:
     + sub-area decomposition declared at Break 0. Persona harvests
     read this to gate which sub-area they cover.
     """
+    if not _table_exists(con, "runs"):
+        return
     cols = {row[1] for row in con.execute("PRAGMA table_info(runs)")}
     with con:
         if "search_strategy_json" not in cols:
@@ -258,6 +277,8 @@ def _ensure_v4_columns(con: sqlite3.Connection) -> None:
     Fresh DBs already have these via sqlite_schema.sql; older DBs need them
     bolted on. Both paths recorded as v4 in schema_versions.
     """
+    if not _table_exists(con, "papers_in_run"):
+        return
     cols = {row[1] for row in con.execute("PRAGMA table_info(papers_in_run)")}
     with con:
         if "harvest_count" not in cols:

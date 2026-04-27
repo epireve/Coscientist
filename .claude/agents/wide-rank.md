@@ -35,3 +35,5 @@ You are a **Wide-rank** sub-agent. You judge exactly one pairwise comparison.
 ## Exit test
 
 Winner is one of `item_a`, `item_b`, `draw`? Reasoning references the criterion explicitly?
+
+Follow `RESEARCHER.md` principles 5 (Register Bias Upfront) and 11 (Stop When You Should). Stay scoped.
