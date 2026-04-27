@@ -835,12 +835,20 @@ Wide complements Deep — use Wide to triage 100 papers → 30 → feed those 30
 
 Architecture: orchestrator decomposes into N TaskSpecs → fan-out parallel sub-agents (each with fresh context, filesystem-as-memory, tool-masking state machine, error-retention policy, todo-recitation anti-drift) → synthesizer with fresh context receiving file refs + summaries (NOT raw content).
 
+**Wide TaskSpec types**: `triage` (relevance scoring), `read` (PDF + extraction → structured per-paper data), `rank` (pairwise Elo), `compare` (per-item feature extraction), `survey` (per-author trajectory), `screen` (PRISMA-style include/exclude). User specifies via `--type` or auto-detected.
+
+**Wide → Deep handoff** (clever, not glue):
+- Level 1 — Wide-`triage` output → Deep scout via `--seed-from-wide <run_id> --seed-top-k N`
+- Level 2 — Wide-`read` populates paper artifacts (content.md, references.json) so Deep's cartographer computes citation in-degree mechanically (not heuristic abstract inference). Synthesist stops speculating; brief becomes research-citable.
+- Level 3 — Cumulative Deep → Wide → Deep refinement loop
+- Migration: `runs.parent_run_id` + `runs.seed_mode`. Scout phase short-circuits when `--seed-from-wide` set.
+
 Phasing:
-- **v0.53.1** — TaskSpec dataclass + orchestrator decomposition + single sub-agent POC
+- **v0.53.1** — TaskSpec dataclass + orchestrator decomposition + single sub-agent POC (`triage` type)
 - **v0.53.2** — 3-5 sub-agent fan-out via asyncio.gather + HITL Gate 1
 - **v0.53.3** — Scale to 30+ with concurrency caps, observability, HITL Gates 2+3
-- **v0.53.4** — Synthesis quality (dedicated synthesizer, citation roll-up, per-mode templates)
-- **v0.53.5** — Mode-selector at /deep-research entry; auto-detect Quick/Deep/Wide
+- **v0.53.4** — Synthesis quality + add `read`/`rank`/`compare`/`survey`/`screen` TaskSpec types
+- **v0.53.5** — Wide → Deep handoff + mode-selector; auto-detect Quick/Deep/Wide
 
 Full design in `docs/RESEARCH-MODES-PLAN.md`. References Manus (KV-cache stability, filesystem-as-memory, error retention, todo recitation, attention recitation) + Anthropic (orchestrator-worker, 15× token multiplier, 80% variance explained by token usage).
 

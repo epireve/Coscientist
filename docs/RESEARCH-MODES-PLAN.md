@@ -167,6 +167,121 @@ Rule: humans **gate**, do not **execute**. LLM generates options; human approves
 
 ---
 
+## Wide TaskSpec types
+
+Single Wide mode, multiple TaskSpec types. User specifies `--type` or auto-detected from prompt.
+
+| Type | Sub-agent objective | Tools | Output schema |
+|---|---|---|---|
+| `triage` | Read abstract → relevance score → include/review/exclude | paper-discovery, MCP search | `{cid, score, recommend, reason}` |
+| `read` | Acquire PDF → pdf-extract → structured per-paper data | paper-triage, paper-acquire, pdf-extract | `{method, dataset, results, limitations, claims, figures}` |
+| `rank` | Pairwise compare items → Elo | tournament/record_match | Updated Elo per item |
+| `compare` | Per-item feature extraction across fixed schema | paper read tools | `{feature_a, feature_b, ...}` per item |
+| `survey` | Per-author publication trajectory | semantic-scholar author tools | `{author, h_index, recent_venues, top_papers}` |
+| `screen` | PRISMA-style include/exclude per criterion | paper-triage | `{include: bool, criteria_failed: [...]}` |
+
+`triage` is POC type — minimum viable surface. `read` is primary value-add (closes QUALITY-AUDIT 0% DOI gap).
+
+## Wide → Deep handoff (cleverly)
+
+**Goal**: Wide's structured output flows into Deep's scout phase without re-doing harvest. Closes the audit's thin-corpus + 0% DOI gaps simultaneously.
+
+### Three handoff levels
+
+**Level 1: Seed handoff** — Wide-`triage` output → Deep scout
+```
+wide-run-<W>: triage 100 → CSV with relevance_score, recommend
+  ↓ user picks top-K via Gate 3
+  ↓
+deep-run-<D>: db.py init --question "..." --seed-from-wide <W> --seed-top-k 30
+  ↓
+Scout phase reads wide-run-<W>'s `recommend=include` rows, writes to
+  ~/.cache/coscientist/runs/run-<D>/inputs/scout-phase0.json
+  ↓ MCP harvest skipped — papers already triaged
+  ↓
+Cartographer/chronicler/surveyor proceed with vetted seed corpus
+```
+
+**Level 2: Full-text handoff** — Wide-`read` output → Deep with extracted PDFs
+```
+wide-run-<W>: read 30 → per-paper {method, dataset, results, ...}
+  ↓ Each sub-agent runs paper-acquire + pdf-extract → fills paper artifact's
+    content.md, figures/, tables/, references.json
+  ↓
+deep-run-<D>: db.py init --question "..." --seed-from-wide <W> --seed-mode full-text
+  ↓
+Cartographer reads references.json (NOW POPULATED) — mechanical seminal detection
+  via citation in-degree, not heuristic abstract-only inference
+  ↓
+Synthesist + Architect operate on full-text claims, not abstract speculation
+  ↓
+Brief cites verified quantitative claims (HotStuff "-45% latency vs PBFT" now
+  grounded in extracted paper, not extrapolated)
+```
+
+**Level 3: Cumulative corpus** — Wide → Deep → Wide (refinement loop)
+```
+deep-run-<D> identifies 6 gaps + 3 hypotheses
+  ↓ User wants to operationalize hyp-th-001 (consistency-tier router)
+  ↓
+wide-run-<W2>: compare 50 protocols, taskspec extracts {commutativity, ops_per_sec, ...}
+  ↓ wide pulls in protocols Deep didn't surface
+  ↓
+deep-run-<D2>: --seed-from-wide <W2> --priors-from-deep <D>
+  ↓ Combines D's hypothesis space with W2's empirical data
+```
+
+### Handoff mechanism (concrete)
+
+**Database side** — extend `runs` table with provenance:
+```sql
+ALTER TABLE runs ADD COLUMN parent_run_id TEXT;
+ALTER TABLE runs ADD COLUMN seed_mode TEXT;  -- 'cold' | 'wide-triage' | 'wide-read' | 'wide-compare'
+```
+
+**CLI side** — extend `db.py init`:
+```bash
+db.py init --question "..." \
+  [--seed-from-wide <run_id>] \           # parent Wide run
+  [--seed-top-k 30] \                     # how many items from Wide to seed Deep
+  [--seed-filter "recommend=include"] \   # SQL-like filter on Wide's CSV
+  [--seed-mode full-text|abstract]        # use Wide-read content.md or just metadata
+```
+
+**Scout integration** — when `--seed-from-wide` set, scout's harvest is replaced by:
+```python
+def harvest_from_wide(parent_run_id: str, top_k: int, filter_expr: str, mode: str):
+    parent_db = run_db_path(parent_run_id)
+    # Query parent's papers_in_run + Wide CSV output, apply filter, take top-K
+    # Write to current run's inputs/scout-phase0.json
+    # If mode=='full-text', verify each paper has content.md populated
+    # (paper artifact extracted by Wide-read sub-agents)
+```
+
+### Wide CSV → papers_in_run schema alignment
+
+Wide TaskSpec `output_schema` must produce rows mappable to `papers_in_run`:
+```json
+{"canonical_id": "...",                   // matches papers_in_run PK
+ "title": "...",
+ "year": 2024,
+ "relevance_score": 0.87,                  // Wide-triage output
+ "recommend": "include|review|exclude",
+ "reason": "...",
+ "harvest_count_proxy": 1,                 // for harvest_count column
+ "extraction_status": "abstract|full-text" // tells Deep which mode possible
+}
+```
+
+Wide writes this to `runs/run-<W>/wide/output.csv` + a parallel JSON. Scout-handoff reads JSON.
+
+### Why this is clever (not just glue)
+
+1. **Wide-read seed mode unlocks Cartographer's mechanical seminal detection** — currently cartographer infers seminals from abstract patterns; with full-text references.json populated, it computes citation in-degree directly.
+2. **Synthesist stops speculating** — i7-class implications ("1999 adversary predates wireless side-channels") become grounded if Wide-read extracted any paper that explicitly addresses post-2020 threat models.
+3. **Audit Log gets richer** — papers_cited becomes a tracked subset of papers_extracted, not just papers_seeded. Provenance chain: Wide harvest → Wide-read extraction → Deep cartographer → Steward citation.
+4. **Cost discipline** — Wide-triage at $5-15 prunes corpus before paying $30+ Wide-read across only top-30. Deep on filtered + extracted corpus produces research-citable output for ~$50 total vs $5 cold-start brief that's not citable.
+
 ## Wide Research — Coscientist-specific use cases
 
 | Scenario | N items | TaskSpec objective |
@@ -206,12 +321,18 @@ Notably: **Wide complements Deep**. Run Wide to triage 100 → 30 → feed those
 - Citation roll-up
 - Per-mode templates: paper-screening, author-survey, protocol-comparison
 
-### v0.53.5 — Mode-selector at /deep-research entry
-- Auto-detect Quick vs Deep vs Wide from prompt shape
-- "Process these 50 papers" → Wide
-- "What is X" → Quick
-- "Sharpen my research question on Y" → Deep
-- User can override with `--mode quick|deep|wide`
+### v0.53.4 — Synthesis quality + Wide TaskSpec types
+- Dedicated synthesizer with fresh context (file refs only, not raw)
+- Citation roll-up
+- Per-mode templates: paper-screening, author-survey, protocol-comparison
+- TaskSpec types: `triage` (POC done in .1-.3), `read`, `rank`, `compare`, `survey`, `screen`
+
+### v0.53.5 — Wide → Deep handoff + mode-selector
+- `db.py init --seed-from-wide <run_id> --seed-top-k N --seed-mode full-text|abstract`
+- Migration adds `runs.parent_run_id` + `runs.seed_mode`
+- Scout phase short-circuit when `seed-from-wide` set — read parent's filtered CSV
+- Wide-read sub-agents populate paper artifacts (content.md, references.json) so Deep's cartographer can compute citation in-degree mechanically
+- Auto-detect Quick vs Deep vs Wide from prompt shape; user override with `--mode`
 
 ---
 
