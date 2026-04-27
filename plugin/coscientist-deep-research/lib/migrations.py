@@ -65,6 +65,8 @@ MIGRATIONS: list[tuple[int, str, str]] = [
     # them (fresh DB), and SQLite ALTER TABLE has no IF NOT EXISTS guard.
     # v0.52.1 — runs.search_strategy_json. Same idempotent-in-code
     # pattern via _ensure_v5_columns().
+    # v0.52.2 — runs.strategy_critique_json. Same pattern via
+    # _ensure_v6_columns().
 ]
 
 
@@ -141,9 +143,35 @@ def ensure_current(db_path: Path,
                     (5, "v0.52.1_runs_search_strategy", now),
                 )
             newly_applied.append(5)
+
+        # v0.52.2 strategy-critique column on runs
+        if 6 not in applied:
+            _ensure_v6_columns(con)
+            with con:
+                con.execute(
+                    "INSERT INTO schema_versions (version, name, applied_at) "
+                    "VALUES (?, ?, ?)",
+                    (6, "v0.52.2_runs_strategy_critique", now),
+                )
+            newly_applied.append(6)
     finally:
         con.close()
     return newly_applied
+
+
+def _ensure_v6_columns(con: sqlite3.Connection) -> None:
+    """Add strategy_critique_json to runs if missing.
+
+    v0.52.2 — captures adversarial critique of the search strategy
+    from the search-strategy-critique skill. Inquisitor attacks the
+    decomposition before Phase 1 fires.
+    """
+    cols = {row[1] for row in con.execute("PRAGMA table_info(runs)")}
+    with con:
+        if "strategy_critique_json" not in cols:
+            con.execute(
+                "ALTER TABLE runs ADD COLUMN strategy_critique_json TEXT"
+            )
 
 
 def _ensure_v5_columns(con: sqlite3.Connection) -> None:

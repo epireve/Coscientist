@@ -806,28 +806,21 @@ Architectural blockers: none. Claude Code Agent tool already supports parallel i
 
 Estimated total: 30–60 min → **15–25 min** (~50% faster).
 
-### v0.52 — Search-strategy planning: 10x lit-review-helper (NOT mirror)
+### v0.52 — Search-strategy depth
 
-Mirror is the floor. Their strategy depth = bookkeeping intelligence (frameworks, sub-area templates, era buckets, citation counts). 300-IQ system needs *adversarial-strategic intelligence*, not better organization.
+Sequential plan: foundation first (framework + sub-area decomposition), then layered strategic intelligence on top.
 
-**What we keep from lit-review-helper as floor (v0.52.1 shipped)**:
-- Framework selection (PICO/SPIDER/Decomposition + hybrid composition)
-- Sub-area decomposition with persona assignment
-- User checkpoint at Break 0 before searches fire
+- **v0.52.1 (SHIPPED)** — Framework + sub-area decomposition foundation. `lib/search_framework.py` (PICO/SPIDER/Decomposition templates + heuristic suggest), `runs.search_strategy_json` column (migration v5), 3 db.py CLI subcommands (suggest-strategy / get-strategy / set-strategy). User checkpoint at Break 0 before searches fire.
 
-**The 10x bets (v0.52.2 onward)**:
+- **v0.52.2** — Adversarial search planning. Inquisitor attacks the search-strategy *before* Phase 1 fires. "What would we miss with this sub-area split? What angles are absent? What's the anti-coverage?" Catches blind-spots before they cost two phases of bad foundation.
 
-- **v0.52.2 — Adversarial search planning**: inquisitor attacks the search-strategy *before* Phase 1 fires, not after. "What would we miss with this sub-area split? What angles are absent? What's the anti-coverage?" Catches blind-spots before they cost 2 phases of bad foundation. Lit-review-helper has zero adversarial layer — it asks user once and runs.
-- **v0.52.3 — Citation-network-gradient era detection**: replace arbitrary `year_min: 2015` buckets with empirically-detected inflection points. Trace forward-citation lineage from top-Elo seminals; find years where citation-vocabulary distribution shifts (Jensen-Shannon divergence over abstract n-grams). Surface ALL inflections, let user steer. Mechanical paradigm-shift detection beats heuristic pre/post-pivot bucketing.
-- **v0.52.4 — Cross-persona disagreement scoring**: extend `harvest_count` (v0.50.4) into `disagreement_score` — papers where cartographer flags as seminal but surveyor flags as gap-creator are *more* important than papers everyone agrees on. Persona disagreement = high-leverage paper invisible to single-agent systems. Lit-review-helper structurally cannot do this — single agent.
-- **v0.52.5 — Adversarial query mutation**: per sub-area, emit 3 deliberately-divergent query variants (angle A, angle ¬A, angle⊥A), run each, dedup. Coverage of any single phrasing < union of orthogonal phrasings. Currently personas pick one query per harvest call — leaves angles uncovered.
-- **v0.52.6 — Concept-velocity metric**: per term in abstracts, track citation-pool growth/decline trajectory. Mechanically surface emerging vs deprecated vocabulary (e.g. for run 79fa3b38: "machine unlearning" rising 2020→, "RTBF" declining post-2018). Beats lit-review-helper's "note terminology shift" prose.
+- **v0.52.3** — Citation-network-gradient era detection. Replace arbitrary `year_min: 2015` buckets with empirically-detected inflection points. Trace forward-citation lineage from top-Elo seminals; find years where citation-vocabulary distribution shifts (Jensen-Shannon divergence over abstract n-grams).
 
-Lit-review-helper is a *better-organized search*. v0.52.2-v0.52.6 is *strategically-aware search* — every layer has a critic, every signal exposes disagreement, every era boundary is empirically detected. That's the 10x gap.
+- **v0.52.4** — Cross-persona disagreement scoring. Extend `harvest_count` (v0.50.4) with `disagreement_score` — papers where cartographer flags as seminal but surveyor flags as gap-creator are *more* important than consensus papers. Persona disagreement = high-leverage signal.
 
-### v0.52.1 — Framework + sub-area decomposition foundation (SHIPPED)
+- **v0.52.5** — Adversarial query mutation. Per sub-area: emit three deliberately-divergent query variants (angle A, angle ¬A, angle ⊥A), run each, dedup. Union coverage > any single phrasing.
 
-`lib/search_framework.py` (PICO/SPIDER/Decomposition templates + heuristic suggest), `runs.search_strategy_json` column (migration v5), 3 db.py CLI subcommands (suggest-strategy / get-strategy / set-strategy), 13 tests passing. Floor laid for v0.52.2-v0.52.6 attacks above.
+- **v0.52.6** — Concept-velocity metric. Per term in abstracts, track citation-pool growth/decline trajectory. Mechanical emerging-vs-deprecated vocabulary detection.
 
 ### v0.53 — Brief richness + retention transparency (optional)
 

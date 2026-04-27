@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS runs (
     config_json    TEXT,
     final_brief    TEXT,
     understanding_map TEXT,
-    search_strategy_json TEXT  -- v0.52.1 — framework + sub-area decomposition (lib/search_framework.py)
+    search_strategy_json TEXT,  -- v0.52.1 — framework + sub-area decomposition (lib/search_framework.py)
+    strategy_critique_json TEXT  -- v0.52.2 — adversarial critique of search strategy (search-strategy-critique skill)
 );
 
 CREATE TABLE IF NOT EXISTS phases (
