@@ -239,8 +239,182 @@ class TaskTypeDefaultsTests(TestCase):
             self.assertIn("max_tokens_budget", d)
 
 
+class CLITests(TestCase):
+    """v0.53.2 — gate1, dispatch-manifest, status CLI subcommands."""
+
+    def _cli(self, *args: str) -> tuple[int, str, str]:
+        import subprocess
+        cli = (_ROOT / ".claude/skills/wide-research/scripts/wide.py")
+        r = subprocess.run(
+            [sys.executable, str(cli), *args],
+            capture_output=True, text=True,
+        )
+        return r.returncode, r.stdout, r.stderr
+
+    def test_dispatch_refused_before_gate1(self):
+        with isolated_cache() as cache_dir:
+            items = cache_dir / "items.json"
+            items.write_text(json.dumps([
+                {"canonical_id": f"p{i}", "title": f"P{i}",
+                 "year": 2020 + i % 5} for i in range(10)
+            ]))
+            rc, out, err = self._cli(
+                "init", "--query", "test", "--items", str(items),
+                "--type", "triage",
+            )
+            self.assertEqual(rc, 0, err)
+            run_id = json.loads(out)["run_id"]
+
+            # Dispatch without gate1 → fail
+            rc, out, err = self._cli(
+                "dispatch-manifest", "--run-id", run_id,
+            )
+            self.assertTrue(rc != 0)
+            self.assertIn("Gate 1 not approved", err)
+
+    def test_gate1_approve_unblocks_dispatch(self):
+        with isolated_cache() as cache_dir:
+            items = cache_dir / "items.json"
+            items.write_text(json.dumps([
+                {"canonical_id": f"p{i}", "title": f"P{i}",
+                 "year": 2020} for i in range(10)
+            ]))
+            rc, out, _ = self._cli(
+                "init", "--query", "test", "--items", str(items),
+                "--type", "triage",
+            )
+            run_id = json.loads(out)["run_id"]
+
+            # Approve
+            rc, out, err = self._cli(
+                "gate1", "--run-id", run_id, "--verdict", "approve",
+            )
+            self.assertEqual(rc, 0, err)
+
+            # Dispatch should work now
+            rc, out, err = self._cli(
+                "dispatch-manifest", "--run-id", run_id,
+            )
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            self.assertEqual(d["n_total"], 10)
+            self.assertEqual(d["n_pending"], 10)
+            self.assertEqual(d["n_already_complete"], 0)
+            self.assertEqual(d["n_batches"], 1)
+            # Each batch entry has prompt + workspace + subagent_type
+            entry = d["batches"][0][0]
+            self.assertIn("prompt", entry)
+            self.assertIn("workspace", entry)
+            self.assertEqual(entry["subagent_type"], "general-purpose")
+
+    def test_dispatch_skips_complete_subagents(self):
+        with isolated_cache() as cache_dir:
+            items = cache_dir / "items.json"
+            items.write_text(json.dumps([
+                {"canonical_id": f"p{i}", "title": f"P{i}",
+                 "year": 2020} for i in range(10)
+            ]))
+            rc, out, _ = self._cli(
+                "init", "--query", "test", "--items", str(items),
+                "--type", "triage",
+            )
+            run_id = json.loads(out)["run_id"]
+            self._cli("gate1", "--run-id", run_id,
+                       "--verdict", "approve")
+
+            # Simulate one sub-agent complete
+            from lib.cache import cache_root
+            plan_path = (
+                cache_root() / "runs" / f"run-{run_id}" / "plan.json"
+            )
+            plan = json.loads(plan_path.read_text())
+            ws = Path(plan["sub_specs"][0]["filesystem_workspace"])
+            (ws / "result.json").write_text(json.dumps({"ok": True}))
+
+            rc, out, err = self._cli(
+                "dispatch-manifest", "--run-id", run_id,
+            )
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            self.assertEqual(d["n_already_complete"], 1)
+            self.assertEqual(d["n_pending"], 9)
+
+    def test_status_state_transitions(self):
+        with isolated_cache() as cache_dir:
+            items = cache_dir / "items.json"
+            items.write_text(json.dumps([
+                {"canonical_id": f"p{i}", "title": f"P{i}",
+                 "year": 2020} for i in range(10)
+            ]))
+            rc, out, _ = self._cli(
+                "init", "--query", "test", "--items", str(items),
+                "--type", "triage",
+            )
+            run_id = json.loads(out)["run_id"]
+
+            # Initial state — all INITIALIZED
+            rc, out, _ = self._cli("status", "--run-id", run_id)
+            d = json.loads(out)
+            self.assertEqual(d["by_state"]["INITIALIZED"], 10)
+
+            # Add finding to one workspace → IN_PROGRESS
+            from lib.cache import cache_root
+            plan_path = (
+                cache_root() / "runs" / f"run-{run_id}" / "plan.json"
+            )
+            plan = json.loads(plan_path.read_text())
+            ws = Path(plan["sub_specs"][0]["filesystem_workspace"])
+            (ws / "findings" / "tmp.txt").write_text("partial")
+
+            rc, out, _ = self._cli("status", "--run-id", run_id)
+            d = json.loads(out)
+            self.assertEqual(d["by_state"]["IN_PROGRESS"], 1)
+            self.assertEqual(d["by_state"]["INITIALIZED"], 9)
+
+            # Add result.json → COMPLETE
+            (ws / "result.json").write_text(json.dumps({"ok": True}))
+            rc, out, _ = self._cli("status", "--run-id", run_id)
+            d = json.loads(out)
+            self.assertEqual(d["by_state"]["COMPLETE"], 1)
+            self.assertEqual(d["by_state"]["IN_PROGRESS"], 0)
+
+            # Malformed result.json → ERROR
+            ws2 = Path(plan["sub_specs"][1]["filesystem_workspace"])
+            (ws2 / "result.json").write_text("not valid json {{{")
+            rc, out, _ = self._cli("status", "--run-id", run_id)
+            d = json.loads(out)
+            self.assertEqual(d["by_state"]["ERROR"], 1)
+
+    def test_gate1_reject_marks_aborted(self):
+        with isolated_cache() as cache_dir:
+            items = cache_dir / "items.json"
+            items.write_text(json.dumps([
+                {"canonical_id": f"p{i}", "title": f"P{i}",
+                 "year": 2020} for i in range(10)
+            ]))
+            rc, out, _ = self._cli(
+                "init", "--query", "test", "--items", str(items),
+                "--type", "triage",
+            )
+            run_id = json.loads(out)["run_id"]
+            rc, out, err = self._cli(
+                "gate1", "--run-id", run_id, "--verdict", "reject",
+                "--user-input", "scope wrong",
+            )
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            self.assertEqual(d["verdict"], "reject")
+            self.assertIn("aborted", d["next_step"].lower())
+
+            # Dispatch still refused
+            rc, out, err = self._cli(
+                "dispatch-manifest", "--run-id", run_id,
+            )
+            self.assertTrue(rc != 0)
+
+
 if __name__ == "__main__":
     sys.exit(run_tests(
         TaskSpecTests, DecomposeTests, CostEstimateTests, WorkspaceTests,
-        CollectResultsTests, TaskTypeDefaultsTests,
+        CollectResultsTests, TaskTypeDefaultsTests, CLITests,
     ))

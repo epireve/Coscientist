@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """wide-research CLI — orchestrator for fan-out sub-agent runs.
 
-v0.53.1 POC: init + decompose + show-plan + collect. Single-sub-agent
-synchronous execution path. v0.53.2 adds asyncio.gather fan-out via
-Claude Code Task tool dispatch.
+v0.53.1 POC: init + decompose + show-plan + collect.
+v0.53.2: gate1 (HITL approval) + dispatch-manifest (for parent agent
+to fire N parallel Task tool calls) + status (per-sub-agent state).
 
 Wide run state lives at:
   ~/.cache/coscientist/runs/run-<wide-id>/
@@ -34,8 +34,8 @@ if str(_REPO_ROOT) not in sys.path:
 
 from lib.cache import cache_root  # noqa: E402
 from lib.wide_research import (  # noqa: E402
-    HARD_DOLLAR_CEILING, TASK_TYPE_DEFAULTS, TaskSpec, WideRunPlan,
-    collect_results, decompose, write_workspace,
+    DEFAULT_CONCURRENCY_CAP, HARD_DOLLAR_CEILING, TASK_TYPE_DEFAULTS,
+    TaskSpec, WideRunPlan, collect_results, decompose, write_workspace,
 )
 
 
@@ -152,6 +152,181 @@ def cmd_show_spec(args: argparse.Namespace) -> dict:
             f"sub-agent {args.sub_agent_id} not in run {args.run_id}"
         )
     return matches[0]
+
+
+def cmd_gate1(args: argparse.Namespace) -> dict:
+    """HITL Gate 1 — record user approval/rejection of decomposition.
+
+    Parent agent invokes this AFTER showing user the decomposition
+    table (via `decompose --format md`). User decides; parent agent
+    passes the verdict here. On approve, plan.json gets gate1_approved
+    + gate1_at timestamp. On reject, run is marked aborted.
+    """
+    p = _plan_path(args.run_id)
+    if not p.exists():
+        raise SystemExit(f"no plan for run {args.run_id}")
+    plan_dict = json.loads(p.read_text())
+
+    if args.verdict == "approve":
+        plan_dict["gate1_approved"] = True
+        plan_dict["gate1_user_input"] = args.user_input or ""
+        plan_dict["aborted"] = False
+    elif args.verdict == "reject":
+        plan_dict["gate1_approved"] = False
+        plan_dict["gate1_user_input"] = args.user_input or ""
+        plan_dict["aborted"] = True
+    else:
+        raise SystemExit(f"unknown verdict: {args.verdict}")
+
+    p.write_text(json.dumps(plan_dict, indent=2, sort_keys=True))
+    return {
+        "run_id": args.run_id,
+        "verdict": args.verdict,
+        "next_step": (
+            "Run `wide.py dispatch-manifest --run-id "
+            f"{args.run_id}` to get the JSON manifest, then fire "
+            "parallel Task tool calls."
+        ) if args.verdict == "approve" else "Run aborted at Gate 1.",
+    }
+
+
+def cmd_dispatch_manifest(args: argparse.Namespace) -> dict:
+    """Emit dispatch manifest for parent agent's Task-tool fan-out.
+
+    Parent agent reads this manifest, then in a SINGLE message issues
+    N parallel Task tool calls (one per sub-agent). Each Task call
+    receives the sub-agent's TaskSpec prompt as input. Sub-agents run
+    in fresh contexts, write result.json to their workspaces, return
+    summary to parent.
+
+    Concurrency cap (30) enforced here — manifest chunked into batches
+    if N > cap. Parent agent processes batches sequentially; within a
+    batch, all calls are parallel.
+
+    Refuses to emit manifest unless gate1_approved=True (HITL discipline).
+    """
+    p = _plan_path(args.run_id)
+    if not p.exists():
+        raise SystemExit(f"no plan for run {args.run_id}")
+    plan_dict = json.loads(p.read_text())
+
+    if not plan_dict.get("gate1_approved"):
+        raise SystemExit(
+            f"Gate 1 not approved for run {args.run_id}. Run "
+            f"`wide.py gate1 --run-id {args.run_id} --verdict approve` "
+            f"first."
+        )
+
+    sub_specs = [TaskSpec.from_dict(s) for s in plan_dict["sub_specs"]]
+    cap = plan_dict.get("concurrency_cap", DEFAULT_CONCURRENCY_CAP)
+
+    # Skip already-complete sub-agents (idempotent re-dispatch)
+    pending: list[dict] = []
+    for spec in sub_specs:
+        ws = Path(spec.filesystem_workspace)
+        result_path = ws / "result.json"
+        if result_path.exists() and not args.force_redispatch:
+            continue
+        pending.append({
+            "sub_agent_id": spec.sub_agent_id,
+            "subagent_type": _resolve_subagent_type(spec.task_type),
+            "task_type": spec.task_type,
+            "prompt": spec.to_prompt(),
+            "workspace": spec.filesystem_workspace,
+            "max_tool_calls": spec.max_tool_calls,
+            "max_tokens_budget": spec.max_tokens_budget,
+        })
+
+    # Chunk into batches
+    batches: list[list[dict]] = []
+    for i in range(0, len(pending), cap):
+        batches.append(pending[i:i + cap])
+
+    return {
+        "run_id": args.run_id,
+        "task_type": plan_dict["task_type"],
+        "n_total": len(sub_specs),
+        "n_pending": len(pending),
+        "n_already_complete": len(sub_specs) - len(pending),
+        "concurrency_cap": cap,
+        "n_batches": len(batches),
+        "batches": batches,
+        "instructions": (
+            f"Parent agent: for each batch, fire ALL Task tool calls "
+            f"in a SINGLE message (parallel). Use subagent_type="
+            f"general-purpose unless task_type maps to a registered "
+            f"sub-agent type. Process batches sequentially (wait for "
+            f"each batch to complete before starting the next). After "
+            f"all batches done, run `wide.py collect --run-id "
+            f"{args.run_id} --write-outputs`."
+        ),
+    }
+
+
+def _resolve_subagent_type(task_type: str) -> str:
+    """Map Wide task_type → Claude Code subagent_type.
+
+    For v0.53.2 we use general-purpose (most flexible, has all tools).
+    v0.53.4 may register dedicated wide-* sub-agents per task type.
+    """
+    return "general-purpose"
+
+
+def cmd_status(args: argparse.Namespace) -> dict:
+    """Per-sub-agent execution status.
+
+    Reads each sub-agent workspace's state markers:
+      - taskspec.json present → INITIALIZED
+      - findings/* present + no result.json → IN_PROGRESS
+      - result.json present + parses as JSON → COMPLETE
+      - result.json present but malformed → ERROR
+    """
+    p = _plan_path(args.run_id)
+    if not p.exists():
+        raise SystemExit(f"no plan for run {args.run_id}")
+    plan_dict = json.loads(p.read_text())
+    sub_specs = [TaskSpec.from_dict(s) for s in plan_dict["sub_specs"]]
+
+    by_state = {"INITIALIZED": 0, "IN_PROGRESS": 0,
+                "COMPLETE": 0, "ERROR": 0}
+    rows: list[dict] = []
+    for spec in sub_specs:
+        ws = Path(spec.filesystem_workspace)
+        result_path = ws / "result.json"
+        findings_dir = ws / "findings"
+        n_findings = (
+            len(list(findings_dir.iterdir()))
+            if findings_dir.exists() else 0
+        )
+
+        if result_path.exists():
+            try:
+                json.loads(result_path.read_text())
+                state = "COMPLETE"
+            except (json.JSONDecodeError, OSError):
+                state = "ERROR"
+        elif n_findings > 0:
+            state = "IN_PROGRESS"
+        else:
+            state = "INITIALIZED"
+        by_state[state] += 1
+        rows.append({
+            "sub_agent_id": spec.sub_agent_id,
+            "state": state,
+            "n_findings": n_findings,
+        })
+
+    return {
+        "run_id": args.run_id,
+        "task_type": plan_dict["task_type"],
+        "by_state": by_state,
+        "n_total": len(sub_specs),
+        "complete_pct": (
+            round(by_state["COMPLETE"] / len(sub_specs) * 100, 1)
+            if sub_specs else 0.0
+        ),
+        "sub_agents": rows if args.verbose else None,
+    }
 
 
 def cmd_collect(args: argparse.Namespace) -> dict:
@@ -338,6 +513,32 @@ def main() -> None:
                      default="summary",
                      help="summary = counts; full = all per-item results")
     pc.set_defaults(func=cmd_collect)
+
+    # v0.53.2 — gate1, dispatch-manifest, status
+    pg = sub.add_parser("gate1",
+                         help="HITL Gate 1 — record user verdict on decomposition")
+    pg.add_argument("--run-id", required=True)
+    pg.add_argument("--verdict", required=True,
+                     choices=["approve", "reject"])
+    pg.add_argument("--user-input", default="",
+                     help="Free-text user input/comments")
+    pg.set_defaults(func=cmd_gate1)
+
+    pdm = sub.add_parser("dispatch-manifest",
+                          help="Emit JSON manifest for parent agent's "
+                               "Task-tool fan-out (post-Gate-1)")
+    pdm.add_argument("--run-id", required=True)
+    pdm.add_argument("--force-redispatch", action="store_true",
+                      help="Re-dispatch sub-agents that already have "
+                           "result.json (default: skip them)")
+    pdm.set_defaults(func=cmd_dispatch_manifest)
+
+    pst = sub.add_parser("status",
+                          help="Per-sub-agent execution status")
+    pst.add_argument("--run-id", required=True)
+    pst.add_argument("--verbose", action="store_true",
+                      help="Include per-sub-agent rows (default: counts only)")
+    pst.set_defaults(func=cmd_status)
 
     args = p.parse_args()
     out = args.func(args)
