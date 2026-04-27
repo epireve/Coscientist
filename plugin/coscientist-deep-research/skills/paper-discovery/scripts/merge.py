@@ -31,7 +31,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
@@ -136,15 +136,49 @@ def write_stubs(entries: list[dict], run_id: str | None) -> list[str]:
         cids.append(cid)
 
     if run_id:
+        # Build cid → (year, citation_count) lookup for cites_per_year
+        # computation. Uses post-dedup entries so we get the merged citation
+        # count, not the first-seen value.
+        from datetime import UTC, datetime
+        cur_year = datetime.now(UTC).year
+        cid_meta: dict[str, tuple[int | None, int | None]] = {}
+        for e in entries:
+            doi = (e.get("doi") or "").lower()
+            cid_e = canonical_id(
+                title=e.get("title") or "",
+                first_author=(
+                    e.get("authors")[0].split()[-1]
+                    if e.get("authors") else "anon"
+                ),
+                year=e.get("year"),
+                doi=doi or None,
+            )
+            cid_meta[cid_e] = (e.get("year"), e.get("citation_count"))
+
         db = run_db_path(run_id)
         if db.exists():
             con = sqlite3.connect(db)
             with con:
                 for cid in cids:
+                    year, cites = cid_meta.get(cid, (None, None))
+                    cpy: float | None = None
+                    if year and cites:
+                        age = max(1, cur_year - int(year))
+                        cpy = float(cites) / age
+                    # UPSERT — insert with harvest_count=1 OR increment
+                    # existing row's harvest_count + refresh cites_per_year.
+                    # Repeat-hit signal: paper surfaced by multiple persona
+                    # harvests is a foundational-paper proxy.
                     con.execute(
-                        "INSERT OR IGNORE INTO papers_in_run "
-                        "(run_id, canonical_id, added_in_phase, role) VALUES (?, ?, ?, ?)",
-                        (run_id, cid, "social", "seed"),
+                        "INSERT INTO papers_in_run "
+                        "(run_id, canonical_id, added_in_phase, role, "
+                        " harvest_count, cites_per_year) "
+                        "VALUES (?, ?, ?, ?, 1, ?) "
+                        "ON CONFLICT(run_id, canonical_id) DO UPDATE SET "
+                        "  harvest_count = harvest_count + 1, "
+                        "  cites_per_year = COALESCE(excluded.cites_per_year, "
+                        "                            cites_per_year)",
+                        (run_id, cid, "social", "seed", cpy),
                     )
             con.close()
 

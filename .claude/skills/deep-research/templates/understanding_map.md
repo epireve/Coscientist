@@ -87,4 +87,35 @@ Answer these eight Socratic questions from memory. If you can't, your map has a 
 
 ---
 
-_Every factual claim above cites at least one `canonical_id` from this run's `papers_in_run`. See `eval.md` for audit. Regenerate with `/deep-research --resume {{run_id}}` to update._
+## 7. Audit Log
+
+_What was searched, what came back, what made it into the brief. Inspired by Consensus's official skills (April 2026): trust requires the reader can verify exactly what produced this map._
+
+### Search summary
+
+| Persona | Phase | MCP source priority | Queries sent | Papers received | Papers cited |
+|---|---|---|---|---|---|
+{{audit_search_table}}
+
+### Counters
+
+- **Queries sent**: {{audit_queries_sent}}
+- **Papers received** (post-dedup across all harvests): {{audit_papers_received}}
+- **Papers cited** in this map + brief: {{audit_papers_cited}}
+- **Repeat-hit papers** (surfaced by ≥2 personas, foundational signal): {{audit_repeat_hits}}
+
+### Failed searches / coverage gaps
+
+{{audit_failures}}
+
+### Plan-tier disclosure
+
+{{audit_plan_tier}}
+
+### Source-priority log
+
+Every harvest used Consensus first → Semantic Scholar second → Google Scholar (paper-search MCP) third, with rate-limit fall-through. See per-persona shortlist files at `~/.cache/coscientist/runs/run-{{run_id}}/inputs/`.
+
+---
+
+_Every factual claim above cites at least one `canonical_id` from this run's `papers_in_run`. See `eval.md` for reference + claim audit. Regenerate with `/deep-research --resume {{run_id}}` to update._

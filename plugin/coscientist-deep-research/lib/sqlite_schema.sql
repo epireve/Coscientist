@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS papers_in_run (
     added_in_phase TEXT NOT NULL,
     role           TEXT,                                -- seed|seminal|supporting|novel|rebuttal
     notes          TEXT,
+    harvest_count  INTEGER NOT NULL DEFAULT 1,          -- v0.50.4 — repeat-hit signal across personas
+    cites_per_year REAL,                                -- v0.50.4 — cheap importance heuristic
     PRIMARY KEY (run_id, canonical_id)
 );
 

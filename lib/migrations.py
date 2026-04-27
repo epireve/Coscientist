@@ -60,6 +60,9 @@ MIGRATIONS: list[tuple[int, str, str]] = [
         CREATE INDEX IF NOT EXISTS idx_evo_rounds_run
             ON evolution_rounds(run_id);
     """),
+    # v0.50.4 — papers_in_run audit-log columns. Handled in code below
+    # via _ensure_v4_columns() because base sqlite_schema.sql also lists
+    # them (fresh DB), and SQLite ALTER TABLE has no IF NOT EXISTS guard.
 ]
 
 
@@ -114,9 +117,41 @@ def ensure_current(db_path: Path,
                     (version, name, now),
                 )
             newly_applied.append(version)
+
+        # v0.50.4 audit-log columns — idempotent in-code migration
+        if 4 not in applied:
+            _ensure_v4_columns(con)
+            with con:
+                con.execute(
+                    "INSERT INTO schema_versions (version, name, applied_at) "
+                    "VALUES (?, ?, ?)",
+                    (4, "v0.50.4_papers_in_run_audit_columns", now),
+                )
+            newly_applied.append(4)
     finally:
         con.close()
     return newly_applied
+
+
+def _ensure_v4_columns(con: sqlite3.Connection) -> None:
+    """Add harvest_count + cites_per_year to papers_in_run if missing.
+
+    Inspired by Consensus's official skills (April 2026): repeat-hit signal
+    + cites-per-year heuristic surface foundational papers mechanically.
+    Fresh DBs already have these via sqlite_schema.sql; older DBs need them
+    bolted on. Both paths recorded as v4 in schema_versions.
+    """
+    cols = {row[1] for row in con.execute("PRAGMA table_info(papers_in_run)")}
+    with con:
+        if "harvest_count" not in cols:
+            con.execute(
+                "ALTER TABLE papers_in_run ADD COLUMN "
+                "harvest_count INTEGER NOT NULL DEFAULT 1"
+            )
+        if "cites_per_year" not in cols:
+            con.execute(
+                "ALTER TABLE papers_in_run ADD COLUMN cites_per_year REAL"
+            )
 
 
 def current_version(db_path: Path) -> int:
