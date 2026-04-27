@@ -305,7 +305,8 @@ class CLITests(TestCase):
             entry = d["batches"][0][0]
             self.assertIn("prompt", entry)
             self.assertIn("workspace", entry)
-            self.assertEqual(entry["subagent_type"], "general-purpose")
+            # v0.53.6: triage now maps to dedicated wide-triage agent
+            self.assertEqual(entry["subagent_type"], "wide-triage")
 
     def test_dispatch_skips_complete_subagents(self):
         with isolated_cache() as cache_dir:
@@ -963,10 +964,329 @@ class WideToDeepHandoffTests(TestCase):
             self.assertIsNone(row[1])
 
 
+class EdgeCaseTests(TestCase):
+    """v0.53.6 — operational edge cases across Wide pipeline."""
+
+    def _cli(self, *args: str) -> tuple[int, str, str]:
+        import subprocess
+        cli = (_ROOT / ".claude/skills/wide-research/scripts/wide.py")
+        r = subprocess.run(
+            [sys.executable, str(cli), *args],
+            capture_output=True, text=True,
+        )
+        return r.returncode, r.stdout, r.stderr
+
+    def _bootstrap(self, cache_dir: Path, n: int = 10):
+        items = cache_dir / "items.json"
+        items.write_text(json.dumps([
+            {"canonical_id": f"p{i}", "title": f"P{i}", "year": 2020}
+            for i in range(n)
+        ]))
+        rc, out, _ = self._cli(
+            "init", "--query", "Q", "--items", str(items),
+            "--type", "triage",
+        )
+        run_id = json.loads(out)["run_id"]
+        self._cli("gate1", "--run-id", run_id, "--verdict", "approve")
+        from lib.cache import cache_root
+        plan_path = cache_root() / "runs" / f"run-{run_id}" / "plan.json"
+        return run_id, json.loads(plan_path.read_text()), plan_path
+
+    # --- subagent_type resolver ---
+
+    def test_resolve_subagent_type_known(self):
+        from importlib import import_module
+        sys.path.insert(0, str(
+            _ROOT / ".claude/skills/wide-research/scripts"
+        ))
+        wide_mod = import_module("wide")
+        self.assertEqual(
+            wide_mod._resolve_subagent_type("triage"), "wide-triage"
+        )
+        self.assertEqual(
+            wide_mod._resolve_subagent_type("read"), "wide-read"
+        )
+
+    def test_resolve_subagent_type_unknown_falls_back(self):
+        from importlib import import_module
+        sys.path.insert(0, str(
+            _ROOT / ".claude/skills/wide-research/scripts"
+        ))
+        wide_mod = import_module("wide")
+        self.assertEqual(
+            wide_mod._resolve_subagent_type("not-a-type"),
+            "general-purpose",
+        )
+
+    # --- gate2 skip honored by dispatch-manifest ---
+
+    def test_dispatch_manifest_honors_gate2_skipped_ids(self):
+        with isolated_cache() as cache_dir:
+            run_id, plan, _ = self._bootstrap(cache_dir)
+            # Mark first 3 as complete, then gate2 adjust_remaining
+            for i in range(3):
+                ws = Path(plan["sub_specs"][i]["filesystem_workspace"])
+                (ws / "result.json").write_text(json.dumps({"ok": i}))
+            self._cli("gate2", "--run-id", run_id,
+                      "--verdict", "adjust_remaining")
+            rc, out, err = self._cli(
+                "dispatch-manifest", "--run-id", run_id,
+            )
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            # 3 complete + 7 skipped → 0 pending
+            self.assertEqual(d["n_pending"], 0)
+
+    def test_dispatch_force_redispatch_overrides_skip(self):
+        with isolated_cache() as cache_dir:
+            run_id, plan, _ = self._bootstrap(cache_dir)
+            for i in range(3):
+                ws = Path(plan["sub_specs"][i]["filesystem_workspace"])
+                (ws / "result.json").write_text(json.dumps({"ok": i}))
+            self._cli("gate2", "--run-id", run_id,
+                      "--verdict", "adjust_remaining")
+            rc, out, _ = self._cli(
+                "dispatch-manifest", "--run-id", run_id,
+                "--force-redispatch",
+            )
+            d = json.loads(out)
+            # All 10 redispatched
+            self.assertEqual(d["n_pending"], 10)
+
+    # --- gate3 edge cases ---
+
+    def test_gate3_double_flag_appends_record_idempotently(self):
+        with isolated_cache() as cache_dir:
+            run_id, plan, plan_path = self._bootstrap(cache_dir)
+            ws0 = Path(plan["sub_specs"][0]["filesystem_workspace"])
+            (ws0 / "result.json").write_text(json.dumps({"score": 0.1}))
+            sub_id = plan["sub_specs"][0]["sub_agent_id"]
+            self._cli("gate3", "--run-id", run_id,
+                      "--flag-ids", sub_id, "--guidance", "first")
+            rc, out, err = self._cli(
+                "gate3", "--run-id", run_id,
+                "--flag-ids", sub_id, "--guidance", "second",
+            )
+            # Second flag without result.json present (already archived)
+            # — should not error and should still record guidance
+            self.assertEqual(rc, 0, err)
+            persisted = json.loads(plan_path.read_text())
+            flags = persisted["gate3_rerun_flags"]
+            self.assertEqual(len(flags), 2)
+            self.assertEqual(flags[1]["rerun_guidance"], "second")
+
+    # --- collect / synthesize partial-failure tolerance ---
+
+    def test_collect_with_mixed_complete_missing_error(self):
+        with isolated_cache() as cache_dir:
+            run_id, plan, _ = self._bootstrap(cache_dir, n=10)
+            # 5 complete (good), 1 malformed JSON, 4 missing
+            for i in range(5):
+                ws = Path(plan["sub_specs"][i]["filesystem_workspace"])
+                (ws / "result.json").write_text(json.dumps({
+                    "canonical_id": f"p{i}",
+                    "title": f"P{i}",
+                    "relevance_score": 0.5,
+                    "recommend": "include",
+                }))
+            ws_bad = Path(plan["sub_specs"][5]["filesystem_workspace"])
+            (ws_bad / "result.json").write_text("not json {{")
+            rc, out, err = self._cli(
+                "synthesize", "--run-id", run_id, "--write-outputs",
+                "--format", "summary",
+            )
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            self.assertEqual(d["n_complete"], 5)
+            self.assertEqual(d["n_error"], 1)
+            self.assertEqual(d["n_missing"], 4)
+
+    def test_synthesize_zero_complete_renders_brief(self):
+        with isolated_cache() as cache_dir:
+            run_id, _, _ = self._bootstrap(cache_dir)
+            rc, out, err = self._cli(
+                "synthesize", "--run-id", run_id, "--write-outputs",
+            )
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            self.assertEqual(d["n_complete"], 0)
+            md_path = Path(d["synthesis_md_path"])
+            self.assertTrue(md_path.exists())
+
+    # --- triage synthesis robustness ---
+
+    def test_triage_missing_relevance_score_defaults_zero(self):
+        from lib.wide_synthesis import synthesize
+        results = [
+            {"sub_agent_id": "s1", "status": "complete",
+             "result": {"canonical_id": "p1", "title": "A",
+                        "recommend": "review"}},  # no score
+            {"sub_agent_id": "s2", "status": "complete",
+             "result": {"canonical_id": "p2", "title": "B",
+                        "relevance_score": 0.8,
+                        "recommend": "include"}},
+        ]
+        s = synthesize("triage", results)
+        # p1 lacks score → coerces to None → sorts last (treated as 0)
+        self.assertEqual(s["top_shortlist"][0]["canonical_id"], "p2")
+        self.assertEqual(s["top_shortlist"][1]["canonical_id"], "p1")
+
+    def test_rank_synthesis_skips_missing_winner(self):
+        from lib.wide_synthesis import synthesize
+        results = [
+            {"sub_agent_id": "s1", "status": "complete",
+             "result": {"item_a": "X", "item_b": "Y"}},  # no winner
+            {"sub_agent_id": "s2", "status": "complete",
+             "result": {"item_a": "X", "item_b": "Z", "winner": "X"}},
+        ]
+        s = synthesize("rank", results)
+        # X has 1 win, both X and Y/Z tracked as appearances
+        ranks = {row["item"]: row for row in s["leaderboard"]}
+        self.assertEqual(ranks["X"]["wins"], 1)
+
+
+class HandoffEdgeCaseTests(TestCase):
+    """v0.53.6 — Wide → Deep handoff edges."""
+
+    def _wide(self, *args: str) -> tuple[int, str, str]:
+        import subprocess
+        cli = (_ROOT / ".claude/skills/wide-research/scripts/wide.py")
+        r = subprocess.run(
+            [sys.executable, str(cli), *args],
+            capture_output=True, text=True,
+        )
+        return r.returncode, r.stdout, r.stderr
+
+    def _deep(self, *args: str) -> tuple[int, str, str]:
+        import subprocess
+        cli = (_ROOT / ".claude/skills/deep-research/scripts/db.py")
+        r = subprocess.run(
+            [sys.executable, str(cli), *args],
+            capture_output=True, text=True,
+        )
+        return r.returncode, r.stdout, r.stderr
+
+    def _build_triage_synthesis(self, cache_dir: Path) -> str:
+        items = cache_dir / "items.json"
+        items.write_text(json.dumps([
+            {"canonical_id": f"p{i:03d}", "title": f"P{i}",
+             "year": 2020} for i in range(10)
+        ]))
+        rc, out, _ = self._wide(
+            "init", "--query", "Q", "--items", str(items),
+            "--type", "triage",
+        )
+        wide_id = json.loads(out)["run_id"]
+        self._wide("gate1", "--run-id", wide_id, "--verdict", "approve")
+        from lib.cache import cache_root
+        plan = json.loads(
+            (cache_root() / "runs" / f"run-{wide_id}" / "plan.json")
+            .read_text()
+        )
+        for i, spec in enumerate(plan["sub_specs"]):
+            ws = Path(spec["filesystem_workspace"])
+            (ws / "result.json").write_text(json.dumps({
+                "canonical_id": f"p{i:03d}",
+                "title": f"P{i}",
+                "relevance_score": 1.0 - 0.05 * i,
+                "recommend": "include",
+            }))
+        self._wide("synthesize", "--run-id", wide_id, "--write-outputs")
+        return wide_id
+
+    def test_seed_full_text_against_triage_run_rejects(self):
+        """Wide ran triage → no digests → full-text mode finds nothing."""
+        with isolated_cache() as cache_dir:
+            wide_id = self._build_triage_synthesis(cache_dir)
+            rc, out, err = self._deep(
+                "init", "--question", "Q",
+                "--seed-from-wide", wide_id,
+                "--seed-mode", "full-text",
+            )
+            self.assertTrue(rc != 0)
+            self.assertIn("no seed papers", err)
+
+    def test_seed_top_k_caps_at_shortlist_size(self):
+        with isolated_cache() as cache_dir:
+            wide_id = self._build_triage_synthesis(cache_dir)
+            rc, out, err = self._deep(
+                "init", "--question", "Q",
+                "--seed-from-wide", wide_id,
+                "--seed-mode", "abstract",
+                "--seed-top-k", "999",  # way larger than n=10
+            )
+            self.assertEqual(rc, 0, err)
+            deep_id = out.strip()
+            from lib.cache import cache_root
+            import sqlite3
+            con = sqlite3.connect(
+                cache_root() / "runs" / f"run-{deep_id}.db"
+            )
+            n = con.execute(
+                "SELECT COUNT(*) FROM papers_in_run WHERE run_id=?",
+                (deep_id,),
+            ).fetchone()[0]
+            con.close()
+            self.assertEqual(n, 10)
+
+    def test_seed_corrupt_synthesis_json_rejected(self):
+        with isolated_cache() as cache_dir:
+            wide_id = self._build_triage_synthesis(cache_dir)
+            from lib.cache import cache_root
+            synth = (
+                cache_root() / "runs" / f"run-{wide_id}" /
+                "synthesis.json"
+            )
+            synth.write_text("garbage }{")
+            rc, out, err = self._deep(
+                "init", "--question", "Q",
+                "--seed-from-wide", wide_id,
+                "--seed-mode", "abstract",
+            )
+            self.assertTrue(rc != 0)
+
+    def test_seed_cumulative_dedups_overlap(self):
+        """abstract list + digests list with same cid → no dup row."""
+        with isolated_cache() as cache_dir:
+            wide_id = self._build_triage_synthesis(cache_dir)
+            from lib.cache import cache_root
+            synth_path = (
+                cache_root() / "runs" / f"run-{wide_id}" /
+                "synthesis.json"
+            )
+            s = json.loads(synth_path.read_text())
+            # Inject digests with same cids as shortlist
+            s["digests"] = [
+                {"canonical_id": p["canonical_id"]}
+                for p in s["top_shortlist"][:3]
+            ]
+            synth_path.write_text(json.dumps(s))
+
+            rc, out, err = self._deep(
+                "init", "--question", "Q",
+                "--seed-from-wide", wide_id,
+                "--seed-mode", "cumulative",
+            )
+            self.assertEqual(rc, 0, err)
+            deep_id = out.strip()
+            import sqlite3
+            con = sqlite3.connect(
+                cache_root() / "runs" / f"run-{deep_id}.db"
+            )
+            rows = con.execute(
+                "SELECT canonical_id FROM papers_in_run WHERE run_id=?",
+                (deep_id,),
+            ).fetchall()
+            con.close()
+            cids = [r[0] for r in rows]
+            # No duplicates
+            self.assertEqual(len(cids), len(set(cids)))
+
+
 if __name__ == "__main__":
     sys.exit(run_tests(
         TaskSpecTests, DecomposeTests, CostEstimateTests, WorkspaceTests,
         CollectResultsTests, TaskTypeDefaultsTests, CLITests,
         Gate23ObserveTests, SynthesisTests, SynthesizeCLITests,
-        WideToDeepHandoffTests,
+        WideToDeepHandoffTests, EdgeCaseTests, HandoffEdgeCaseTests,
     ))

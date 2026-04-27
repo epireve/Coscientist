@@ -30,9 +30,15 @@ import sys
 import uuid
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
+_HERE = Path(__file__).resolve()
+# parents[3] = plugin layout (vendored lib/ at plugin root)
+# parents[4] = repo layout (.claude/ inside project root with lib/)
+# Try both: plugin layout first (matches other skill scripts), then repo.
+_PLUGIN_ROOT = _HERE.parents[3]
+_REPO_ROOT = _HERE.parents[4] if (_HERE.parents[4] / "lib").exists() else _PLUGIN_ROOT
+for _p in (_REPO_ROOT, _PLUGIN_ROOT):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 from lib.cache import cache_root  # noqa: E402
 from lib.wide_research import (  # noqa: E402
@@ -256,10 +262,14 @@ def cmd_dispatch_manifest(args: argparse.Namespace) -> dict:
 
     sub_specs = [TaskSpec.from_dict(s) for s in plan_dict["sub_specs"]]
     cap = plan_dict.get("concurrency_cap", DEFAULT_CONCURRENCY_CAP)
+    # v0.53.3 gate2 adjust_remaining persists this set
+    skipped_ids = set(plan_dict.get("skipped_sub_agent_ids", []) or [])
 
-    # Skip already-complete sub-agents (idempotent re-dispatch)
+    # Skip already-complete or gate2-skipped sub-agents (idempotent re-dispatch)
     pending: list[dict] = []
     for spec in sub_specs:
+        if spec.sub_agent_id in skipped_ids and not args.force_redispatch:
+            continue
         ws = Path(spec.filesystem_workspace)
         result_path = ws / "result.json"
         if result_path.exists() and not args.force_redispatch:
@@ -300,13 +310,32 @@ def cmd_dispatch_manifest(args: argparse.Namespace) -> dict:
     }
 
 
+_TASK_TYPE_TO_SUBAGENT = {
+    "triage": "wide-triage",
+    "read": "wide-read",
+    "rank": "wide-rank",
+    "compare": "wide-compare",
+    "survey": "wide-survey",
+    "screen": "wide-screen",
+}
+
+
 def _resolve_subagent_type(task_type: str) -> str:
     """Map Wide task_type → Claude Code subagent_type.
 
-    For v0.53.2 we use general-purpose (most flexible, has all tools).
-    v0.53.4 may register dedicated wide-* sub-agents per task type.
+    v0.53.6 — registered dedicated wide-<type> sub-agents in
+    .claude/agents/. Falls back to general-purpose for unknown types
+    (forward-compat) or when the agent file is missing on disk.
     """
-    return "general-purpose"
+    candidate = _TASK_TYPE_TO_SUBAGENT.get(task_type)
+    if not candidate:
+        return "general-purpose"
+    agent_path = (
+        _REPO_ROOT / ".claude" / "agents" / f"{candidate}.md"
+    )
+    if not agent_path.exists():
+        return "general-purpose"
+    return candidate
 
 
 def cmd_status(args: argparse.Namespace) -> dict:
