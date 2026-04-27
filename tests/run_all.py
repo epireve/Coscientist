@@ -125,6 +125,19 @@ from tests.test_graph_query import (
     InDegreeTests,
     NeighborsTests,
 )
+from tests.test_bibtex_import import (
+    CliTests as BibtexCliTests,
+    DryRunTests as BibtexDryRunTests,
+    ImportTests as BibtexImportTests,
+    ParseOnlyTests as BibtexParseOnlyTests,
+    ParseTests as BibtexParseTests,
+)
+from tests.test_citation_format_converter import (
+    CliTests as CFCliTests,
+    ConvertTests,
+    FormatStyleTests,
+    StylesCommandTests,
+)
 from tests.test_arxiv_to_markdown import (
     CliTests as ArxivToMarkdownCliTests,
     NormalizeArxivIdTests,
@@ -499,6 +512,15 @@ if __name__ == "__main__":
         ConceptPathTests,
         AuthorClusterTests,
         GraphQueryCliTests,
+        BibtexParseTests,
+        BibtexParseOnlyTests,
+        BibtexDryRunTests,
+        BibtexImportTests,
+        BibtexCliTests,
+        StylesCommandTests,
+        ConvertTests,
+        FormatStyleTests,
+        CFCliTests,
         EvalReferencesTests,
         EvalClaimsTests,
         MergeEntriesTests,
