@@ -10,8 +10,31 @@ Given a research question, an agent works through it end-to-end:
 2. **Triage** — decides per-paper whether the abstract/TLDR is enough, or whether full text is needed.
 3. **Acquisition** — fetches PDFs through an open-access fallback chain, falling through to your institution's access via OpenAthens when OA sources don't have it.
 4. **Extraction** — Docling converts PDFs into structured Markdown with figures, tables, equations, and references preserved.
-5. **Analysis** — 10 specialized sub-agents (Grounder, Historian, Gaper, Vision, Theorist, Rude, Synthesizer, Thinker, Scribe, Social) work through the corpus with three human-in-the-loop review breaks.
-6. **Output** — produces a Research Brief + six-section Understanding Map, with every claim traceable to its source paper in a SQLite run log.
+5. **Analysis** — 10 specialized sub-agents (Scout, Cartographer, Chronicler, Surveyor, Synthesist, Architect, Inquisitor, Weaver, Visionary, Steward) work through the corpus with three human-in-the-loop review breaks. Phase 1 personas run in parallel (v0.51).
+6. **Output** — produces a Research Brief + six-section Understanding Map + RUN-RECOVERY.md, with every claim traceable to its source paper in a SQLite run log. Brief now includes hypothesis cards + per-section evidence tables + Socratic discussion questions (v0.54).
+
+## Three research modes
+
+`lib/mode_selector.py` picks the right mode automatically.
+
+| Mode | Use for | Cost | Time |
+|---|---|---|---|
+| **Quick** | Concrete one-shot ("summarize this", "list venues") | $0.05–0.30 | 30s–2m |
+| **Deep** | Open-ended research question | $3–5 | 15–25 min |
+| **Wide** | N items processed identically (10 ≤ N ≤ 250) | $5–30 (cap $50) | 5–20 min |
+
+**Wide → Deep handoff** (v0.53.5): triage 100 papers via Wide, then seed Deep from the top-30 shortlist:
+
+```bash
+# 1. Wide-triage 100 papers
+uv run python .claude/skills/wide-research/scripts/wide.py init \
+  --query "..." --items items.json --type triage
+# (Gate 1 approve → orchestrator dispatches sub-agents → synthesize)
+
+# 2. Deep run, seeded from Wide
+uv run python .claude/skills/deep-research/scripts/db.py init \
+  --question "..." --seed-from-wide <wide-id> --seed-mode abstract
+```
 
 ## Architecture
 
@@ -27,18 +50,18 @@ Each skill is atomic and does one job. Skills compose through a shared **paper a
 
 State flows: `discovered → triaged → acquired → extracted → read → cited`.
 
-## The Expedition (31 sub-agent personas across 6 phases)
-
-v0.46.4 grouped the 31 sub-agent personas under six narrative phases. Each persona is a single-noun archetype — easier to remember, easier to recombine.
+## Sub-agent personas (40+ across 8 phases)
 
 | Phase | Personas | Job |
 |---|---|---|
-| **A. The Expedition** | scout, cartographer, chronicler, surveyor, synthesist, architect, inquisitor, weaver, visionary, steward | The 10-agent deep-research pipeline with 3 human-in-the-loop breaks. Replaces the original SEEKER pipeline. |
+| **A. The Expedition** | scout, cartographer, chronicler, surveyor, synthesist, architect, inquisitor, weaver, visionary, steward | 10-agent deep-research pipeline with 3 HITL breaks. Phase 1 (cartographer/chronicler/surveyor) runs concurrently (v0.51). |
 | **B. The Workshop** | drafter, verifier, panel, diviner, reviser, compositor | Manuscript subsystem — write, audit, critique, reflect, respond-to-reviewers, export. |
 | **C. The Tribunal** | novelty-auditor, publishability-judge, red-team, advocate, peer-reviewer | Critical-judgment subsystem. |
 | **D. The Laboratory** | experimentalist, curator, funder | Sakana-loop experiment + dataset + grant scaffolds. |
 | **E. The Tournament** | ranker, mutator | Pairwise Elo + evolution (Google Co-scientist pattern). |
 | **F. The Archive** | librarian, stylist, diarist, watchman, indexer | Personal knowledge layer — Zotero bridge, voice fingerprint, journal, dashboard, cross-project search. |
+| **G. Wide Research** *(v0.53.6)* | wide-triage, wide-read, wide-rank, wide-compare, wide-survey, wide-screen | One per Wide TaskSpec type. Dispatched by `wide.py` to process N items in parallel (cap 30 concurrent). |
+| **H. Self-play debate** *(v0.56)* | debate-pro, debate-con, debate-judge | PRO + CON argue opposing sides of a verdict (novelty / publishability / red-team); judge scores both and commits. |
 
 **Backward compatibility**: in-flight runs from before v0.46.4 continue working — `db.py PHASE_ALIASES` silently translates old SEEKER phase names (social, grounder, historian, gaper, vision, theorist, rude, synthesizer, thinker, scribe) into new Expedition names.
 
@@ -244,7 +267,18 @@ Hardened the sandbox boundary, added 4 new sub-agent personas, and built out ins
 | v0.45.3 → v0.45.6 | Test coverage push: `research-eval` (eval_references + eval_claims), `paper-discovery` (merge/rank/CLI), `arxiv-to-markdown` (with mocked extractor), `lib.rate_limit`. Every skill + every lib module now has at least one test. |
 | v0.45.7 | Stricter agent-frontmatter regression: name/description/tools required, name matches filename, tools parses as list (inline JSON or YAML block sequence), each tool is a known surface or recognised MCP namespace. Pins all 31 personas. |
 
-Test suite progression: 251 (v0.13) → 310 (v0.17) → 507 (v0.28) → 651 (v0.29) → 673 (v0.30) → 789 (v0.31) → 833 (v0.32) → 894 (v0.33) → 923 (v0.34) → 927 (v0.36) → 965 (v0.43) → **1047 (v0.45.7, current)**. All passing.
+Test suite progression: 251 (v0.13) → 310 (v0.17) → 507 (v0.28) → 651 (v0.29) → 673 (v0.30) → 789 (v0.31) → 833 (v0.32) → 894 (v0.33) → 923 (v0.34) → 927 (v0.36) → 965 (v0.43) → 1047 (v0.45.7) → 1133 (v0.53.7) → 1233 (v0.51) → 1251 (v0.54) → 1283 (v0.55) → **1309 (v0.56, current)**. All passing.
+
+### v0.51 → v0.56 — Wide Research, parallelization, Tier-A capstone
+
+| Version | What landed |
+|---|---|
+| v0.51 | Phase 1 parallel dispatch (`db.py next-phase-batch`) — cartographer, chronicler, surveyor run concurrently. Run-time target 30–60min → 15–25min. |
+| v0.52 | Search-strategy depth — PICO/SPIDER framework selection, adversarial pre-Phase-1 critique, Jensen-Shannon era detection, cross-persona disagreement, OLS concept velocity. |
+| v0.53 | **Wide Research** mode — orchestrator-worker fan-out, 6 TaskSpec types (triage / read / rank / compare / survey / screen), HITL Gates 1+2+3, $50 hard ceiling, telemetry/observability, timeout sweep, cycle guard, partial-data warning. **Wide → Deep handoff** via `--seed-from-wide` + migration v8 (`runs.parent_run_id`, `runs.seed_mode`). |
+| v0.54 | Brief richness — hypothesis cards + per-section evidence tables + Socratic discussion questions + RUN-RECOVERY.md (DB-query recipes for full phase-output recovery). |
+| v0.55 | **A5 trio** — `gap-analyzer` (real-vs-artifact, tier, difficulty, adjacent fields), `contribution-mapper` (method/domain/finding decomposition + Jaccard distance + 2D landscape), `venue-match` (15-venue registry + 6-component scoring). |
+| v0.56 | **Self-play debate** — `debate` skill + PRO/CON/JUDGE sub-agents. Sharpens borderline novelty / publishability / red-team verdicts via opposing positions, evidence anchors, and 4-axis judge scoring. |
 
 ## MCP servers used
 
@@ -292,7 +326,7 @@ No pytest dependency; the harness is in-repo. Run the full smoke suite:
 python3 -m tests.run_all
 ```
 
-Currently **1087 tests, 0 failing** across all skills, gates, lib primitives, dry-run harnesses, agent-frontmatter regression, and integration checks.
+Currently **1309 tests, 0 failing** across all skills, gates, lib primitives, dry-run harnesses, agent-frontmatter regression, Wide Research, mode selector, phase-group concurrency, brief renderer, A5 trio, self-play debate, and integration checks.
 
 ## Where this is going
 

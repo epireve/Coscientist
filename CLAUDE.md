@@ -6,6 +6,27 @@ This is an academic-research-agent toolkit built as atomic skills. Read this fil
 - [`RESEARCHER.md`](./RESEARCHER.md) — principles for any research agent (sub-agents especially). Karpathy-style principle-as-antidote.
 - [`ROADMAP.md`](./ROADMAP.md) — where this project is going, what's in flight, what's parked.
 
+## Three research modes (`lib/mode_selector.py`)
+
+| Mode | When | Cost | Time |
+|---|---|---|---|
+| **Quick** | Single concrete one-shot, no per-item iteration | $0.05–0.30 | 30s–2m |
+| **Deep** | Open-ended research question — runs the 10-phase Expedition | $3–5 | 15–25 min (after v0.51 parallelization) |
+| **Wide** | N items processed identically (10 ≤ N ≤ 250) — orchestrator-worker fan-out | $5–30 (cap $50) | 5–20 min |
+
+`select_mode(question, items=, explicit_mode=)` → `ModeRecommendation` with confidence + warnings. Wide → Deep handoff via `db.py init --seed-from-wide`.
+
+## Recent landings (v0.51–v0.56)
+
+- v0.51 Phase 1 parallel dispatch (`db.py next-phase-batch`)
+- v0.52 search-strategy depth (PICO/SPIDER + adversarial critique + era detection + cross-persona disagreement + concept velocity)
+- v0.53 Wide Research mode + Wide → Deep handoff (migration v8: `runs.parent_run_id`, `runs.seed_mode`)
+- v0.54 brief richness — hypothesis cards, evidence tables, discussion questions, RUN-RECOVERY.md
+- v0.55 A5 trio — `gap-analyzer`, `contribution-mapper`, `venue-match`
+- v0.56 self-play debate — PRO + CON + JUDGE for high-stakes verdicts
+
+Every landing has a test class registered in `tests/run_all.py`. Run `uv run python tests/run_all.py` for the full suite (~1300 tests).
+
 ## The contract: polymorphic artifacts
 
 Every skill reads/writes one of several kinds of artifact, each with its own state machine but a shared directory layout and manifest structure.
@@ -97,26 +118,49 @@ API is deliberately small (`lib/graph.py`): `add_node`, `add_edge`, `neighbors`,
 - Sci-Hub tier is disabled unless `COSCIENTIST_ALLOW_SCIHUB=1`. Off by default.
 - Playwright runs headful with persistent context (not `--headless`) to match a real profile.
 
-## Sub-agents (under `deep-research`)
+## Sub-agents (under `deep-research` and elsewhere)
 
-31 personas live in `.claude/agents/`. Each has its own context window and a minimal `tools:` restriction. The orchestrator invokes the deep-research pipeline in order:
+40+ personas live in `.claude/agents/`. Each has its own context window and a minimal `tools:` restriction. Grouped into 8 phases (A–H).
 
-`scout → cartographer → chronicler → surveyor → [BREAK 1] → synthesist → architect → inquisitor → weaver → [BREAK 2] → visionary → steward`
+### Phase A — The Expedition (deep-research pipeline)
 
-(v0.46.4 Expedition rebrand. Old SEEKER names — social, grounder, historian, gaper, vision, theorist, rude, synthesizer, thinker, scribe — accepted as aliases via `db.py PHASE_ALIASES` for in-flight runs.)
+`scout → cartographer ║ chronicler ║ surveyor → [BREAK 1] → synthesist → architect → inquisitor → weaver → [BREAK 2] → visionary → steward`
 
-Break 0 happens after `scout`. The 3 breaks are hard stops that ask the user to confirm/redirect before continuing.
+Phase 1 (cartographer/chronicler/surveyor) runs as a single concurrent batch (v0.51 — see `lib/phase_groups.py`). All other transitions sequential.
 
-Three additional agents are invoked by other workflows (not the deep-research pipeline):
+Break 0 fires after `scout`. The 3 breaks are hard stops that prompt the user to confirm/redirect before continuing. Old SEEKER names — social, grounder, historian, gaper, vision, theorist, rude, synthesizer, thinker, scribe — accepted as aliases via `db.py PHASE_ALIASES` for in-flight runs.
 
-- `novelty-auditor` — structured novelty assessment via the `novelty-check` gate
-- `publishability-judge` — venue-calibrated publishability verdict via `publishability-check`
-- `red-team` — named-attack-vector critique of finished work via `attack-vectors`
-- `drafter` — section-by-section drafting via the `manuscript-draft` skill; reads outline.json + research context, fills each section, tracks word counts and cite keys
-- `compositor` — pandoc export via the `manuscript-format` skill; strips placeholders, writes to `exports/`
-- `reviser` — respond-to-reviewers via the `manuscript-revise` skill; parses structured review, produces `response_letter.md` + `revision_notes.md`
+### Phase B — The Workshop (manuscript subsystem)
 
-These are used by manuscript-audit / manuscript-critique workflows, and by the tournament/evolution subsystem when it lands.
+`verifier`, `panel`, `diviner`, `drafter`, `compositor`, `reviser`.
+
+- `drafter` — section-by-section drafting via `manuscript-draft`
+- `compositor` — pandoc export via `manuscript-format`
+- `reviser` — respond-to-reviewers via `manuscript-revise`
+
+### Phase C — The Tribunal (critical judgment)
+
+`novelty-auditor`, `publishability-judge`, `red-team`, `advocate`, `peer-reviewer`. Used by manuscript-audit / manuscript-critique workflows.
+
+### Phase D — The Laboratory (experimentation)
+
+`experimentalist`, `curator`, `funder`.
+
+### Phase E — The Tournament (hypothesis evolution)
+
+`ranker`, `mutator`. Pairwise Elo + child-mutation pattern (Google Co-scientist).
+
+### Phase F — The Archive (knowledge layer)
+
+`librarian`, `stylist`, `diarist`, `watchman`, `indexer`.
+
+### Phase G — Wide Research sub-agents (v0.53.6)
+
+`wide-triage`, `wide-read`, `wide-rank`, `wide-compare`, `wide-survey`, `wide-screen`. One per Wide TaskSpec type. Dispatched by `wide.py` to process N items in parallel (orchestrator-worker fan-out, cap 30 concurrent).
+
+### Phase H — Self-play debate (v0.56)
+
+`debate-pro`, `debate-con`, `debate-judge`. PRO + CON argue opposing sides of a verdict (novelty / publishability / red-team); judge scores both and commits. Sharpens single-pass output for borderline calls. See `lib/debate.py` + `.claude/skills/debate/`.
 
 All sub-agents:
 

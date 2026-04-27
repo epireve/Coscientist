@@ -458,6 +458,18 @@ from tests.test_a5_trio import (
     GapAnalyzerTests,
     VenueMatchTests,
 )
+# v0.56 A5 capstone — self-play debate
+from tests.test_debate import (
+    DecideVerdictTests,
+    FalsifiabilityTests,
+    GroundednessTests,
+    PositionSerializationTests,
+    PromptTests as DebatePromptTests,
+    RenderBriefTests as DebateRenderBriefTests,
+    ResponsivenessTests,
+    ScorePositionTests,
+    SpecificityTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -813,6 +825,16 @@ if __name__ == "__main__":
         GapAnalyzerTests,
         ContributionMapperTests,
         VenueMatchTests,
+        # v0.56 — self-play debate
+        SpecificityTests,
+        GroundednessTests,
+        ResponsivenessTests,
+        FalsifiabilityTests,
+        DecideVerdictTests,
+        ScorePositionTests,
+        DebatePromptTests,
+        DebateRenderBriefTests,
+        PositionSerializationTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,

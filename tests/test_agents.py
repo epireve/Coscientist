@@ -42,6 +42,9 @@ EXPECTED_AGENTS = {
     # Dispatched by wide.py to process N items in parallel.
     "wide-triage", "wide-read", "wide-rank",
     "wide-compare", "wide-survey", "wide-screen",
+    # Phase H — Self-play debate (v0.56). PRO + CON + JUDGE for
+    # high-stakes verdict sharpening.
+    "debate-pro", "debate-con", "debate-judge",
 }
 
 
