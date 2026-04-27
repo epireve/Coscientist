@@ -74,6 +74,8 @@ def main() -> None:
                    help="Path to JSON file mapping cid -> confidence")
     p.add_argument("--write-output", action="store_true",
                    help="Also write gap_analysis.{json,md} alongside the run")
+    p.add_argument("--persist-db", default=None,
+                   help="If set, write gap_analyses rows to this DB (v0.57)")
     args = p.parse_args()
 
     if args.run_id:
@@ -106,6 +108,16 @@ def main() -> None:
         (run_dir / "gap_analysis.md").write_text(render_brief(analyses))
         payload["json_path"] = str(run_dir / "gap_analysis.json")
         payload["md_path"] = str(run_dir / "gap_analysis.md")
+
+    # v0.57 persistence
+    if args.persist_db:
+        from lib.skill_persist import persist_gap_analyses
+        persist_gap_analyses(
+            Path(args.persist_db),
+            run_id=args.run_id,
+            analyses=analyses,
+        )
+        payload["persisted_to"] = args.persist_db
 
     sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 

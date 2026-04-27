@@ -789,11 +789,103 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Next iteration: v0.51 → v0.53 (post-v0.50 Consensus-skills absorption)
+## Shipped: v0.51 → v0.57
+
+All items in this section are landed. See per-version notes.
+
+### v0.57 — DB persistence + db-notify ✅ (2026-04-28)
+
+User-flagged gap: outputs from v0.51-v0.56 (Wide Research, debate,
+gap-analyzer, contribution-mapper, venue-match, mode-selector) were
+written only to filesystem, not the SQLite databases. Many tables
+had zero writers.
+
+- Migration v9 — 8 new tables: `wide_runs`, `wide_sub_agents`,
+  `debates`, `gap_analyses`, `venue_recommendations`,
+  `contribution_landscapes`, `mode_selections`, `db_writes`.
+  Idempotent in-code via `_ensure_v9_tables`; guarded against generic
+  test DBs (only fires when `runs`/`papers_in_run`/`projects` exists).
+- `lib/db_notify.py` — `record_write()` + `format_notification()`. Every
+  skill that writes rows now emits a structured `[db-notify] wrote N
+  rows in TABLE (skill=X)` line to stderr so the user/orchestrator
+  sees DB activity in real time.
+- `lib/skill_persist.py` — shared helpers: `persist_debate`,
+  `persist_gap_analyses`, `persist_venue_recommendations`,
+  `persist_contribution_landscape`, `persist_mode_selection`. Each
+  opens a DB, runs migrations, writes rows, emits notification.
+- Wide Research: `cmd_init` + `cmd_synthesize` write `wide_runs` +
+  `wide_sub_agents` rows to per-Wide DB
+  (`runs/wide-<rid>.db`); state transitions during synthesis update
+  sub-agent rows (`COMPLETE`/`ERROR`/`INITIALIZED`).
+- debate, gap-analyzer, contribution-mapper, venue-match: each gained
+  `--persist-db <path>` flag.
+- `audit-query records --db-path X` — new subcommand. Lists per-table
+  row counts. With `--writes`, also dumps `db_writes` audit summary
+  (per-table totals + last-write time).
+- 15 tests (`test_v0_57_persistence.py`) covering migration, db-notify,
+  per-skill persistence, Wide CLI end-to-end, audit-query records.
+
+Full suite: 1324/1324 passing.
+
+### v0.56 — Self-play debate ✅
+
+A5 capstone. PRO + CON + JUDGE sub-agents argue opposing sides of a
+verdict (novelty/publishability/red-team) with 4-axis judge scoring
+(groundedness, specificity, responsiveness, falsifiability). Mechanical
+scoring helpers double as test contracts; mechanical-vs-judge drift
+flagged at 0.2 threshold. `lib/debate.py`, `.claude/skills/debate/`,
+3 sub-agents (`debate-pro`, `debate-con`, `debate-judge`).
+
+### v0.55 — A5 trio ✅
+
+Closed remaining A5 sub-skills. `lib/gap_analyzer.py` (real-vs-artifact,
+addressable, tier A/B/C/none, adjacent-field analogues, difficulty),
+`lib/contribution_mapper.py` (method/domain/finding decomposition +
+Jaccard distance + 2D landscape projection + ASCII grid),
+`lib/venue_match.py` (15-venue registry + 6-component scoring +
+reasons-for/against). Each gets a CLI under `.claude/skills/`.
+
+### v0.54 — Brief richness + retention transparency ✅
+
+`lib/brief_renderer.py` — 4 pure-stdlib renderers (hypothesis cards
+sorted by Elo, evidence table grouped by claim.kind, Socratic
+discussion questions, run_recovery substitution).
+Templates extended; new `RUN-RECOVERY.md` template carries 25+
+sqlite3 query recipes for reading full phase outputs from the run DB.
+
+### v0.53 — Wide Research mode ✅
+
+Full v0.53.1–v0.53.7 series. Quick/Deep/Wide three-mode architecture,
+6 TaskSpec types (triage/read/rank/compare/survey/screen), HITL
+Gates 1+2+3, $50 hard ceiling, 30-concurrent cap, telemetry/observability
+(`observe`), timeout sweep, cycle guard, partial-data warning, Wide →
+Deep handoff (`db.py init --seed-from-wide` + migration v8 for
+`runs.parent_run_id` + `runs.seed_mode`), per-type synthesizer
+fan-in, per-task `wide-*` sub-agents (wide-triage / wide-read /
+wide-rank / wide-compare / wide-survey / wide-screen).
+`lib/wide_research.py`, `lib/wide_synthesis.py`, `lib/mode_selector.py`,
+`.claude/skills/wide-research/`.
+
+### v0.52 — Search-strategy depth ✅
+
+PICO/SPIDER/Decomposition framework selection (`lib/search_framework.py`),
+adversarial pre-Phase-1 critique skill (`search-strategy-critique`),
+Jensen-Shannon era detection (`lib/era_detection.py`), cross-persona
+disagreement scoring (`lib/disagreement.py`), concept-velocity metric
+(`lib/concept_velocity.py`). Migrations v5/v6/v7.
+
+### v0.51 — Phase 1 parallel dispatch ✅
+
+`lib/phase_groups.py` declares concurrency-safe groups (cartographer +
+chronicler + surveyor). `db.py next-phase-batch` returns batch as JSON
+(action: run/break/done/error). Steward reads `phases ORDER BY ordinal`
+so concurrent completion preserves deterministic output.
+
+### Original v0.51 → v0.53 plan (kept as historical reference)
 
 Live validation run 79fa3b38 (April 2026, "human digital memory with adaptive forgetting mechanics") + analysis of Consensus's three official skills (literature-review-helper, consensus-grant-finder, recommended-reading-list) surfaced two action clusters: **speed/parallelization** and **search-strategy planning depth**.
 
-### v0.51 — Parallelization + speed (target: 30–60 min runs → 15–25 min)
+### ~~v0.51 — Parallelization + speed~~ ✅
 
 The Expedition pipeline currently runs 10 phases strictly sequentially. Most phases inside a phase-group are independent.
 

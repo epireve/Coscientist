@@ -40,12 +40,45 @@ for _p in (_REPO_ROOT, _PLUGIN_ROOT):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
+import sqlite3  # noqa: E402
+
 from lib.cache import cache_root  # noqa: E402
+from lib.db_notify import format_notification, record_write  # noqa: E402
+from lib.migrations import ensure_current  # noqa: E402
 from lib.wide_research import (  # noqa: E402
     DEFAULT_CONCURRENCY_CAP, HARD_DOLLAR_CEILING, TASK_TYPE_DEFAULTS,
     TaskSpec, WideRunPlan, collect_results, decompose, write_workspace,
 )
 from lib.wide_synthesis import render_brief, synthesize  # noqa: E402
+
+
+def _wide_db_path(run_id: str) -> Path:
+    """Per-Wide-run DB at ~/.cache/coscientist/runs/wide-<rid>.db.
+
+    Mirrors Deep convention (run-<rid>.db). Holds wide_runs +
+    wide_sub_agents rows scoped to this Wide run.
+    """
+    return cache_root() / "runs" / f"wide-{run_id}.db"
+
+
+def _connect_wide_db(run_id: str) -> sqlite3.Connection:
+    """Open (or create) the Wide-run DB; ensure migrations applied."""
+    db = _wide_db_path(run_id)
+    fresh = not db.exists()
+    if fresh:
+        # Build base schema first so migration v9 finds expected tables
+        db.parent.mkdir(parents=True, exist_ok=True)
+        con = sqlite3.connect(db)
+        schema = (_REPO_ROOT / "lib" / "sqlite_schema.sql").read_text()
+        con.executescript(schema)
+        con.close()
+    ensure_current(db)
+    return sqlite3.connect(db)
+
+
+def _emit_notification(note: dict) -> None:
+    """Print db-notify line to stderr (visible to orchestrator)."""
+    sys.stderr.write(format_notification(note) + "\n")
 
 
 def _wide_run_dir(run_id: str) -> Path:
@@ -137,6 +170,50 @@ def cmd_init(args: argparse.Namespace) -> dict:
     for spec in plan.sub_specs:
         write_workspace(spec)
 
+    # v0.57 — persist Wide run + sub-agent rows to per-Wide DB
+    from datetime import UTC, datetime
+    now = datetime.now(UTC).isoformat()
+    con = _connect_wide_db(run_id)
+    try:
+        with con:
+            con.execute(
+                "INSERT INTO wide_runs (wide_run_id, parent_run_id, "
+                "user_query, task_type, n_items, n_sub_agents, "
+                "estimated_dollar_cost, estimated_total_tokens, "
+                "concurrency_cap, plan_path, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (run_id, args.parent_run_id, args.query, args.type,
+                 len(items), len(plan.sub_specs),
+                 plan.estimated_dollar_cost,
+                 plan.estimated_total_tokens,
+                 plan.concurrency_cap,
+                 str(_plan_path(run_id)), now),
+            )
+            for spec in plan.sub_specs:
+                con.execute(
+                    "INSERT INTO wide_sub_agents (sub_agent_id, "
+                    "wide_run_id, task_type, state, "
+                    "input_item_summary, workspace, at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (spec.sub_agent_id, run_id, spec.task_type,
+                     "INITIALIZED",
+                     str(spec.input_item)[:200],
+                     spec.filesystem_workspace, now),
+                )
+        n_run = record_write(
+            con, "wide_runs", 1, "wide-research",
+            run_id=run_id,
+            detail=f"task_type={args.type}, n_items={len(items)}",
+        )
+        n_sub = record_write(
+            con, "wide_sub_agents", len(plan.sub_specs), "wide-research",
+            run_id=run_id,
+        )
+        _emit_notification(n_run)
+        _emit_notification(n_sub)
+    finally:
+        con.close()
+
     return {
         "run_id": run_id,
         "n_items": len(items),
@@ -146,6 +223,7 @@ def cmd_init(args: argparse.Namespace) -> dict:
         "estimated_dollar_cost": plan.estimated_dollar_cost,
         "concurrency_cap": plan.concurrency_cap,
         "plan_path": str(_plan_path(run_id)),
+        "wide_db_path": str(_wide_db_path(run_id)),
         "next_step": (
             f"Run `wide.py decompose --run-id {run_id}` to review the "
             f"plan, then dispatch sub-agents via the orchestrator."
@@ -743,6 +821,39 @@ def cmd_synthesize(args: argparse.Namespace) -> dict:
         (run_dir / "wide-output.csv").write_text(
             "\n".join(_to_csv(results, plan.task_type))
         )
+
+        # v0.57 — update wide_runs.synthesis_path + completed_at;
+        # update sub_agent state per result
+        from datetime import UTC, datetime
+        now = datetime.now(UTC).isoformat()
+        if _wide_db_path(args.run_id).exists():
+            con = _connect_wide_db(args.run_id)
+            try:
+                with con:
+                    con.execute(
+                        "UPDATE wide_runs SET synthesis_path=?, "
+                        "completed_at=? WHERE wide_run_id=?",
+                        (str(run_dir / "synthesis.json"), now, args.run_id),
+                    )
+                    for r in results:
+                        state = "COMPLETE" if r["status"] == "complete" \
+                            else ("ERROR" if r["status"].startswith(
+                                "parse_error") else "INITIALIZED")
+                        con.execute(
+                            "UPDATE wide_sub_agents SET state=?, "
+                            "result_path=?, at=? "
+                            "WHERE sub_agent_id=?",
+                            (state, r.get("result_path"), now,
+                             r["sub_agent_id"]),
+                        )
+                note = record_write(
+                    con, "wide_runs", 1, "wide-research",
+                    run_id=args.run_id,
+                    detail="synthesis complete",
+                )
+                _emit_notification(note)
+            finally:
+                con.close()
 
     summary = {
         "run_id": args.run_id,

@@ -479,3 +479,133 @@ CREATE TABLE IF NOT EXISTS bias_assessments (
 -- Migration: ALTER TABLE runs ADD COLUMN overnight INTEGER NOT NULL DEFAULT 0;
 -- (applied by db.py on first use via IF NOT EXISTS check)
 -- -----------------------------------------------------------------------
+
+-- -----------------------------------------------------------------------
+-- v0.57 — persistence for v0.51-v0.56 outputs
+-- Closes the gap where Wide Research, debate, A5 trio (gap-analyzer,
+-- contribution-mapper, venue-match) wrote only to filesystem.
+-- Run-scoped tables; project-scoped tables live in project.db.
+-- -----------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS wide_runs (
+    wide_run_id     TEXT PRIMARY KEY,            -- e.g. wide-<8hex>
+    parent_run_id   TEXT,                        -- Deep run that triggered this Wide, if any
+    user_query      TEXT NOT NULL,
+    task_type       TEXT NOT NULL,               -- triage|read|rank|compare|survey|screen
+    n_items         INTEGER NOT NULL,
+    n_sub_agents    INTEGER NOT NULL,
+    estimated_dollar_cost REAL,
+    estimated_total_tokens INTEGER,
+    concurrency_cap INTEGER,
+    plan_path       TEXT NOT NULL,
+    synthesis_path  TEXT,
+    aborted         INTEGER NOT NULL DEFAULT 0,
+    created_at      TEXT NOT NULL,
+    completed_at    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS wide_sub_agents (
+    sub_agent_id    TEXT PRIMARY KEY,            -- wide-<rid>-item-NNNN
+    wide_run_id     TEXT NOT NULL REFERENCES wide_runs(wide_run_id) ON DELETE CASCADE,
+    task_type       TEXT NOT NULL,
+    state           TEXT NOT NULL,               -- INITIALIZED|IN_PROGRESS|COMPLETE|ERROR|TIMEOUT
+    input_item_summary TEXT,
+    workspace       TEXT NOT NULL,
+    result_path     TEXT,
+    input_tokens    INTEGER,
+    output_tokens   INTEGER,
+    n_tool_calls    INTEGER,
+    duration_ms     INTEGER,
+    n_errors        INTEGER,
+    at              TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS debates (
+    debate_id       TEXT PRIMARY KEY,            -- deb-<8hex>
+    run_id          TEXT REFERENCES runs(run_id) ON DELETE SET NULL,
+    topic           TEXT NOT NULL,               -- novelty|publishability|red-team
+    target_id       TEXT NOT NULL,               -- canonical_id or manuscript_id
+    target_claim    TEXT NOT NULL,
+    verdict         TEXT NOT NULL,               -- pro|con|draw
+    delta           REAL NOT NULL,
+    kill_criterion  TEXT NOT NULL,
+    pro_mean        REAL,
+    con_mean        REAL,
+    transcript_path TEXT NOT NULL,
+    at              TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS gap_analyses (
+    analysis_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id          TEXT REFERENCES runs(run_id) ON DELETE SET NULL,
+    gap_id          TEXT NOT NULL,
+    kind            TEXT NOT NULL,               -- evidential|measurement|conceptual
+    real_or_artifact TEXT NOT NULL,              -- real|artifact|uncertain
+    addressable     INTEGER NOT NULL,
+    publishability_tier TEXT NOT NULL,           -- A|B|C|none
+    expected_difficulty TEXT NOT NULL,
+    adjacent_field_analogues_json TEXT,          -- JSON array
+    reasoning       TEXT,
+    at              TEXT NOT NULL,
+    UNIQUE(run_id, gap_id)
+);
+
+CREATE TABLE IF NOT EXISTS venue_recommendations (
+    rec_id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    manuscript_id   TEXT,
+    run_id          TEXT REFERENCES runs(run_id) ON DELETE SET NULL,
+    venue_name      TEXT NOT NULL,
+    venue_type      TEXT NOT NULL,               -- conference|journal|workshop|preprint|registered-report
+    venue_tier      TEXT NOT NULL,               -- A|B|C
+    score           REAL NOT NULL,
+    rank            INTEGER NOT NULL,
+    reasons_for_json TEXT,
+    reasons_against_json TEXT,
+    at              TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS contribution_landscapes (
+    landscape_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    manuscript_id   TEXT,
+    run_id          TEXT REFERENCES runs(run_id) ON DELETE SET NULL,
+    contribution_label TEXT NOT NULL,
+    method_distance REAL NOT NULL,
+    domain_distance REAL NOT NULL,
+    finding_distance REAL,
+    closest_anchor_canonical_id TEXT,
+    method_tokens_json TEXT,
+    domain_tokens_json TEXT,
+    finding_tokens_json TEXT,
+    at              TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mode_selections (
+    selection_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_query      TEXT NOT NULL,
+    n_items         INTEGER NOT NULL,
+    selected_mode   TEXT NOT NULL,               -- quick|deep|wide|systematic-review
+    confidence      REAL NOT NULL,
+    explicit_override INTEGER NOT NULL DEFAULT 0,
+    reasoning       TEXT,
+    warnings_json   TEXT,
+    at              TEXT NOT NULL
+);
+
+-- v0.57 db-notify audit table — every record-write hits this for visibility
+CREATE TABLE IF NOT EXISTS db_writes (
+    write_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_table    TEXT NOT NULL,
+    n_rows          INTEGER NOT NULL,
+    skill_or_lib    TEXT NOT NULL,                -- e.g. wide-research, debate, gap-analyzer
+    run_id          TEXT,                         -- optional run/wide_run/debate scope
+    detail          TEXT,
+    at              TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_wide_sub_run ON wide_sub_agents(wide_run_id);
+CREATE INDEX IF NOT EXISTS idx_debates_run ON debates(run_id);
+CREATE INDEX IF NOT EXISTS idx_gaps_run ON gap_analyses(run_id);
+CREATE INDEX IF NOT EXISTS idx_venue_recs_ms ON venue_recommendations(manuscript_id);
+CREATE INDEX IF NOT EXISTS idx_landscapes_ms ON contribution_landscapes(manuscript_id);
+CREATE INDEX IF NOT EXISTS idx_db_writes_at ON db_writes(at);
+CREATE INDEX IF NOT EXISTS idx_db_writes_table ON db_writes(target_table);

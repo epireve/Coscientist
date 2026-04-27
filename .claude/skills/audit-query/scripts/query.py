@@ -167,6 +167,62 @@ def cmd_sandbox(args: argparse.Namespace) -> dict:
     }
 
 
+def cmd_records(args: argparse.Namespace) -> dict:
+    """v0.57 — per-table row counts in a coscientist DB.
+
+    Lists every user table with row count. Optionally dumps the
+    db_writes audit summary (which skill wrote how many rows when).
+    Read-only.
+    """
+    import sqlite3 as _sq
+    db_path = Path(args.db_path)
+    if not db_path.exists():
+        raise SystemExit(f"DB not found: {db_path}")
+    con = _sq.connect(db_path)
+    try:
+        # Avoid hard import dep — try lib.db_notify if available
+        try:
+            from lib.db_notify import per_table_counts, summarize_writes
+            counts = per_table_counts(con)
+            payload: dict = {
+                "db_path": str(db_path),
+                "tables": [
+                    {"name": k, "rows": v}
+                    for k, v in sorted(counts.items())
+                ],
+                "n_tables": len(counts),
+                "n_nonempty": sum(1 for v in counts.values() if v > 0),
+                "n_empty": sum(1 for v in counts.values() if v == 0),
+            }
+            if args.writes:
+                payload["db_writes_summary"] = summarize_writes(con)
+        except ImportError:
+            # Manual fallback
+            rows = con.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name NOT LIKE 'sqlite_%' AND name != 'schema_versions' "
+                "ORDER BY name"
+            ).fetchall()
+            counts = {}
+            for (name,) in rows:
+                try:
+                    counts[name] = con.execute(
+                        f'SELECT COUNT(*) FROM "{name}"'
+                    ).fetchone()[0]
+                except _sq.Error:
+                    counts[name] = -1
+            payload = {
+                "db_path": str(db_path),
+                "tables": [
+                    {"name": k, "rows": v}
+                    for k, v in sorted(counts.items())
+                ],
+            }
+        return payload
+    finally:
+        con.close()
+
+
 def cmd_summary(args: argparse.Namespace) -> dict:
     incl = getattr(args, "include_archives", False)
     fa = argparse.Namespace(since=args.since, domain=None, limit=5,
@@ -233,6 +289,15 @@ def main() -> None:
     a.add_argument("--since", help="ISO date (YYYY-MM-DD)")
     a.add_argument("--include-archives", action="store_true")
     a.set_defaults(func=cmd_summary)
+
+    r = sub.add_parser("records",
+                        help="Per-table row counts in a coscientist DB (v0.57)")
+    r.add_argument("--db-path", required=True,
+                    help="Path to a coscientist SQLite DB (run-<rid>.db, "
+                         "wide-<rid>.db, project DB, etc.)")
+    r.add_argument("--writes", action="store_true",
+                    help="Also dump db_writes audit summary")
+    r.set_defaults(func=cmd_records)
 
     args = p.parse_args()
     out = args.func(args)

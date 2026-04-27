@@ -160,6 +160,26 @@ def cmd_finalize(args: argparse.Namespace) -> dict:
     }
     if sanity_warning:
         payload["sanity_warning"] = sanity_warning
+
+    # v0.57 — persist debate row + emit db-notify
+    if getattr(args, "persist_db", None):
+        from lib.skill_persist import persist_debate
+        persist_debate(
+            Path(args.persist_db),
+            debate_id=args.debate_id,
+            run_id=args.run_id,
+            topic=spec.topic,
+            target_id=spec.target_id,
+            target_claim=spec.target_claim,
+            verdict=ruling.verdict,
+            delta=delta,
+            kill_criterion=ruling.kill_criterion,
+            pro_mean=judge_pro.mean(),
+            con_mean=judge_con.mean(),
+            transcript_path=str(d / "transcript.md"),
+        )
+        payload["persisted_to"] = args.persist_db
+
     return payload
 
 
@@ -192,6 +212,9 @@ def main() -> None:
     pf.add_argument("--drift-threshold", type=float, default=0.2,
                      help="Max acceptable drift between judge scores "
                           "and mechanical scores")
+    pf.add_argument("--persist-db", default=None,
+                     help="If set, write debate row to this DB path "
+                          "(v0.57)")
     pf.set_defaults(func=cmd_finalize)
 
     args = p.parse_args()

@@ -470,6 +470,14 @@ from tests.test_debate import (
     ScorePositionTests,
     SpecificityTests,
 )
+# v0.57 — DB persistence + db-notify
+from tests.test_v0_57_persistence import (
+    AuditQueryRecordsTests,
+    DbNotifyTests,
+    MigrationV9Tests,
+    SkillPersistTests,
+    WideResearchPersistenceTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -835,6 +843,12 @@ if __name__ == "__main__":
         DebatePromptTests,
         DebateRenderBriefTests,
         PositionSerializationTests,
+        # v0.57 — DB persistence + db-notify
+        MigrationV9Tests,
+        DbNotifyTests,
+        SkillPersistTests,
+        WideResearchPersistenceTests,
+        AuditQueryRecordsTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,

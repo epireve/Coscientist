@@ -47,6 +47,12 @@ def main() -> None:
                    default="specialist")
     p.add_argument("--write-output", default=None,
                    help="If set, write markdown brief to this path")
+    p.add_argument("--persist-db", default=None,
+                   help="If set, write venue_recommendations rows here (v0.57)")
+    p.add_argument("--manuscript-id", default=None,
+                   help="Optional scope tag for the persisted rows")
+    p.add_argument("--run-id", default=None,
+                   help="Optional run scope for the persisted rows")
     args = p.parse_args()
 
     chars = ManuscriptChars(
@@ -69,6 +75,17 @@ def main() -> None:
     if args.write_output:
         Path(args.write_output).write_text(render_brief(recs))
         payload["md_path"] = args.write_output
+
+    # v0.57 persistence
+    if args.persist_db:
+        from lib.skill_persist import persist_venue_recommendations
+        persist_venue_recommendations(
+            Path(args.persist_db),
+            manuscript_id=args.manuscript_id,
+            run_id=args.run_id,
+            recommendations=recs,
+        )
+        payload["persisted_to"] = args.persist_db
 
     sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 

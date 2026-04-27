@@ -32,6 +32,10 @@ def main() -> None:
                         "domain, finding}")
     p.add_argument("--write-output", default=None,
                    help="If set, write landscape markdown to this path")
+    p.add_argument("--persist-db", default=None,
+                   help="If set, write contribution_landscapes rows here (v0.57)")
+    p.add_argument("--manuscript-id", default=None)
+    p.add_argument("--run-id", default=None)
     args = p.parse_args()
 
     contribs_in = json.loads(Path(args.contributions).read_text())
@@ -69,6 +73,17 @@ def main() -> None:
             render_landscape(contributions, anchors)
         )
         payload["md_path"] = args.write_output
+
+    if args.persist_db:
+        from lib.skill_persist import persist_contribution_landscape
+        persist_contribution_landscape(
+            Path(args.persist_db),
+            manuscript_id=args.manuscript_id,
+            run_id=args.run_id,
+            contributions=contributions,
+            anchors=anchors,
+        )
+        payload["persisted_to"] = args.persist_db
 
     sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
