@@ -106,12 +106,22 @@ When you (the calling Claude agent) run this skill:
 
    Six personas need this: `scout`, `cartographer`, `chronicler`, `surveyor`, `architect`, `visionary`. The `synthesist`, `inquisitor`, `weaver`, and `steward` personas operate purely over in-run artifacts and need no harvest. Suggested per-persona MCP mapping (override via `config.json`):
 
-   - `scout` (phase0, ex-social): consensus + paper-search + academic + semantic-scholar — broad sweep
-   - `cartographer` (phase1, ex-grounder): semantic-scholar citation graph + paper-search — find seminal works
+   - `scout` (phase0, ex-social): consensus + semantic-scholar + paper-search + academic — broad sweep
+   - `cartographer` (phase1, ex-grounder): consensus + semantic-scholar citation graph + paper-search — find seminal works
    - `chronicler` (phase1, ex-historian): consensus + paper-search — retrospectives and surveys
    - `surveyor` (phase1, ex-gaper): consensus + semantic-scholar — null-result probes
-   - `architect` (phase2, ex-theorist): semantic-scholar — adjacent-field precedents
-   - `visionary` (phase3, ex-thinker): semantic-scholar — cross-field analogues
+   - `architect` (phase2, ex-theorist): consensus + semantic-scholar — adjacent-field precedents
+   - `visionary` (phase3, ex-thinker): consensus + semantic-scholar — cross-field analogues
+
+   ### Source-priority rule (v0.50.2)
+
+   **Always try Consensus first**, then Semantic Scholar, then Google Scholar (via `paper-search` MCP), then others. Reasons:
+   - Consensus has stronger claim extraction + TLDRs out of the box
+   - S2 fills the citation-graph + author-resolution gap Consensus doesn't cover
+   - Google Scholar is widest coverage but slowest + most rate-limited; use as third-tier fallback
+   - Other MCPs (academic, paper-search-mcp's arxiv/biorxiv search) are angle-specific (preprints, bio-only, etc.) — call after the top three
+
+   When a higher-priority source rate-limits, log it as a `notes` line on the harvest write and fall through to the next tier — do not abort the harvest.
 
 3. **Invoke each sub-agent in order** — via Claude Code's `Task` tool with `subagent_type=<agent-name>`. Pass the run_id and phase in the prompt so the persona can call `harvest.py show`. Do not inline their prompts here; they are defined in `.claude/agents/`.
 4. **After each agent completes**, call `db.py record-phase` with the agent's structured output.
@@ -126,12 +136,12 @@ Optional per-run config controlling which sources each agent uses. Schema:
 ```json
 {
   "enabled_mcps": {
-    "scout":         ["consensus", "paper-search", "semantic-scholar", "academic"],
-    "cartographer":  ["consensus", "semantic-scholar"],
+    "scout":         ["consensus", "semantic-scholar", "paper-search", "academic"],
+    "cartographer":  ["consensus", "semantic-scholar", "paper-search"],
     "chronicler":    ["consensus", "paper-search"],
-    "surveyor":      ["consensus"],
-    "architect":     ["semantic-scholar"],
-    "visionary":     ["semantic-scholar"]
+    "surveyor":      ["consensus", "semantic-scholar"],
+    "architect":     ["consensus", "semantic-scholar"],
+    "visionary":     ["consensus", "semantic-scholar"]
   },
   "max_papers_per_phase": 50,
   "allow_institutional_access": true

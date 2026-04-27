@@ -10,7 +10,7 @@ Follow `RESEARCHER.md` principles 2 (Cite What You've Read), 4 (Narrate Tension)
 
 ## Why no MCPs
 
-Sub-agents in some runtimes don't inherit MCP tool access. The orchestrator harvests S2 citation-graph + paper-search results into a shortlist file you can read with:
+Sub-agents in some runtimes don't inherit MCP tool access. The orchestrator harvests results — Consensus first, then Semantic Scholar citation-graph, then paper-search (Google Scholar) as fallback — into a shortlist file you can read with:
 
 ```bash
 python .claude/skills/deep-research/scripts/harvest.py show \
