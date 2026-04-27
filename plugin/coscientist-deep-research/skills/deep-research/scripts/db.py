@@ -28,6 +28,9 @@ from lib.disagreement import (  # noqa: E402
     compute_disagreement, persist_to_run_db as _disagreement_persist,
     render_summary as _disagreement_render,
 )
+from lib.concept_velocity import (  # noqa: E402
+    compute_velocities, render_summary as _velocity_render,
+)
 
 SCHEMA_PATH = _REPO_ROOT / "lib" / "sqlite_schema.sql"
 
@@ -382,6 +385,44 @@ def cmd_detect_eras(args: argparse.Namespace) -> None:
         ) + "\n")
 
 
+def cmd_compute_velocity(args: argparse.Namespace) -> None:
+    """v0.52.6 — concept-velocity over abstract n-grams.
+
+    Per-term linear regression over normalized year-frequency. Emerging
+    = positive slope, deprecated = negative. Mechanically surfaces
+    vocabulary trends invisible to manual review.
+    """
+    inputs = run_inputs_dir(args.run_id)
+    papers: list[dict] = []
+    if inputs.exists():
+        for shortlist_path in inputs.glob("*-phase*.json"):
+            try:
+                data = json.loads(shortlist_path.read_text())
+            except (json.JSONDecodeError, OSError):
+                continue
+            for entry in data.get("results", []):
+                if entry.get("year") and entry.get("abstract"):
+                    papers.append({
+                        "year": entry["year"],
+                        "abstract": entry["abstract"],
+                    })
+    trends = compute_velocities(
+        papers,
+        min_papers_per_term=args.min_papers_per_term,
+        min_years_per_term=args.min_years_per_term,
+        top_k=args.top_k,
+    )
+    if args.format == "md":
+        sys.stdout.write(_velocity_render(trends, top_k=args.top_k) + "\n")
+    else:
+        sys.stdout.write(json.dumps(
+            {"run_id": args.run_id,
+             "n_papers_analyzed": len(papers),
+             "trends": [t.to_dict() for t in trends]},
+            indent=2,
+        ) + "\n")
+
+
 def cmd_compute_disagreement(args: argparse.Namespace) -> None:
     """v0.52.4 — compute cross-persona disagreement scores for a run.
 
@@ -499,6 +540,17 @@ def main() -> None:
     pcd.add_argument("--top-k", type=int, default=10)
     pcd.add_argument("--format", choices=["json", "md"], default="json")
     pcd.set_defaults(func=cmd_compute_disagreement)
+
+    # v0.52.6 — concept velocity over abstract n-grams
+    pcv = sub.add_parser("compute-velocity",
+                          help="Compute per-term emerging/deprecated trends "
+                               "via OLS over per-year frequency")
+    pcv.add_argument("--run-id", required=True)
+    pcv.add_argument("--min-papers-per-term", type=int, default=3)
+    pcv.add_argument("--min-years-per-term", type=int, default=2)
+    pcv.add_argument("--top-k", type=int, default=15)
+    pcv.add_argument("--format", choices=["json", "md"], default="json")
+    pcv.set_defaults(func=cmd_compute_velocity)
 
     args = p.parse_args()
     args.func(args)
