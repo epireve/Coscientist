@@ -27,6 +27,21 @@ Each skill is atomic and does one job. Skills compose through a shared **paper a
 
 State flows: `discovered → triaged → acquired → extracted → read → cited`.
 
+## The Expedition (31 sub-agent personas across 6 phases)
+
+v0.46.4 grouped the 31 sub-agent personas under six narrative phases. Each persona is a single-noun archetype — easier to remember, easier to recombine.
+
+| Phase | Personas | Job |
+|---|---|---|
+| **A. The Expedition** | scout, cartographer, chronicler, surveyor, synthesist, architect, inquisitor, weaver, visionary, steward | The 10-agent deep-research pipeline with 3 human-in-the-loop breaks. Replaces the original SEEKER pipeline. |
+| **B. The Workshop** | drafter, verifier, panel, diviner, reviser, compositor | Manuscript subsystem — write, audit, critique, reflect, respond-to-reviewers, export. |
+| **C. The Tribunal** | novelty-auditor, publishability-judge, red-team, advocate, peer-reviewer | Critical-judgment subsystem. |
+| **D. The Laboratory** | experimentalist, curator, funder | Sakana-loop experiment + dataset + grant scaffolds. |
+| **E. The Tournament** | ranker, mutator | Pairwise Elo + evolution (Google Co-scientist pattern). |
+| **F. The Archive** | librarian, stylist, diarist, watchman, indexer | Personal knowledge layer — Zotero bridge, voice fingerprint, journal, dashboard, cross-project search. |
+
+**Backward compatibility**: in-flight runs from before v0.46.4 continue working — `db.py PHASE_ALIASES` silently translates old SEEKER phase names (social, grounder, historian, gaper, vision, theorist, rude, synthesizer, thinker, scribe) into new Expedition names.
+
 ## Skills
 
 ### Literature pipeline (v0.1)
@@ -277,7 +292,7 @@ No pytest dependency; the harness is in-repo. Run the full smoke suite:
 python3 -m tests.run_all
 ```
 
-Currently **1047 tests, 0 failing** across all skills, gates, lib primitives, dry-run harnesses, agent-frontmatter regression, and integration checks.
+Currently **1087 tests, 0 failing** across all skills, gates, lib primitives, dry-run harnesses, agent-frontmatter regression, and integration checks.
 
 ## Where this is going
 

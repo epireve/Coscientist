@@ -348,6 +348,48 @@ End-to-end run of `ingest → validate_citations → audit gate → critique gat
 
 User asked which MCPs need API keys and where to get them. Researched the 7 upstream repos via WebFetch and consolidated into `docs/MCP-SETUP.md`: per-MCP table + sign-up URLs + the practical note that institutional users mostly don't need IEEE/Springer/Elsevier search keys because `institutional-access` (Playwright + OpenAthens) handles paid PDFs without per-publisher subscriptions.
 
+### v0.46.4 — SEEKER → Expedition rebrand (25 personas across 6 narrative phases)
+
+The 31-persona roster regrouped under six phases: **Expedition** (deep-research, 10), **Workshop** (manuscript subsystem, 6), **Tribunal** (critical judgment, 5), **Laboratory** (experimentation, 3), **Tournament** (hypothesis evolution, 2), **Archive** (knowledge layer, 5). Five names kept verbatim because they're already idiomatic in academic literature: novelty-auditor, publishability-judge, red-team, peer-reviewer, ranker.
+
+| Phase A renames | Phase B-F renames |
+|---|---|
+| social → scout | manuscript-drafter → drafter |
+| grounder → cartographer | manuscript-auditor → verifier |
+| historian → chronicler | manuscript-critic → panel |
+| gaper → surveyor | manuscript-reflector → diviner |
+| vision → synthesist | manuscript-reviser → reviser |
+| theorist → architect | manuscript-formatter → compositor |
+| rude → inquisitor | idea-attacker → advocate |
+| synthesizer → weaver | dataset-curator → curator |
+| thinker → visionary | grant-writer → funder |
+| scribe → steward | evolver → mutator |
+| | reference-agent → librarian |
+| | writing-style → stylist |
+| | research-journal → diarist |
+| | project-dashboard → watchman |
+| | cross-project-memory → indexer |
+
+Backward compat: `db.py PHASE_ALIASES` translates old SEEKER phase names → new Expedition names so in-flight runs from before v0.46.4 continue working. SQLite `phases.name` is TEXT — old run-DB rows survive untouched.
+
+Live smoke validated: `db.py init` → `db.py next-phase` returns `scout`; `db.py record-phase --phase social --start` silently rewrites to `scout` and records OK.
+
+### v0.46.3 — orchestration glue (Plan 5 Stage 4)
+
+`db.py resume` now reports a `harvests:` section listing each search-using persona × phase + whether the shortlist file exists. `deep-research/SKILL.md` step 2 documents the per-persona MCP harvest mapping the orchestrator must perform before invoking each search persona.
+
+### v0.46.2 — persona refactor (Plan 5 Stage 3)
+
+Six search-using personas now read pre-harvested shortlist files instead of calling MCPs directly. Tools list shrunk from `["Bash", "Read", "Write", "mcp__consensus", ...]` to `["Bash", "Read", "Write"]` for: scout, cartographer, chronicler, surveyor, architect, visionary. Each body adds a "harvest.py show" instruction with graceful-degradation note when shortlist absent.
+
+### v0.46.1 — harvest.py orchestrator-side MCP writer (Plan 5 Stage 2)
+
+`.claude/skills/deep-research/scripts/harvest.py` with subcommands `write | status | show`. Ingests MCP results from stdin (or `--input-file`), dedups via paper-discovery's `merge_entries + rank`, applies per-persona budget caps (scout: 200/30, cartographer: 30/20, chronicler: 50/15, surveyor: 25/10, architect: 30/15, visionary: 30/15), saves shortlist via `lib.persona_input.save()`. Critical design: harvest.py does NOT call MCPs itself — orchestrator collects results and pipes them in. Tests: 14.
+
+### v0.46 — lib.persona_input shortlist contract (Plan 5 Stage 1)
+
+`lib/persona_input.py` — the read/write contract for per-persona shortlist files under `~/.cache/coscientist/runs/run-<id>/inputs/<persona>-<phase>.json`. Foundation for the orchestrator-calls-MCPs refactor (smoke-test resume item 3). PersonaInput dataclass + atomic save (tmp + rename) + load with schema-version validation + exists/list_for_run discovery helpers + canonical layout via `run_inputs_dir(run_id)` in `lib/cache.py`. Tests: 15.
+
 ### v0.45 — audit-rotate: size/age-based rotation for both audit logs
 
 Companion to v0.44 audit-query. Pure stdlib, atomic via `Path.rename`.
