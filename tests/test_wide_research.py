@@ -413,8 +413,182 @@ class CLITests(TestCase):
             self.assertTrue(rc != 0)
 
 
+class Gate23ObserveTests(TestCase):
+    """v0.53.3 — gate2 (preview/adjust/abort), gate3 (flag re-runs), observe."""
+
+    def _cli(self, *args: str) -> tuple[int, str, str]:
+        import subprocess
+        cli = (_ROOT / ".claude/skills/wide-research/scripts/wide.py")
+        r = subprocess.run(
+            [sys.executable, str(cli), *args],
+            capture_output=True, text=True,
+        )
+        return r.returncode, r.stdout, r.stderr
+
+    def _bootstrap(self, cache_dir: Path, n: int = 10) -> tuple[str, dict]:
+        items = cache_dir / "items.json"
+        items.write_text(json.dumps([
+            {"canonical_id": f"p{i}", "title": f"P{i}", "year": 2020}
+            for i in range(n)
+        ]))
+        rc, out, err = self._cli(
+            "init", "--query", "test", "--items", str(items),
+            "--type", "triage",
+        )
+        self.assertEqual(rc, 0, err)
+        run_id = json.loads(out)["run_id"]
+        self._cli("gate1", "--run-id", run_id, "--verdict", "approve")
+        from lib.cache import cache_root
+        plan_path = cache_root() / "runs" / f"run-{run_id}" / "plan.json"
+        plan = json.loads(plan_path.read_text())
+        return run_id, plan
+
+    def _mark_complete(self, plan: dict, idx: int, payload: dict) -> Path:
+        ws = Path(plan["sub_specs"][idx]["filesystem_workspace"])
+        (ws / "result.json").write_text(json.dumps(payload))
+        return ws
+
+    def test_gate2_preview_returns_completed_only(self):
+        with isolated_cache() as cache_dir:
+            run_id, plan = self._bootstrap(cache_dir)
+            self._mark_complete(plan, 0, {"score": 0.8})
+            self._mark_complete(plan, 1, {"score": 0.4})
+            rc, out, err = self._cli(
+                "gate2", "--run-id", run_id, "--verdict", "preview",
+            )
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            self.assertEqual(d["n_complete"], 2)
+            self.assertEqual(d["n_total"], 10)
+            self.assertEqual(len(d["preview_results"]), 2)
+
+    def test_gate2_adjust_marks_skipped(self):
+        with isolated_cache() as cache_dir:
+            run_id, plan = self._bootstrap(cache_dir)
+            self._mark_complete(plan, 0, {"score": 0.8})
+            rc, out, err = self._cli(
+                "gate2", "--run-id", run_id,
+                "--verdict", "adjust_remaining",
+            )
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            # 9 remaining flagged skipped
+            self.assertEqual(d["n_skipped"], 9)
+            from lib.cache import cache_root
+            plan_path = cache_root() / "runs" / f"run-{run_id}" / "plan.json"
+            persisted = json.loads(plan_path.read_text())
+            self.assertTrue(persisted.get("adjust_remaining_at_gate2"))
+            self.assertEqual(len(persisted["skipped_sub_agent_ids"]), 9)
+
+    def test_gate2_abort_sets_aborted(self):
+        with isolated_cache() as cache_dir:
+            run_id, _ = self._bootstrap(cache_dir)
+            rc, out, err = self._cli(
+                "gate2", "--run-id", run_id, "--verdict", "abort",
+            )
+            self.assertEqual(rc, 0, err)
+            from lib.cache import cache_root
+            plan_path = cache_root() / "runs" / f"run-{run_id}" / "plan.json"
+            self.assertTrue(json.loads(plan_path.read_text())["aborted"])
+
+    def test_gate3_list_results(self):
+        with isolated_cache() as cache_dir:
+            run_id, plan = self._bootstrap(cache_dir)
+            self._mark_complete(plan, 0, {"score": 0.8})
+            rc, out, err = self._cli(
+                "gate3", "--run-id", run_id, "--list-results",
+            )
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            self.assertEqual(len(d["results"]), 10)
+
+    def test_gate3_flag_archives_and_records(self):
+        with isolated_cache() as cache_dir:
+            run_id, plan = self._bootstrap(cache_dir)
+            ws0 = self._mark_complete(plan, 0, {"score": 0.1})
+            sub_id_0 = plan["sub_specs"][0]["sub_agent_id"]
+            rc, out, err = self._cli(
+                "gate3", "--run-id", run_id,
+                "--flag-ids", sub_id_0,
+                "--guidance", "look harder at venue",
+            )
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            self.assertEqual(d["flagged_count"], 1)
+            self.assertEqual(d["results_archived"], 1)
+            self.assertFalse((ws0 / "result.json").exists())
+            self.assertTrue((ws0 / "result.previous.json").exists())
+            from lib.cache import cache_root
+            plan_path = cache_root() / "runs" / f"run-{run_id}" / "plan.json"
+            persisted = json.loads(plan_path.read_text())
+            flags = persisted["gate3_rerun_flags"]
+            self.assertEqual(flags[0]["sub_agent_id"], sub_id_0)
+            self.assertEqual(flags[0]["rerun_guidance"], "look harder at venue")
+
+    def test_gate3_unknown_id_rejected(self):
+        with isolated_cache() as cache_dir:
+            run_id, _ = self._bootstrap(cache_dir)
+            rc, out, err = self._cli(
+                "gate3", "--run-id", run_id, "--flag-ids", "does-not-exist",
+            )
+            self.assertTrue(rc != 0)
+            self.assertIn("unknown sub_agent_id", err)
+
+    def test_gate3_requires_flag_ids_or_list(self):
+        with isolated_cache() as cache_dir:
+            run_id, _ = self._bootstrap(cache_dir)
+            rc, out, err = self._cli("gate3", "--run-id", run_id)
+            self.assertTrue(rc != 0)
+
+    def test_observe_no_telemetry_returns_zeros(self):
+        with isolated_cache() as cache_dir:
+            run_id, _ = self._bootstrap(cache_dir)
+            rc, out, err = self._cli("observe", "--run-id", run_id)
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            self.assertEqual(d["totals"]["n_with_telemetry"], 0)
+            self.assertEqual(d["totals"]["input_tokens"], 0)
+            self.assertEqual(d["actual_cost"], 0.0)
+
+    def test_observe_aggregates_telemetry(self):
+        with isolated_cache() as cache_dir:
+            run_id, plan = self._bootstrap(cache_dir)
+            for i in range(3):
+                ws = Path(plan["sub_specs"][i]["filesystem_workspace"])
+                (ws / "telemetry.json").write_text(json.dumps({
+                    "input_tokens": 1000, "output_tokens": 200,
+                    "n_tool_calls": 4, "duration_ms": 5000,
+                    "errors": [],
+                }))
+            rc, out, err = self._cli("observe", "--run-id", run_id)
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            self.assertEqual(d["totals"]["n_with_telemetry"], 3)
+            self.assertEqual(d["totals"]["input_tokens"], 3000)
+            self.assertEqual(d["totals"]["output_tokens"], 600)
+            self.assertEqual(d["totals"]["n_tool_calls"], 12)
+            self.assertTrue(d["actual_cost"] > 0)
+
+    def test_observe_overrun_alert(self):
+        with isolated_cache() as cache_dir:
+            run_id, plan = self._bootstrap(cache_dir)
+            # Massive token usage to force overrun >20%
+            for i in range(len(plan["sub_specs"])):
+                ws = Path(plan["sub_specs"][i]["filesystem_workspace"])
+                (ws / "telemetry.json").write_text(json.dumps({
+                    "input_tokens": 1_000_000, "output_tokens": 200_000,
+                    "n_tool_calls": 0, "duration_ms": 0, "errors": [],
+                }))
+            rc, out, err = self._cli("observe", "--run-id", run_id)
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            self.assertEqual(d["alert"], "OVERRUN")
+            self.assertTrue(d["overrun_pct"] > 20.0)
+
+
 if __name__ == "__main__":
     sys.exit(run_tests(
         TaskSpecTests, DecomposeTests, CostEstimateTests, WorkspaceTests,
         CollectResultsTests, TaskTypeDefaultsTests, CLITests,
+        Gate23ObserveTests,
     ))

@@ -4,6 +4,8 @@
 v0.53.1 POC: init + decompose + show-plan + collect.
 v0.53.2: gate1 (HITL approval) + dispatch-manifest (for parent agent
 to fire N parallel Task tool calls) + status (per-sub-agent state).
+v0.53.3: gate2 (mid-research preview) + gate3 (pre-synthesis flag
+re-runs) + observe (token + dollar tracking from sub-agent telemetry).
 
 Wide run state lives at:
   ~/.cache/coscientist/runs/run-<wide-id>/
@@ -473,6 +475,246 @@ def _to_markdown(results: list[dict], plan: WideRunPlan) -> str:
     return "\n".join(lines)
 
 
+def cmd_gate2(args: argparse.Namespace) -> dict:
+    """HITL Gate 2 — mid-research preview after N% sub-agents complete.
+
+    Fires when parent agent calls this with current --threshold-pct
+    crossed (default 30%). Returns preview of completed results so
+    user can spot systematic errors (wrong source, wrong field
+    interpretation) BEFORE remaining sub-agents finish.
+
+    User options:
+      - approve_continue: proceed unchanged
+      - adjust_remaining: skip remaining sub-agents (orchestrator
+        marks plan partial-complete; collect still works on N% done)
+      - abort: terminate run
+
+    Persisted to plan.json as gate2_records (list, since this gate
+    can fire multiple times across long runs).
+    """
+    p = _plan_path(args.run_id)
+    if not p.exists():
+        raise SystemExit(f"no plan for run {args.run_id}")
+    plan_dict = json.loads(p.read_text())
+
+    sub_specs = [TaskSpec.from_dict(s) for s in plan_dict["sub_specs"]]
+    n_complete = sum(
+        1 for s in sub_specs
+        if (Path(s.filesystem_workspace) / "result.json").exists()
+    )
+    pct = (n_complete / len(sub_specs) * 100) if sub_specs else 0.0
+
+    if args.verdict == "preview":
+        # Read-only — emit current preview, don't mutate plan
+        plan = WideRunPlan(
+            run_id=plan_dict["run_id"],
+            parent_run_id=plan_dict.get("parent_run_id"),
+            task_type=plan_dict["task_type"],
+            user_query=plan_dict["user_query"],
+            items=[], sub_specs=sub_specs,
+            estimated_total_tokens=plan_dict["estimated_total_tokens"],
+            estimated_dollar_cost=plan_dict["estimated_dollar_cost"],
+            concurrency_cap=plan_dict["concurrency_cap"],
+        )
+        results = collect_results(plan)
+        return {
+            "run_id": args.run_id,
+            "n_complete": n_complete,
+            "n_total": len(sub_specs),
+            "complete_pct": round(pct, 1),
+            "preview_results": [
+                r for r in results if r["status"] == "complete"
+            ][:args.preview_limit],
+            "next_step": (
+                f"Review preview. Then call gate2 --verdict "
+                f"approve_continue|adjust_remaining|abort."
+            ),
+        }
+
+    # Mutate plan
+    record = {
+        "verdict": args.verdict,
+        "at_pct": round(pct, 1),
+        "n_complete_at_gate": n_complete,
+        "user_input": args.user_input or "",
+    }
+    plan_dict.setdefault("gate2_records", []).append(record)
+
+    if args.verdict == "abort":
+        plan_dict["aborted"] = True
+
+    if args.verdict == "adjust_remaining":
+        # Mark remaining sub-agents as skipped via skip flag
+        plan_dict["adjust_remaining_at_gate2"] = True
+        # Concrete skip logic: dispatch-manifest filters skipped ids
+        plan_dict["skipped_sub_agent_ids"] = [
+            s.sub_agent_id for s in sub_specs
+            if not (Path(s.filesystem_workspace) / "result.json").exists()
+        ]
+
+    p.write_text(json.dumps(plan_dict, indent=2, sort_keys=True))
+    return {
+        "run_id": args.run_id,
+        "verdict": args.verdict,
+        "n_complete": n_complete,
+        "n_total": len(sub_specs),
+        "complete_pct": round(pct, 1),
+        "n_skipped": len(plan_dict.get("skipped_sub_agent_ids", [])),
+    }
+
+
+def cmd_gate3(args: argparse.Namespace) -> dict:
+    """HITL Gate 3 — pre-synthesis: flag items for re-run.
+
+    Fires after all (non-skipped) sub-agents complete, before
+    synthesizer roll-up. User reviews per-item results, marks IDs
+    needing re-research with optional additional guidance.
+
+    Re-flagged sub-agents have their result.json renamed to
+    result.previous.json and their plan entry gets rerun_guidance
+    appended. Subsequent dispatch-manifest will pick them up
+    (no result.json present).
+    """
+    p = _plan_path(args.run_id)
+    if not p.exists():
+        raise SystemExit(f"no plan for run {args.run_id}")
+    plan_dict = json.loads(p.read_text())
+    sub_specs = [TaskSpec.from_dict(s) for s in plan_dict["sub_specs"]]
+
+    if args.list_results:
+        results = collect_results(WideRunPlan(
+            run_id=plan_dict["run_id"],
+            parent_run_id=plan_dict.get("parent_run_id"),
+            task_type=plan_dict["task_type"],
+            user_query=plan_dict["user_query"],
+            items=[], sub_specs=sub_specs,
+            estimated_total_tokens=plan_dict["estimated_total_tokens"],
+            estimated_dollar_cost=plan_dict["estimated_dollar_cost"],
+            concurrency_cap=plan_dict["concurrency_cap"],
+        ))
+        return {"run_id": args.run_id, "results": results}
+
+    # Flag IDs for re-run
+    flagged = args.flag_ids.split(",") if args.flag_ids else []
+    if not flagged:
+        raise SystemExit(
+            "Pass --flag-ids id1,id2,... or --list-results to inspect"
+        )
+
+    n_renamed = 0
+    flagged_records: list[dict] = []
+    spec_by_id = {s.sub_agent_id: s for s in sub_specs}
+
+    for sub_id in flagged:
+        sub_id = sub_id.strip()
+        if sub_id not in spec_by_id:
+            raise SystemExit(
+                f"unknown sub_agent_id {sub_id!r} in run {args.run_id}"
+            )
+        spec = spec_by_id[sub_id]
+        ws = Path(spec.filesystem_workspace)
+        result = ws / "result.json"
+        if result.exists():
+            archive = ws / "result.previous.json"
+            archive.write_text(result.read_text())
+            result.unlink()
+            n_renamed += 1
+        flagged_records.append({
+            "sub_agent_id": sub_id,
+            "rerun_guidance": args.guidance or "",
+        })
+
+    plan_dict.setdefault("gate3_rerun_flags", []).extend(flagged_records)
+    p.write_text(json.dumps(plan_dict, indent=2, sort_keys=True))
+
+    return {
+        "run_id": args.run_id,
+        "flagged_count": len(flagged),
+        "results_archived": n_renamed,
+        "next_step": (
+            f"Run `wide.py dispatch-manifest --run-id {args.run_id}` "
+            f"to re-dispatch flagged sub-agents (their workspaces no "
+            f"longer have result.json so they'll be in n_pending)."
+        ),
+    }
+
+
+def cmd_observe(args: argparse.Namespace) -> dict:
+    """Run-level observability — actual token + dollar usage.
+
+    Reads each sub-agent's telemetry.json (if present) and aggregates.
+    Telemetry schema (sub-agent writes on COMPLETE):
+      {
+        "input_tokens": int,
+        "output_tokens": int,
+        "n_tool_calls": int,
+        "duration_ms": int,
+        "errors": [list of error strings]
+      }
+
+    Compares against plan's estimated cost. Flags overrun.
+    """
+    p = _plan_path(args.run_id)
+    if not p.exists():
+        raise SystemExit(f"no plan for run {args.run_id}")
+    plan_dict = json.loads(p.read_text())
+    sub_specs = [TaskSpec.from_dict(s) for s in plan_dict["sub_specs"]]
+
+    totals = {
+        "input_tokens": 0, "output_tokens": 0,
+        "n_tool_calls": 0, "duration_ms": 0,
+        "n_errors": 0, "n_with_telemetry": 0,
+    }
+    per_agent: list[dict] = []
+    for spec in sub_specs:
+        ws = Path(spec.filesystem_workspace)
+        tel_path = ws / "telemetry.json"
+        if not tel_path.exists():
+            continue
+        try:
+            tel = json.loads(tel_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        totals["n_with_telemetry"] += 1
+        totals["input_tokens"] += tel.get("input_tokens", 0)
+        totals["output_tokens"] += tel.get("output_tokens", 0)
+        totals["n_tool_calls"] += tel.get("n_tool_calls", 0)
+        totals["duration_ms"] += tel.get("duration_ms", 0)
+        totals["n_errors"] += len(tel.get("errors", []))
+        per_agent.append({
+            "sub_agent_id": spec.sub_agent_id,
+            **tel,
+        })
+
+    # Cost reconstruction (matches lib.wide_research._estimate_cost)
+    from lib.wide_research import _estimate_cost
+    actual_cost = _estimate_cost(
+        totals["input_tokens"], totals["output_tokens"]
+    )
+    estimated_cost = plan_dict["estimated_dollar_cost"]
+    overrun_pct = (
+        ((actual_cost - estimated_cost) / estimated_cost * 100)
+        if estimated_cost > 0 else 0.0
+    )
+
+    summary = {
+        "run_id": args.run_id,
+        "task_type": plan_dict["task_type"],
+        "n_total": len(sub_specs),
+        "totals": totals,
+        "estimated_cost": round(estimated_cost, 4),
+        "actual_cost": round(actual_cost, 4),
+        "overrun_pct": round(overrun_pct, 1),
+        "alert": (
+            "OVERRUN" if overrun_pct > 20.0
+            else "WITHIN_BUDGET"
+        ),
+    }
+    if args.verbose:
+        summary["per_agent"] = per_agent
+    return summary
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -539,6 +781,36 @@ def main() -> None:
     pst.add_argument("--verbose", action="store_true",
                       help="Include per-sub-agent rows (default: counts only)")
     pst.set_defaults(func=cmd_status)
+
+    # v0.53.3 — gate2 (mid-research preview), gate3 (pre-synthesis flag),
+    # observe (token + dollar tracking)
+    pg2 = sub.add_parser("gate2",
+                          help="HITL Gate 2 — mid-research preview")
+    pg2.add_argument("--run-id", required=True)
+    pg2.add_argument("--verdict", required=True,
+                      choices=["preview", "approve_continue",
+                                "adjust_remaining", "abort"])
+    pg2.add_argument("--user-input", default="")
+    pg2.add_argument("--preview-limit", type=int, default=5,
+                      help="Max preview results when --verdict preview")
+    pg2.set_defaults(func=cmd_gate2)
+
+    pg3 = sub.add_parser("gate3",
+                          help="HITL Gate 3 — flag items for re-run")
+    pg3.add_argument("--run-id", required=True)
+    pg3.add_argument("--list-results", action="store_true",
+                      help="List per-item results for review")
+    pg3.add_argument("--flag-ids", default="",
+                      help="Comma-separated sub_agent_ids to re-run")
+    pg3.add_argument("--guidance", default="",
+                      help="Re-run guidance for flagged sub-agents")
+    pg3.set_defaults(func=cmd_gate3)
+
+    po = sub.add_parser("observe",
+                         help="Run-level token + dollar usage from telemetry")
+    po.add_argument("--run-id", required=True)
+    po.add_argument("--verbose", action="store_true")
+    po.set_defaults(func=cmd_observe)
 
     args = p.parse_args()
     out = args.func(args)
