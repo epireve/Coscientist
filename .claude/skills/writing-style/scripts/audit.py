@@ -28,6 +28,12 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from lib.cache import cache_root  # noqa: E402
+from lib.venue_style_overlay import (  # noqa: E402
+    audit_text_against_overlay,
+    get_overlay,
+    list_overlays,
+    render_audit_brief,
+)
 
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))
@@ -122,26 +128,59 @@ def analyze(source_text: str, profile: dict) -> list[dict]:
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--manuscript-id", required=True)
-    p.add_argument("--project-id", required=True)
+    p.add_argument("--project-id", default=None,
+                   help="required unless --venue-only is set")
     p.add_argument("--out", default=None)
+    p.add_argument(
+        "--venue", default=None,
+        help=(
+            "If set, also run a venue-overlay audit. "
+            f"Known venues: {', '.join(list_overlays())}"
+        ),
+    )
+    p.add_argument(
+        "--venue-only", action="store_true",
+        help="Skip the project-profile audit (requires --venue).",
+    )
     args = p.parse_args()
+
+    if args.venue_only and not args.venue:
+        raise SystemExit("--venue-only requires --venue")
+    if not args.venue_only and not args.project_id:
+        raise SystemExit("--project-id required (or use --venue-only with --venue)")
 
     ms_path = cache_root() / "manuscripts" / args.manuscript_id / "source.md"
     if not ms_path.exists():
         raise SystemExit(f"no manuscript source at {ms_path}")
+    source_text = ms_path.read_text()
 
-    profile_path = cache_root() / "projects" / args.project_id / "style_profile.json"
-    if not profile_path.exists():
-        raise SystemExit(
-            f"no style profile at {profile_path} — run fingerprint.py first"
+    findings: list[dict] = []
+    if not args.venue_only:
+        profile_path = (
+            cache_root() / "projects" / args.project_id / "style_profile.json"
         )
+        if not profile_path.exists():
+            raise SystemExit(
+                f"no style profile at {profile_path} — run fingerprint.py first"
+            )
+        profile = json.loads(profile_path.read_text())
+        findings = analyze(source_text, profile)
 
-    profile = json.loads(profile_path.read_text())
-    findings = analyze(ms_path.read_text(), profile)
+    venue_findings: list[dict] = []
+    venue_brief: str | None = None
+    if args.venue:
+        try:
+            overlay = get_overlay(args.venue)
+        except KeyError as e:
+            raise SystemExit(str(e)) from None
+        vf_objs = audit_text_against_overlay(source_text, overlay)
+        venue_findings = [f.to_dict() for f in vf_objs]
+        venue_brief = render_audit_brief(vf_objs, overlay)
 
     report = {
         "manuscript_id": args.manuscript_id,
         "project_id": args.project_id,
+        "venue": args.venue,
         "at": datetime.now(UTC).isoformat(),
         "findings_total": len(findings),
         "by_severity": {
@@ -150,6 +189,8 @@ def main() -> None:
             "major": sum(1 for f in findings if f["severity"] == "major"),
         },
         "findings": findings,
+        "venue_findings_total": len(venue_findings),
+        "venue_findings": venue_findings,
     }
 
     out_path = Path(args.out) if args.out else (
@@ -158,6 +199,12 @@ def main() -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(report, indent=2))
     print(f"{report['findings_total']} findings ({report['by_severity']}) → {out_path}")
+    if args.venue:
+        print(f"venue={args.venue}: {len(venue_findings)} overlay findings")
+        if venue_brief:
+            brief_path = out_path.with_name("style_audit_venue.md")
+            brief_path.write_text(venue_brief)
+            print(f"venue brief → {brief_path}")
 
 
 if __name__ == "__main__":

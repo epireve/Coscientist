@@ -75,12 +75,43 @@ echo "<paragraph text>" | uv run python .claude/skills/writing-style/scripts/app
 
 Reads stdin, returns JSON of per-dimension deviations. Useful during drafting — not blocking.
 
+## Venue overlays (v0.60)
+
+In addition to the project-profile audit (consistency with the author's
+prior voice), `audit.py` can also check the draft against a target
+venue's house style — voice (active/passive/mixed), tense, pronoun
+convention ("we" vs "the authors"), and hedge tolerance. Registry lives
+in `lib/venue_style_overlay.py` and currently covers 12 venues:
+NeurIPS, ICLR, ICML, Nature, Science, eLife, NEJM, JAMA, PLOS ONE,
+arXiv, Annual Reviews, Royal Society Open Science.
+
+```bash
+# Combined: voice-consistency audit + venue overlay
+uv run python .claude/skills/writing-style/scripts/audit.py \
+  --manuscript-id <mid> --project-id <pid> --venue NeurIPS
+
+# Venue-only — no project profile required
+uv run python .claude/skills/writing-style/scripts/audit.py \
+  --manuscript-id <mid> --venue-only --venue NEJM
+```
+
+Findings include `kind` (voice|tense|pronoun|hedge), `severity`
+(info|minor|major), `evidence` (numbers, not vibes), and a `suggestion`.
+A markdown brief is also written to `style_audit_venue.md`.
+
+**CLI integration choice**: extended `audit.py` rather than creating a
+separate `venue_audit.py`. The two audits answer complementary questions
+about the same draft, so one call producing one combined report is the
+cleaner ergonomic. `--venue-only` covers the case where no project
+profile exists yet (e.g. submitting to a new venue without prior work).
+
 ## What this does NOT do
 
 - Doesn't rewrite anything — pure analysis, report-only
 - Doesn't evaluate *quality* — consistent-with-your-voice ≠ good writing
 - Doesn't call any LLM or external service
-- Doesn't enforce venue style — that's handled by `manuscript-format` (future)
+- Doesn't enforce venue *formatting* (margins, citation style) — that's
+  handled by `manuscript-format`. This skill covers prose-level style only.
 
 ## Principles enforced
 

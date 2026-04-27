@@ -793,6 +793,17 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 
 All items in this section are landed. See per-version notes.
 
+### v0.60 — writing-style venue overlays ✅ (2026-04-27)
+
+Filled the pending "venue-style overlays" gap inside `writing-style`.
+`lib/venue_style_overlay.py` registers 12 venues (NeurIPS / ICLR / ICML /
+Nature / Science / eLife / NEJM / JAMA / PLOS ONE / arXiv / Annual
+Reviews / Royal Society Open Science) with voice / tense / pronoun /
+hedge-tolerance preferences, plus heuristic detectors and a markdown
+brief renderer. `audit.py` gained `--venue` and `--venue-only` flags;
+combined and venue-only paths share one report. Pure stdlib, regex
+only — no NLP libs. 17 new tests, full suite 1369/1369 passing.
+
 ### v0.58 — resolve-citation skill ✅
 
 Closes the long-pending "given a partial reference like 'Smith 2020', resolve it to a canonical paper" item. Pure-stdlib heuristic resolver feeding off orchestrator-harvested Semantic Scholar candidates.
