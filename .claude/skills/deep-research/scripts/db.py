@@ -114,7 +114,8 @@ def cmd_init(args: argparse.Namespace) -> None:
                 f"(got {seed_mode!r})"
             )
         seed_papers = _load_wide_seed(
-            parent_run_id, seed_mode, seed_top_k
+            parent_run_id, seed_mode, seed_top_k,
+            current_run_id=run_id,
         )
         if not seed_papers:
             raise SystemExit(
@@ -148,7 +149,8 @@ def cmd_init(args: argparse.Namespace) -> None:
 
 
 def _load_wide_seed(
-    wide_run_id: str, seed_mode: str, top_k: int
+    wide_run_id: str, seed_mode: str, top_k: int,
+    *, current_run_id: str | None = None,
 ) -> list[tuple[str, str]]:
     """Read Wide synthesis.json for handoff into Deep.
 
@@ -162,14 +164,31 @@ def _load_wide_seed(
     role assignments:
       abstract  → 'seed'      (Deep scout will harvest more around them)
       full-text → 'supporting' (already vetted in Wide)
+
+    v0.53.7 — cycle guard + partial-data warning.
     """
     from lib.cache import cache_root  # noqa: WPS433
+    # Cycle guard: walk parent_run_id chain looking for current_run_id.
+    if current_run_id:
+        _check_no_cycle(wide_run_id, current_run_id)
+
     synth_path = (
         cache_root() / "runs" / f"run-{wide_run_id}" / "synthesis.json"
     )
     if not synth_path.exists():
         return []
     synth = json.loads(synth_path.read_text())
+
+    # Partial-data warning — Wide may have aborted mid-run
+    n_total = synth.get("n_total", 0)
+    n_complete = synth.get("n_complete", 0)
+    if n_total and n_complete < n_total:
+        sys.stderr.write(
+            f"WARN: Wide run {wide_run_id} synthesis is partial — "
+            f"{n_complete}/{n_total} complete. Seed corpus may be "
+            f"smaller than expected.\n"
+        )
+
     out: list[tuple[str, str]] = []
     seen: set[str] = set()
     if seed_mode in ("abstract", "cumulative"):
@@ -185,6 +204,55 @@ def _load_wide_seed(
                 seen.add(cid)
                 out.append((cid, "supporting"))
     return out
+
+
+def _check_no_cycle(parent_run_id: str, current_run_id: str) -> None:
+    """Walk parent_run_id ancestor chain in run DBs; raise if cycle.
+
+    Each Deep run logs its parent_run_id (from --seed-from-wide).
+    Wide run plan.json may also carry parent_run_id (Deep → Wide loop).
+    Bound walk at 16 hops for safety.
+    """
+    from lib.cache import cache_root  # noqa: WPS433
+    visited = {current_run_id}
+    cur = parent_run_id
+    for _ in range(16):
+        if cur is None:
+            return
+        if cur in visited:
+            raise SystemExit(
+                f"cycle detected in handoff lineage: run {cur!r} "
+                f"is already an ancestor of {current_run_id!r}"
+            )
+        visited.add(cur)
+        # Look up cur's parent — could be a Deep DB or a Wide plan.json
+        deep_db = cache_root() / "runs" / f"run-{cur}.db"
+        wide_plan = (
+            cache_root() / "runs" / f"run-{cur}" / "plan.json"
+        )
+        next_parent: str | None = None
+        if deep_db.exists():
+            try:
+                con = sqlite3.connect(deep_db)
+                row = con.execute(
+                    "SELECT parent_run_id FROM runs WHERE run_id=?",
+                    (cur,),
+                ).fetchone()
+                con.close()
+                next_parent = row[0] if row else None
+            except sqlite3.Error:
+                next_parent = None
+        elif wide_plan.exists():
+            try:
+                pd = json.loads(wide_plan.read_text())
+                next_parent = pd.get("parent_run_id")
+            except (json.JSONDecodeError, OSError):
+                next_parent = None
+        cur = next_parent
+    raise SystemExit(
+        f"handoff lineage too deep (>16 hops); aborting to avoid "
+        f"runaway walk"
+    )
 
 
 def cmd_record_phase(args: argparse.Namespace) -> None:

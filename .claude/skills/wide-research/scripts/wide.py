@@ -765,6 +765,70 @@ def cmd_synthesize(args: argparse.Namespace) -> dict:
     return summary
 
 
+def cmd_timeout_sweep(args: argparse.Namespace) -> dict:
+    """Mark stale IN_PROGRESS sub-agents as timeout errors.
+
+    v0.53.7. A sub-agent that wrote `findings/` files but never wrote
+    `result.json` is IN_PROGRESS. If its workspace mtime is older than
+    --max-age-min minutes, it likely crashed or was abandoned. We
+    write a synthetic `result.json` with `{error: "timeout"}` so:
+      - status shows ERROR (not IN_PROGRESS forever)
+      - collect/synthesize counts it correctly under n_error
+      - dispatch-manifest can pick it up via --force-redispatch
+
+    Pure mtime sweep, no kill-9 (sub-agents run in caller's harness;
+    this script doesn't manage their processes).
+
+    --dry-run prints what would change without mutating.
+    """
+    import time
+    p = _plan_path(args.run_id)
+    if not p.exists():
+        raise SystemExit(f"no plan for run {args.run_id}")
+    plan_dict = json.loads(p.read_text())
+    sub_specs = [TaskSpec.from_dict(s) for s in plan_dict["sub_specs"]]
+
+    cutoff = time.time() - (args.max_age_min * 60)
+    swept: list[dict] = []
+    for spec in sub_specs:
+        ws = Path(spec.filesystem_workspace)
+        result_path = ws / "result.json"
+        if result_path.exists():
+            continue
+        findings_dir = ws / "findings"
+        # Latest activity = newest mtime among workspace files
+        candidates = [ws / "task_progress.md", ws / "taskspec.json"]
+        if findings_dir.exists():
+            candidates.extend(findings_dir.iterdir())
+        mtimes = [c.stat().st_mtime for c in candidates if c.exists()]
+        if not mtimes:
+            continue
+        latest = max(mtimes)
+        if latest >= cutoff:
+            continue
+        # Stale — sweep
+        swept.append({
+            "sub_agent_id": spec.sub_agent_id,
+            "stale_seconds": int(time.time() - latest),
+            "workspace": str(ws),
+        })
+        if not args.dry_run:
+            result_path.write_text(json.dumps({
+                "error": "timeout",
+                "swept_at": time.time(),
+                "stale_seconds": int(time.time() - latest),
+                "max_age_min": args.max_age_min,
+            }, indent=2, sort_keys=True))
+
+    return {
+        "run_id": args.run_id,
+        "max_age_min": args.max_age_min,
+        "dry_run": args.dry_run,
+        "n_swept": len(swept),
+        "swept": swept,
+    }
+
+
 def cmd_observe(args: argparse.Namespace) -> dict:
     """Run-level observability — actual token + dollar usage.
 
@@ -935,6 +999,16 @@ def main() -> None:
     pg3.add_argument("--guidance", default="",
                       help="Re-run guidance for flagged sub-agents")
     pg3.set_defaults(func=cmd_gate3)
+
+    pts = sub.add_parser("timeout-sweep",
+                          help="Mark stale IN_PROGRESS sub-agents as timeout errors")
+    pts.add_argument("--run-id", required=True)
+    pts.add_argument("--max-age-min", type=int, default=30,
+                      help="Sub-agents idle longer than N minutes get "
+                           "swept (default: 30)")
+    pts.add_argument("--dry-run", action="store_true",
+                      help="Report sweep candidates without mutating")
+    pts.set_defaults(func=cmd_timeout_sweep)
 
     po = sub.add_parser("observe",
                          help="Run-level token + dollar usage from telemetry")

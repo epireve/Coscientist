@@ -1283,10 +1283,200 @@ class HandoffEdgeCaseTests(TestCase):
             self.assertEqual(len(cids), len(set(cids)))
 
 
+class V537Tests(TestCase):
+    """v0.53.7 — timeout-sweep, cycle guard, partial-data warning."""
+
+    def _wide(self, *args: str) -> tuple[int, str, str]:
+        import subprocess
+        cli = (_ROOT / ".claude/skills/wide-research/scripts/wide.py")
+        r = subprocess.run(
+            [sys.executable, str(cli), *args],
+            capture_output=True, text=True,
+        )
+        return r.returncode, r.stdout, r.stderr
+
+    def _deep(self, *args: str) -> tuple[int, str, str]:
+        import subprocess
+        cli = (_ROOT / ".claude/skills/deep-research/scripts/db.py")
+        r = subprocess.run(
+            [sys.executable, str(cli), *args],
+            capture_output=True, text=True,
+        )
+        return r.returncode, r.stdout, r.stderr
+
+    def _bootstrap(self, cache_dir: Path, n: int = 10):
+        items = cache_dir / "items.json"
+        items.write_text(json.dumps([
+            {"canonical_id": f"p{i}", "title": f"P{i}", "year": 2020}
+            for i in range(n)
+        ]))
+        rc, out, _ = self._wide(
+            "init", "--query", "Q", "--items", str(items),
+            "--type", "triage",
+        )
+        run_id = json.loads(out)["run_id"]
+        self._wide("gate1", "--run-id", run_id, "--verdict", "approve")
+        from lib.cache import cache_root
+        plan = json.loads(
+            (cache_root() / "runs" / f"run-{run_id}" / "plan.json")
+            .read_text()
+        )
+        return run_id, plan
+
+    # --- timeout-sweep ---
+
+    def test_timeout_sweep_marks_stale_in_progress(self):
+        with isolated_cache() as cache_dir:
+            run_id, plan = self._bootstrap(cache_dir, n=10)
+            # Sub-agent 0: dropped a finding 100 min ago, no result.json
+            ws = Path(plan["sub_specs"][0]["filesystem_workspace"])
+            f = ws / "findings" / "partial.txt"
+            f.write_text("partial output")
+            import os, time
+            stale = time.time() - 100 * 60
+            os.utime(f, (stale, stale))
+            os.utime(ws / "task_progress.md", (stale, stale))
+            os.utime(ws / "taskspec.json", (stale, stale))
+
+            rc, out, err = self._wide(
+                "timeout-sweep", "--run-id", run_id,
+                "--max-age-min", "30",
+            )
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            self.assertEqual(d["n_swept"], 1)
+            # Synthetic result.json now present
+            result = json.loads((ws / "result.json").read_text())
+            self.assertEqual(result["error"], "timeout")
+
+    def test_timeout_sweep_skips_complete_and_recent(self):
+        with isolated_cache() as cache_dir:
+            run_id, plan = self._bootstrap(cache_dir, n=10)
+            # Sub-agent 0: complete (has result.json)
+            ws0 = Path(plan["sub_specs"][0]["filesystem_workspace"])
+            (ws0 / "result.json").write_text(json.dumps({"ok": True}))
+            # Sub-agent 1: recent activity (default mtime is now)
+            ws1 = Path(plan["sub_specs"][1]["filesystem_workspace"])
+            (ws1 / "findings" / "fresh.txt").write_text("fresh")
+            rc, out, err = self._wide(
+                "timeout-sweep", "--run-id", run_id,
+                "--max-age-min", "30",
+            )
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            self.assertEqual(d["n_swept"], 0)
+
+    def test_timeout_sweep_dry_run_does_not_mutate(self):
+        with isolated_cache() as cache_dir:
+            run_id, plan = self._bootstrap(cache_dir, n=10)
+            ws = Path(plan["sub_specs"][0]["filesystem_workspace"])
+            f = ws / "findings" / "partial.txt"
+            f.write_text("p")
+            import os, time
+            stale = time.time() - 100 * 60
+            for path in (f, ws / "task_progress.md",
+                          ws / "taskspec.json"):
+                os.utime(path, (stale, stale))
+            rc, out, _ = self._wide(
+                "timeout-sweep", "--run-id", run_id,
+                "--max-age-min", "30", "--dry-run",
+            )
+            d = json.loads(out)
+            self.assertEqual(d["n_swept"], 1)
+            self.assertFalse((ws / "result.json").exists())
+
+    # --- cycle guard ---
+
+    def test_handoff_cycle_detected(self):
+        """If a Wide run's plan.json says parent_run_id == new Deep,
+        seeding from that Wide must reject.
+        """
+        with isolated_cache() as cache_dir:
+            run_id, plan = self._bootstrap(cache_dir)
+            # Mark all complete + synthesize
+            for spec in plan["sub_specs"]:
+                ws = Path(spec["filesystem_workspace"])
+                (ws / "result.json").write_text(json.dumps({
+                    "canonical_id": spec["input_item"]["canonical_id"],
+                    "title": spec["input_item"]["title"],
+                    "relevance_score": 0.5,
+                    "recommend": "include",
+                }))
+            self._wide("synthesize", "--run-id", run_id, "--write-outputs")
+            # Inject self-cycle: claim Wide's parent IS Wide itself
+            from lib.cache import cache_root
+            plan_path = (
+                cache_root() / "runs" / f"run-{run_id}" / "plan.json"
+            )
+            pd = json.loads(plan_path.read_text())
+            pd["parent_run_id"] = run_id  # self-loop
+            plan_path.write_text(json.dumps(pd))
+
+            # Inject from db side: deep init with current_run_id = run_id
+            # would walk: parent=run_id -> visited contains run_id -> cycle
+            # Easiest: directly invoke _check_no_cycle from db module
+            sys.path.insert(0, str(
+                _ROOT / ".claude/skills/deep-research/scripts"
+            ))
+            from importlib import import_module, reload
+            db_mod = import_module("db")
+            reload(db_mod)
+            with self.assertRaisesSystemExit("cycle"):
+                db_mod._check_no_cycle(run_id, run_id)
+
+    def test_handoff_partial_data_warning(self):
+        """Wide synthesis n_complete < n_total → seed-from-wide warns."""
+        with isolated_cache() as cache_dir:
+            run_id, plan = self._bootstrap(cache_dir, n=10)
+            # Complete only 4/10
+            for spec in plan["sub_specs"][:4]:
+                ws = Path(spec["filesystem_workspace"])
+                (ws / "result.json").write_text(json.dumps({
+                    "canonical_id": spec["input_item"]["canonical_id"],
+                    "title": "X",
+                    "relevance_score": 0.5,
+                    "recommend": "include",
+                }))
+            self._wide("synthesize", "--run-id", run_id, "--write-outputs")
+            rc, out, err = self._deep(
+                "init", "--question", "Q",
+                "--seed-from-wide", run_id,
+                "--seed-mode", "abstract",
+            )
+            self.assertEqual(rc, 0, err)
+            self.assertIn("partial", err.lower())
+            self.assertIn("4/10", err)
+
+
+# Helper for the assertRaisesSystemExit pattern (harness lacks it)
+def _patch_assertRaisesSystemExit(cls):
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _ctx(self, expected_substring):
+        try:
+            yield
+            raise AssertionError(
+                f"expected SystemExit containing {expected_substring!r}"
+            )
+        except SystemExit as e:
+            if expected_substring not in str(e):
+                raise AssertionError(
+                    f"SystemExit msg {str(e)!r} did not contain "
+                    f"{expected_substring!r}"
+                )
+    cls.assertRaisesSystemExit = _ctx
+    return cls
+
+
+_patch_assertRaisesSystemExit(V537Tests)
+
+
 if __name__ == "__main__":
     sys.exit(run_tests(
         TaskSpecTests, DecomposeTests, CostEstimateTests, WorkspaceTests,
         CollectResultsTests, TaskTypeDefaultsTests, CLITests,
         Gate23ObserveTests, SynthesisTests, SynthesizeCLITests,
         WideToDeepHandoffTests, EdgeCaseTests, HandoffEdgeCaseTests,
+        V537Tests,
     ))
