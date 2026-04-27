@@ -20,6 +20,9 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from lib.cache import run_db_path  # noqa: E402
+from lib.search_framework import (  # noqa: E402
+    SearchStrategy, suggest_framework, template_for,
+)
 
 SCHEMA_PATH = _REPO_ROOT / "lib" / "sqlite_schema.sql"
 
@@ -280,6 +283,86 @@ def cmd_resume(args: argparse.Namespace) -> None:
     }, indent=2))
 
 
+def cmd_suggest_strategy(args: argparse.Namespace) -> None:
+    """Heuristic framework suggestion for the run's question.
+
+    Emits a draft SearchStrategy as JSON for the orchestrator to render
+    + show user at Break 0. User confirms or adjusts, then orchestrator
+    calls set-strategy to lock it in.
+    """
+    con = _connect(args.run_id)
+    try:
+        row = con.execute(
+            "SELECT question FROM runs WHERE run_id=?", (args.run_id,)
+        ).fetchone()
+        if not row:
+            raise SystemExit(f"unknown run_id {args.run_id!r}")
+        question = row[0]
+    finally:
+        con.close()
+
+    fw, rationale = suggest_framework(question)
+    components = template_for(fw)
+
+    draft = {
+        "framework": fw,
+        "rationale": rationale,
+        "components": components,
+        "note": (
+            "This is a draft. Orchestrator should populate sub_areas + "
+            "assigned_personas, then call set-strategy with the user-"
+            "confirmed JSON."
+        ),
+    }
+    sys.stdout.write(json.dumps(draft, indent=2) + "\n")
+
+
+def cmd_get_strategy(args: argparse.Namespace) -> None:
+    con = _connect(args.run_id)
+    try:
+        row = con.execute(
+            "SELECT search_strategy_json FROM runs WHERE run_id=?",
+            (args.run_id,),
+        ).fetchone()
+        if not row:
+            raise SystemExit(f"unknown run_id {args.run_id!r}")
+        if not row[0]:
+            sys.stdout.write(
+                json.dumps({"strategy": None,
+                            "note": "No strategy set yet — call "
+                                    "suggest-strategy + set-strategy."},
+                           indent=2) + "\n"
+            )
+            return
+        s = SearchStrategy.from_dict(json.loads(row[0]))
+        sys.stdout.write(s.to_json() + "\n")
+    finally:
+        con.close()
+
+
+def cmd_set_strategy(args: argparse.Namespace) -> None:
+    """Lock in user-confirmed search strategy. Idempotent (overwrites)."""
+    strategy_path = Path(args.strategy_json)
+    if not strategy_path.exists():
+        raise SystemExit(f"strategy file not found: {strategy_path}")
+    payload = json.loads(strategy_path.read_text())
+    # Validate by round-tripping through the dataclass
+    s = SearchStrategy.from_dict(payload)
+    con = _connect(args.run_id)
+    try:
+        with con:
+            con.execute(
+                "UPDATE runs SET search_strategy_json=? WHERE run_id=?",
+                (s.to_json(), args.run_id),
+            )
+    finally:
+        con.close()
+    sys.stdout.write(json.dumps({
+        "ok": True, "run_id": args.run_id,
+        "framework": s.framework, "n_sub_areas": len(s.sub_areas),
+    }, indent=2) + "\n")
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -311,6 +394,24 @@ def main() -> None:
 
     pr = sub.add_parser("resume"); pr.add_argument("--run-id", required=True)
     pr.set_defaults(func=cmd_resume)
+
+    # v0.52.1 — search-strategy commands
+    ps = sub.add_parser("suggest-strategy",
+                         help="Suggest framework + sub-area decomposition for the run's question")
+    ps.add_argument("--run-id", required=True)
+    ps.set_defaults(func=cmd_suggest_strategy)
+
+    psg = sub.add_parser("get-strategy",
+                          help="Show the locked-in search strategy for the run")
+    psg.add_argument("--run-id", required=True)
+    psg.set_defaults(func=cmd_get_strategy)
+
+    pss = sub.add_parser("set-strategy",
+                          help="Lock in the user-confirmed search strategy (JSON)")
+    pss.add_argument("--run-id", required=True)
+    pss.add_argument("--strategy-json", required=True,
+                      help="Path to JSON file matching SearchStrategy.to_dict()")
+    pss.set_defaults(func=cmd_set_strategy)
 
     args = p.parse_args()
     args.func(args)

@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS runs (
     status         TEXT NOT NULL DEFAULT 'running',  -- running|paused|completed|failed
     config_json    TEXT,
     final_brief    TEXT,
-    understanding_map TEXT
+    understanding_map TEXT,
+    search_strategy_json TEXT  -- v0.52.1 — framework + sub-area decomposition (lib/search_framework.py)
 );
 
 CREATE TABLE IF NOT EXISTS phases (

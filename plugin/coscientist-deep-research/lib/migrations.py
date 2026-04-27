@@ -63,6 +63,8 @@ MIGRATIONS: list[tuple[int, str, str]] = [
     # v0.50.4 — papers_in_run audit-log columns. Handled in code below
     # via _ensure_v4_columns() because base sqlite_schema.sql also lists
     # them (fresh DB), and SQLite ALTER TABLE has no IF NOT EXISTS guard.
+    # v0.52.1 — runs.search_strategy_json. Same idempotent-in-code
+    # pattern via _ensure_v5_columns().
 ]
 
 
@@ -128,9 +130,35 @@ def ensure_current(db_path: Path,
                     (4, "v0.50.4_papers_in_run_audit_columns", now),
                 )
             newly_applied.append(4)
+
+        # v0.52.1 search-strategy column on runs — same idempotent path
+        if 5 not in applied:
+            _ensure_v5_columns(con)
+            with con:
+                con.execute(
+                    "INSERT INTO schema_versions (version, name, applied_at) "
+                    "VALUES (?, ?, ?)",
+                    (5, "v0.52.1_runs_search_strategy", now),
+                )
+            newly_applied.append(5)
     finally:
         con.close()
     return newly_applied
+
+
+def _ensure_v5_columns(con: sqlite3.Connection) -> None:
+    """Add search_strategy_json to runs if missing.
+
+    v0.52.1 — captures framework selection (PICO/SPIDER/Decomposition)
+    + sub-area decomposition declared at Break 0. Persona harvests
+    read this to gate which sub-area they cover.
+    """
+    cols = {row[1] for row in con.execute("PRAGMA table_info(runs)")}
+    with con:
+        if "search_strategy_json" not in cols:
+            con.execute(
+                "ALTER TABLE runs ADD COLUMN search_strategy_json TEXT"
+            )
 
 
 def _ensure_v4_columns(con: sqlite3.Connection) -> None:
