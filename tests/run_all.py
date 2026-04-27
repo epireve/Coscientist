@@ -99,6 +99,11 @@ from tests.test_agent_frontmatter import (
     FrontmatterShapeTests as AgentFrontmatterShapeTests,
     ToolsFieldTests as AgentToolsFieldTests,
 )
+from tests.test_transaction_edges import (
+    CardinalityTests as TxCardinalityTests,
+    IsolationBetweenContextsTests as TxIsolationBetweenContextsTests,
+    IsolationLevelTests as TxIsolationLevelTests,
+)
 from tests.test_arxiv_to_markdown import (
     CliTests as ArxivToMarkdownCliTests,
     NormalizeArxivIdTests,
@@ -455,6 +460,9 @@ if __name__ == "__main__":
         AgentFrontmatterShapeTests,
         AgentToolsFieldTests,
         AgentBodyContentTests,
+        TxCardinalityTests,
+        TxIsolationLevelTests,
+        TxIsolationBetweenContextsTests,
         EvalReferencesTests,
         EvalClaimsTests,
         MergeEntriesTests,
