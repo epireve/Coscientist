@@ -116,6 +116,15 @@ from tests.test_harvest import (
     StatusTests as HarvestStatusTests,
     WriteTests as HarvestWriteTests,
 )
+from tests.test_graph_query import (
+    AuthorClusterTests,
+    CliTests as GraphQueryCliTests,
+    ConceptPathTests,
+    ExpandCitationsTests,
+    HubsTests as GraphQueryHubsTests,
+    InDegreeTests,
+    NeighborsTests,
+)
 from tests.test_arxiv_to_markdown import (
     CliTests as ArxivToMarkdownCliTests,
     NormalizeArxivIdTests,
@@ -483,6 +492,13 @@ if __name__ == "__main__":
         HarvestStatusTests,
         HarvestShowTests,
         HarvestCliTests,
+        ExpandCitationsTests,
+        InDegreeTests,
+        GraphQueryHubsTests,
+        NeighborsTests,
+        ConceptPathTests,
+        AuthorClusterTests,
+        GraphQueryCliTests,
         EvalReferencesTests,
         EvalClaimsTests,
         MergeEntriesTests,
