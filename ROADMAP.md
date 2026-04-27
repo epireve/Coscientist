@@ -789,9 +789,30 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.61
+## Shipped: v0.51 → v0.62
 
 All items in this section are landed. See per-version notes.
+
+### v0.62 — calibration anchors integration ✅ (2026-04-27)
+
+Wires the v0.61 calibration sets into `publishability-check`'s gate
+and gives the `publishability-judge` agent a structured way to pull
+anchor cases for a venue. Closes the "calibration anchors" loop in
+the A5 critical-judgment subsystem.
+
+- `publishability-check/scripts/gate.py` — `calibration_warning` now
+  uses `lib.calibration.slugify_venue` + `lib.calibration.load`
+  (single source of truth for slug + on-disk schema). New: warning
+  also matches by `canonical_id` substring in reasoning, not only
+  title prefix.
+- `calibration/scripts/manage.py` — new `anchors` subcommand emits a
+  prompt-ready anchor block for a venue. Markdown by default;
+  `--format json` for programmatic use; `--max-per-bucket` caps
+  cases per bucket. Designed to be piped into the publishability
+  judge's prompt context.
+- 4 new tests (1398 total; 0 failures): `anchors` md output,
+  `anchors` json output, missing-venue nonzero exit, max-per-bucket
+  cap honored.
 
 ### v0.61 — calibration set tooling ✅ (2026-04-27)
 

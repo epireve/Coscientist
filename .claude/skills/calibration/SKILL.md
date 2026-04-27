@@ -63,6 +63,12 @@ uv run python .claude/skills/calibration/scripts/manage.py check \
 
 # List all venues with calibration sets
 uv run python .claude/skills/calibration/scripts/manage.py list
+
+# Emit prompt-ready anchor block for a venue (paste into publishability-judge)
+uv run python .claude/skills/calibration/scripts/manage.py anchors \
+  --venue "NeurIPS 2024" --format md
+uv run python .claude/skills/calibration/scripts/manage.py anchors \
+  --venue "NeurIPS 2024" --format json --max-per-bucket 5
 ```
 
 ## What "done" looks like

@@ -23,6 +23,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from lib import calibration as _cal  # noqa: E402
 from lib.cache import cache_root, run_db_path  # noqa: E402
 
 MIN_FACTORS = 3
@@ -107,23 +108,42 @@ def validate(report: dict) -> list[str]:
 
 
 def calibration_warning(report: dict) -> str | None:
-    cal_dir = cache_root() / "calibration" / "venues"
+    """Warn if a per-venue calibration set exists but the verdict's
+    reasoning/kill_criterion never references any case from it.
+
+    Uses `lib.calibration` as the single source of truth for slug
+    convention + on-disk schema (v0.62).
+    """
+    root = cache_root()
+    cal_dir = root / "calibration" / "venues"
     if not cal_dir.exists():
         return None
     referenced = 0
+    venues_with_set = 0
     for v in report.get("venues", []):
-        slug = v.get("venue", "").lower().replace(" ", "-")
+        venue_name = v.get("venue", "")
+        slug = _cal.slugify_venue(venue_name)
         cal_file = cal_dir / f"{slug}.json"
-        if cal_file.exists():
-            cal = json.loads(cal_file.read_text())
-            titles = [
-                p["title"]
-                for bucket in ("accepted", "rejected", "borderline")
-                for p in cal.get(bucket, [])
-            ]
-            reasoning = v.get("reasoning", "") + " " + (v.get("kill_criterion") or "")
-            if any(t.lower()[:40] in reasoning.lower() for t in titles):
-                referenced += 1
+        if not cal_file.exists():
+            continue
+        venues_with_set += 1
+        cset = _cal.load(root, venue_name)
+        titles = [
+            c.title for bucket in ("accepted", "rejected", "borderline")
+            for c in getattr(cset, bucket)
+        ]
+        canonical_ids = [
+            c.canonical_id for bucket in ("accepted", "rejected", "borderline")
+            for c in getattr(cset, bucket) if c.canonical_id
+        ]
+        reasoning = (v.get("reasoning", "") + " "
+                     + (v.get("kill_criterion") or "")).lower()
+        title_hit = any(t.lower()[:40] in reasoning for t in titles if t)
+        cid_hit = any(cid.lower() in reasoning for cid in canonical_ids if cid)
+        if title_hit or cid_hit:
+            referenced += 1
+    if venues_with_set == 0:
+        return None
     if referenced == 0:
         return (
             "calibration set present but no calibration cases referenced "

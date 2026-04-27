@@ -232,6 +232,60 @@ class CliSmokeTests(TestCase):
             self.assertIn("alpha", slugs)
             self.assertIn("beta", slugs)
 
+    def test_anchors_md(self):
+        with isolated_cache() as root:
+            _run_cli("init", "--venue", "V", cache_root=root)
+            _run_cli("add", "--venue", "V", "--bucket", "accepted",
+                     "--title", "GoodPaper", "--canonical-id", "good_2020",
+                     "--year", "2020", "--reasons", "novel", "rigorous",
+                     cache_root=root)
+            _run_cli("add", "--venue", "V", "--bucket", "rejected",
+                     "--title", "BadPaper", "--reasons", "weak baseline",
+                     cache_root=root)
+            r = _run_cli("anchors", "--venue", "V",
+                         cache_root=root)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("Calibration anchors — V", r.stdout)
+            self.assertIn("GoodPaper", r.stdout)
+            self.assertIn("good_2020", r.stdout)
+            self.assertIn("novel; rigorous", r.stdout)
+            self.assertIn("BadPaper", r.stdout)
+            self.assertIn("weak baseline", r.stdout)
+
+    def test_anchors_json(self):
+        with isolated_cache() as root:
+            _run_cli("init", "--venue", "V", cache_root=root)
+            _run_cli("add", "--venue", "V", "--bucket", "borderline",
+                     "--title", "Mid", "--outcome", "reject after rebuttal",
+                     "--notes", "scope", cache_root=root)
+            r = _run_cli("anchors", "--venue", "V", "--format", "json",
+                         cache_root=root)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            data = json.loads(r.stdout)
+            self.assertEqual(data["venue"], "V")
+            self.assertEqual(len(data["borderline"]), 1)
+            self.assertEqual(data["borderline"][0]["outcome"],
+                             "reject after rebuttal")
+
+    def test_anchors_missing_venue_returns_nonzero(self):
+        with isolated_cache() as root:
+            r = _run_cli("anchors", "--venue", "Nope", cache_root=root)
+            self.assertEqual(r.returncode, 1)
+
+    def test_anchors_max_per_bucket_caps(self):
+        with isolated_cache() as root:
+            _run_cli("init", "--venue", "V", cache_root=root)
+            for i in range(5):
+                _run_cli("add", "--venue", "V", "--bucket", "accepted",
+                         "--title", f"Paper-{i}",
+                         "--canonical-id", f"cid_{i}",
+                         cache_root=root)
+            r = _run_cli("anchors", "--venue", "V", "--format", "json",
+                         "--max-per-bucket", "2", cache_root=root)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            data = json.loads(r.stdout)
+            self.assertEqual(len(data["accepted"]), 2)
+
     def test_add_duplicate_canonical_id_fails(self):
         with isolated_cache() as root:
             _run_cli("init", "--venue", "V", cache_root=root)

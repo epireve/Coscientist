@@ -108,6 +108,76 @@ def cmd_check(args) -> int:
     return 0
 
 
+def cmd_anchors(args) -> int:
+    """Emit a structured anchor block for a venue, ready to paste
+    into a publishability-judge prompt. JSON or markdown.
+    """
+    root = _root(args)
+    cset = cal.load(root, args.venue)
+    if cset.n_total() == 0:
+        print(json.dumps({
+            "ok": False,
+            "error": f"no calibration set for venue {args.venue!r}",
+        }), file=sys.stderr)
+        return 1
+    cap = max(0, args.max_per_bucket)
+
+    def _pack(case: cal.CalibrationCase, bucket: str) -> dict:
+        d = {"title": case.title}
+        if case.canonical_id:
+            d["canonical_id"] = case.canonical_id
+        if case.year:
+            d["year"] = case.year
+        if case.doi:
+            d["doi"] = case.doi
+        if bucket in ("accepted", "rejected") and case.reasons:
+            d["reasons"] = list(case.reasons)
+        if bucket == "borderline":
+            if case.outcome:
+                d["outcome"] = case.outcome
+            if case.notes:
+                d["notes"] = case.notes
+        return d
+
+    anchors = {
+        "venue": cset.venue,
+        "accepted": [_pack(c, "accepted") for c in cset.accepted[:cap]] if cap else
+                    [_pack(c, "accepted") for c in cset.accepted],
+        "rejected": [_pack(c, "rejected") for c in cset.rejected[:cap]] if cap else
+                    [_pack(c, "rejected") for c in cset.rejected],
+        "borderline": [_pack(c, "borderline") for c in cset.borderline[:cap]] if cap else
+                      [_pack(c, "borderline") for c in cset.borderline],
+    }
+
+    if args.format == "json":
+        print(json.dumps(anchors, indent=2, sort_keys=True))
+        return 0
+
+    # markdown — designed for prompt-embedding
+    lines = [f"## Calibration anchors — {cset.venue}", ""]
+    for bucket in ("accepted", "rejected", "borderline"):
+        cases = anchors[bucket]
+        if not cases:
+            continue
+        lines.append(f"### {bucket.capitalize()}")
+        lines.append("")
+        for c in cases:
+            year = f" ({c['year']})" if c.get("year") else ""
+            head = f"- **{c['title']}**{year}"
+            if c.get("canonical_id"):
+                head += f" — `{c['canonical_id']}`"
+            lines.append(head)
+            if c.get("reasons"):
+                lines.append("  - reasons: " + "; ".join(c["reasons"]))
+            if c.get("outcome"):
+                lines.append(f"  - outcome: {c['outcome']}")
+            if c.get("notes"):
+                lines.append(f"  - notes: {c['notes']}")
+        lines.append("")
+    print("\n".join(lines))
+    return 0
+
+
 def cmd_list(args) -> int:
     root = _root(args)
     d = cal.calibration_dir(root)
@@ -173,6 +243,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     pl = sub.add_parser("list", help="List all venues with calibration sets.")
     pl.set_defaults(func=cmd_list)
+
+    pan = sub.add_parser(
+        "anchors",
+        help="Emit prompt-ready anchor block for a venue.",
+    )
+    pan.add_argument("--venue", required=True)
+    pan.add_argument("--format", choices=("md", "json"), default="md")
+    pan.add_argument("--max-per-bucket", type=int, default=0,
+                     help="Cap cases per bucket (0 = no cap).")
+    pan.set_defaults(func=cmd_anchors)
 
     return p
 
