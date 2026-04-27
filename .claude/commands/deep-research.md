@@ -41,6 +41,26 @@ The user has supplied: `$ARGUMENTS`
         # ... ask the user ...
         uv run python .claude/skills/deep-research/scripts/db.py record-break --run-id <id> --break-number <n> --resolve --user-input "<their answer>"
         ```
+      - **At Break 0** (after scout, before Phase 1): run search-strategy enrichment block:
+        ```bash
+        # 1. Suggest framework + sub-area decomposition (PICO/SPIDER/Decomposition/hybrid)
+        uv run python .claude/skills/deep-research/scripts/db.py suggest-strategy --run-id <id>
+        # 2. Detect empirical paradigm-shift inflections in scout corpus
+        uv run python .claude/skills/deep-research/scripts/db.py detect-eras --run-id <id> --format md --top-k 3
+        # 3. Show user the suggested framework + inflections; ask user to confirm/edit sub-areas
+        # 4. Persist user-confirmed strategy
+        uv run python .claude/skills/deep-research/scripts/db.py set-strategy --run-id <id> --strategy-json /tmp/strategy.json
+        # 5. Adversarially critique the strategy BEFORE Phase 1 fires
+        # Invoke search-strategy-critique skill (returns critique JSON to /tmp/critique.json)
+        uv run python .claude/skills/search-strategy-critique/scripts/gate.py persist --run-id <id> --input /tmp/critique.json
+        # 6. If critique verdict=revise: surface to user, optionally re-do strategy
+        # 7. Proceed to Phase 1 with critiqued strategy
+        ```
+      - **At Break 2** (after weaver, before visionary): run cross-persona disagreement scoring:
+        ```bash
+        # Surfaces high-leverage papers (some personas flagged, others missed) for steward to render in brief
+        uv run python .claude/skills/deep-research/scripts/db.py compute-disagreement --run-id <id> --persist --format md
+        ```
       - If it returns `DONE`, finalize: run `/research-eval`, print the brief/map paths.
 
 3. On any error, record it and stop — do not silently skip a phase.
