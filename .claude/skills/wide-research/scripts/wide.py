@@ -39,6 +39,7 @@ from lib.wide_research import (  # noqa: E402
     DEFAULT_CONCURRENCY_CAP, HARD_DOLLAR_CEILING, TASK_TYPE_DEFAULTS,
     TaskSpec, WideRunPlan, collect_results, decompose, write_workspace,
 )
+from lib.wide_synthesis import render_brief, synthesize  # noqa: E402
 
 
 def _wide_run_dir(run_id: str) -> Path:
@@ -67,6 +68,28 @@ def cmd_init(args: argparse.Namespace) -> dict:
     run_id = uuid.uuid4().hex[:8]
     run_dir = _wide_run_dir(run_id)
 
+    # Resolve compare schema (compare task_type only)
+    compare_schema_fields: list[str] | None = None
+    if getattr(args, "compare_schema", None):
+        cs_path = Path(args.compare_schema)
+        if cs_path.exists():
+            cs_data = json.loads(cs_path.read_text())
+            if isinstance(cs_data, list):
+                compare_schema_fields = [str(x) for x in cs_data]
+            elif isinstance(cs_data, dict) and "fields" in cs_data:
+                compare_schema_fields = [str(x) for x in cs_data["fields"]]
+            else:
+                raise SystemExit(
+                    "--compare-schema must be JSON list or "
+                    "{fields: [...]}"
+                )
+        else:
+            # Treat as comma-list literal
+            compare_schema_fields = [
+                s.strip() for s in args.compare_schema.split(",")
+                if s.strip()
+            ]
+
     try:
         plan = decompose(
             run_id=run_id,
@@ -78,6 +101,18 @@ def cmd_init(args: argparse.Namespace) -> dict:
         )
     except ValueError as e:
         raise SystemExit(f"decompose failed: {e}")
+
+    # Override compare schema if provided
+    if compare_schema_fields and args.type == "compare":
+        for spec in plan.sub_specs:
+            spec.output_schema = {
+                "fields": compare_schema_fields,
+                "format": "json",
+            }
+    if compare_schema_fields and args.type != "compare":
+        raise SystemExit(
+            "--compare-schema only valid with --type compare"
+        )
 
     if (plan.estimated_dollar_cost > HARD_DOLLAR_CEILING
             and not args.allow_expensive):
@@ -639,6 +674,68 @@ def cmd_gate3(args: argparse.Namespace) -> dict:
     }
 
 
+def cmd_synthesize(args: argparse.Namespace) -> dict:
+    """Fresh-context per-type roll-up — Fan-In synthesizer.
+
+    v0.53.4. Reads result.json refs only (no raw payload bloat).
+    Writes:
+      - synthesis.json (structured per-type output)
+      - synthesis.md (markdown brief)
+      - wide-output.csv (mode-specific tabular)
+    """
+    p = _plan_path(args.run_id)
+    if not p.exists():
+        raise SystemExit(f"no plan for run {args.run_id}")
+    plan_dict = json.loads(p.read_text())
+    sub_specs = [TaskSpec.from_dict(s) for s in plan_dict["sub_specs"]]
+    plan = WideRunPlan(
+        run_id=plan_dict["run_id"],
+        parent_run_id=plan_dict.get("parent_run_id"),
+        task_type=plan_dict["task_type"],
+        user_query=plan_dict["user_query"],
+        items=[], sub_specs=sub_specs,
+        estimated_total_tokens=plan_dict["estimated_total_tokens"],
+        estimated_dollar_cost=plan_dict["estimated_dollar_cost"],
+        concurrency_cap=plan_dict["concurrency_cap"],
+    )
+
+    results = collect_results(plan)
+    synthesis = synthesize(
+        plan.task_type, results, user_query=plan.user_query,
+    )
+
+    run_dir = _wide_run_dir(args.run_id)
+    if args.write_outputs:
+        (run_dir / "synthesis.json").write_text(
+            json.dumps(synthesis, indent=2, sort_keys=True, default=str)
+        )
+        (run_dir / "synthesis.md").write_text(render_brief(synthesis))
+        # Also (re)write CSV from results (per-row tabular)
+        (run_dir / "wide-output.csv").write_text(
+            "\n".join(_to_csv(results, plan.task_type))
+        )
+
+    summary = {
+        "run_id": args.run_id,
+        "task_type": plan.task_type,
+        "n_total": synthesis["n_total"],
+        "n_complete": synthesis["n_complete"],
+        "n_missing": synthesis["n_missing"],
+        "n_error": synthesis["n_error"],
+        "synthesis_json_path": (
+            str(run_dir / "synthesis.json")
+            if args.write_outputs else None
+        ),
+        "synthesis_md_path": (
+            str(run_dir / "synthesis.md")
+            if args.write_outputs else None
+        ),
+    }
+    if args.format == "full":
+        summary["synthesis"] = synthesis
+    return summary
+
+
 def cmd_observe(args: argparse.Namespace) -> dict:
     """Run-level observability — actual token + dollar usage.
 
@@ -732,6 +829,10 @@ def main() -> None:
                      help="Parent Deep run for L3 cumulative refinement")
     pi.add_argument("--allow-expensive", action="store_true",
                      help="Bypass $50 hard ceiling")
+    pi.add_argument("--compare-schema", default=None,
+                     help="(compare task_type only) JSON file with "
+                          "{fields:[...]} or comma-separated field list "
+                          "to use as output schema")
     pi.set_defaults(func=cmd_init)
 
     pd = sub.add_parser("decompose",
@@ -811,6 +912,16 @@ def main() -> None:
     po.add_argument("--run-id", required=True)
     po.add_argument("--verbose", action="store_true")
     po.set_defaults(func=cmd_observe)
+
+    # v0.53.4 — synthesize (per-type fresh-context fan-in)
+    psy = sub.add_parser("synthesize",
+                          help="Per-type roll-up over collected results")
+    psy.add_argument("--run-id", required=True)
+    psy.add_argument("--write-outputs", action="store_true",
+                      help="Write synthesis.json + synthesis.md to run dir")
+    psy.add_argument("--format", choices=["summary", "full"],
+                      default="summary")
+    psy.set_defaults(func=cmd_synthesize)
 
     args = p.parse_args()
     out = args.func(args)

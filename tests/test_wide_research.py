@@ -586,9 +586,223 @@ class Gate23ObserveTests(TestCase):
             self.assertTrue(d["overrun_pct"] > 20.0)
 
 
+class SynthesisTests(TestCase):
+    """v0.53.4 — per-type synthesizer roll-ups."""
+
+    def test_triage_synthesis_buckets_and_shortlist(self):
+        from lib.wide_synthesis import synthesize
+        results = [
+            {"sub_agent_id": "s1", "status": "complete",
+             "result": {"canonical_id": "p1", "title": "A",
+                        "relevance_score": 0.9, "recommend": "include"}},
+            {"sub_agent_id": "s2", "status": "complete",
+             "result": {"canonical_id": "p2", "title": "B",
+                        "relevance_score": 0.5, "recommend": "review"}},
+            {"sub_agent_id": "s3", "status": "complete",
+             "result": {"canonical_id": "p3", "title": "C",
+                        "relevance_score": 0.1, "recommend": "exclude"}},
+            {"sub_agent_id": "s4", "status": "missing"},
+        ]
+        s = synthesize("triage", results, user_query="Q")
+        self.assertEqual(s["n_total"], 4)
+        self.assertEqual(s["n_complete"], 3)
+        self.assertEqual(s["n_missing"], 1)
+        self.assertEqual(s["by_recommend"]["include"], 1)
+        self.assertEqual(s["by_recommend"]["review"], 1)
+        self.assertEqual(s["by_recommend"]["exclude"], 1)
+        # Shortlist sorted desc by relevance_score
+        self.assertEqual(s["top_shortlist"][0]["canonical_id"], "p1")
+        self.assertEqual(s["top_shortlist"][-1]["canonical_id"], "p3")
+
+    def test_read_synthesis_digests(self):
+        from lib.wide_synthesis import synthesize
+        results = [
+            {"sub_agent_id": "s1", "status": "complete",
+             "result": {"canonical_id": "p1", "method": "transformer",
+                        "dataset": "ImageNet", "results": "98%",
+                        "limitations": "compute", "claims": ["a", "b"]}},
+        ]
+        s = synthesize("read", results)
+        self.assertEqual(len(s["digests"]), 1)
+        self.assertEqual(s["digests"][0]["method"], "transformer")
+        self.assertEqual(s["digests"][0]["claims"], ["a", "b"])
+
+    def test_rank_synthesis_leaderboard(self):
+        from lib.wide_synthesis import synthesize
+        results = [
+            {"sub_agent_id": "s1", "status": "complete",
+             "result": {"item_a": "X", "item_b": "Y", "winner": "X"}},
+            {"sub_agent_id": "s2", "status": "complete",
+             "result": {"item_a": "Y", "item_b": "Z", "winner": "Z"}},
+            {"sub_agent_id": "s3", "status": "complete",
+             "result": {"item_a": "X", "item_b": "Z", "winner": "X"}},
+        ]
+        s = synthesize("rank", results)
+        # X wins 2/2 → top
+        top = s["leaderboard"][0]
+        self.assertEqual(top["item"], "X")
+        self.assertEqual(top["wins"], 2)
+        self.assertEqual(top["appearances"], 2)
+        self.assertEqual(top["win_rate"], 1.0)
+
+    def test_compare_synthesis_matrix(self):
+        from lib.wide_synthesis import synthesize
+        results = [
+            {"sub_agent_id": "s1", "status": "complete",
+             "result": {"founded": 2018, "headcount": 50, "tier": "A"}},
+            {"sub_agent_id": "s2", "status": "complete",
+             "result": {"founded": 2020, "headcount": 12, "tier": "B"}},
+        ]
+        s = synthesize("compare", results)
+        self.assertEqual(set(s["schema"]),
+                         {"founded", "headcount", "tier"})
+        self.assertEqual(len(s["matrix"]), 2)
+
+    def test_survey_synthesis_sorted_by_h(self):
+        from lib.wide_synthesis import synthesize
+        results = [
+            {"sub_agent_id": "s1", "status": "complete",
+             "result": {"author": "Alice", "h_index": 30,
+                        "recent_venues": [], "top_papers": []}},
+            {"sub_agent_id": "s2", "status": "complete",
+             "result": {"author": "Bob", "h_index": 75,
+                        "recent_venues": [], "top_papers": []}},
+        ]
+        s = synthesize("survey", results)
+        self.assertEqual(s["authors"][0]["author"], "Bob")
+        self.assertEqual(s["authors"][1]["author"], "Alice")
+
+    def test_screen_synthesis_tally_and_histogram(self):
+        from lib.wide_synthesis import synthesize
+        results = [
+            {"sub_agent_id": "s1", "status": "complete",
+             "result": {"canonical_id": "p1", "include": True,
+                        "criteria_failed": []}},
+            {"sub_agent_id": "s2", "status": "complete",
+             "result": {"canonical_id": "p2", "include": False,
+                        "criteria_failed": ["language", "year"]}},
+            {"sub_agent_id": "s3", "status": "complete",
+             "result": {"canonical_id": "p3", "include": False,
+                        "criteria_failed": ["year"]}},
+        ]
+        s = synthesize("screen", results)
+        self.assertEqual(s["n_include"], 1)
+        self.assertEqual(s["n_exclude"], 2)
+        self.assertEqual(s["criteria_failed_histogram"]["year"], 2)
+        self.assertEqual(s["criteria_failed_histogram"]["language"], 1)
+
+    def test_render_brief_triage(self):
+        from lib.wide_synthesis import render_brief, synthesize
+        results = [
+            {"sub_agent_id": "s1", "status": "complete",
+             "result": {"canonical_id": "p1", "title": "A",
+                        "relevance_score": 0.9, "recommend": "include"}},
+        ]
+        s = synthesize("triage", results)
+        md = render_brief(s)
+        self.assertIn("Wide Research synthesis — triage", md)
+        self.assertIn("Top shortlist", md)
+
+
+class SynthesizeCLITests(TestCase):
+    """v0.53.4 — CLI synthesize + --compare-schema."""
+
+    def _cli(self, *args: str) -> tuple[int, str, str]:
+        import subprocess
+        cli = (_ROOT / ".claude/skills/wide-research/scripts/wide.py")
+        r = subprocess.run(
+            [sys.executable, str(cli), *args],
+            capture_output=True, text=True,
+        )
+        return r.returncode, r.stdout, r.stderr
+
+    def test_synthesize_writes_outputs(self):
+        with isolated_cache() as cache_dir:
+            items_path = cache_dir / "items.json"
+            items_path.write_text(json.dumps([
+                {"canonical_id": f"p{i}", "title": f"P{i}",
+                 "year": 2020} for i in range(10)
+            ]))
+            rc, out, _ = self._cli(
+                "init", "--query", "Q", "--items", str(items_path),
+                "--type", "triage",
+            )
+            run_id = json.loads(out)["run_id"]
+            self._cli("gate1", "--run-id", run_id, "--verdict", "approve")
+
+            from lib.cache import cache_root
+            plan = json.loads(
+                (cache_root() / "runs" / f"run-{run_id}" / "plan.json")
+                .read_text()
+            )
+            for i, spec in enumerate(plan["sub_specs"]):
+                ws = Path(spec["filesystem_workspace"])
+                (ws / "result.json").write_text(json.dumps({
+                    "canonical_id": f"p{i}",
+                    "title": f"P{i}",
+                    "relevance_score": 1.0 - 0.1 * i,
+                    "recommend": "include" if i < 3 else "exclude",
+                }))
+
+            rc, out, err = self._cli(
+                "synthesize", "--run-id", run_id, "--write-outputs",
+            )
+            self.assertEqual(rc, 0, err)
+            d = json.loads(out)
+            self.assertEqual(d["n_complete"], 10)
+            self.assertTrue(Path(d["synthesis_json_path"]).exists())
+            self.assertTrue(Path(d["synthesis_md_path"]).exists())
+            synth = json.loads(
+                Path(d["synthesis_json_path"]).read_text()
+            )
+            self.assertEqual(synth["by_recommend"]["include"], 3)
+            self.assertEqual(synth["by_recommend"]["exclude"], 7)
+
+    def test_compare_schema_override(self):
+        with isolated_cache() as cache_dir:
+            items_path = cache_dir / "items.json"
+            items_path.write_text(json.dumps([
+                {"name": f"co{i}"} for i in range(10)
+            ]))
+            rc, out, err = self._cli(
+                "init", "--query", "company features",
+                "--items", str(items_path),
+                "--type", "compare",
+                "--compare-schema", "founded,headcount,tier",
+            )
+            self.assertEqual(rc, 0, err)
+            run_id = json.loads(out)["run_id"]
+
+            from lib.cache import cache_root
+            plan = json.loads(
+                (cache_root() / "runs" / f"run-{run_id}" / "plan.json")
+                .read_text()
+            )
+            for spec in plan["sub_specs"]:
+                self.assertEqual(
+                    spec["output_schema"]["fields"],
+                    ["founded", "headcount", "tier"],
+                )
+
+    def test_compare_schema_rejected_for_non_compare_type(self):
+        with isolated_cache() as cache_dir:
+            items_path = cache_dir / "items.json"
+            items_path.write_text(json.dumps([
+                {"canonical_id": f"p{i}", "title": f"P{i}",
+                 "year": 2020} for i in range(10)
+            ]))
+            rc, out, err = self._cli(
+                "init", "--query", "Q", "--items", str(items_path),
+                "--type", "triage",
+                "--compare-schema", "a,b",
+            )
+            self.assertTrue(rc != 0)
+            self.assertIn("compare", err.lower())
+
+
 if __name__ == "__main__":
     sys.exit(run_tests(
         TaskSpecTests, DecomposeTests, CostEstimateTests, WorkspaceTests,
         CollectResultsTests, TaskTypeDefaultsTests, CLITests,
-        Gate23ObserveTests,
+        Gate23ObserveTests, SynthesisTests, SynthesizeCLITests,
     ))
