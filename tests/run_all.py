@@ -452,6 +452,12 @@ from tests.test_brief_renderer import (
     HypothesisCardsTests as BriefHypothesisCardsTests,
     RunRecoveryTests as BriefRunRecoveryTests,
 )
+# v0.55 A5 Tier A — gap-analyzer + contribution-mapper + venue-match
+from tests.test_a5_trio import (
+    ContributionMapperTests,
+    GapAnalyzerTests,
+    VenueMatchTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -803,6 +809,10 @@ if __name__ == "__main__":
         BriefEvidenceTableTests,
         BriefDiscussionQuestionsTests,
         BriefRunRecoveryTests,
+        # v0.55 — A5 Tier A trio
+        GapAnalyzerTests,
+        ContributionMapperTests,
+        VenueMatchTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,
