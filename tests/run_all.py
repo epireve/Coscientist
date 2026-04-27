@@ -478,6 +478,19 @@ from tests.test_v0_57_persistence import (
     SkillPersistTests,
     WideResearchPersistenceTests,
 )
+# v0.58 — resolve-citation skill
+from tests.test_citation_resolver import (
+    CitationResolverCLITests,
+    CitationResolverParserTests,
+    CitationResolverPickBestTests,
+    CitationResolverScoreTests,
+)
+# v0.59 — graph-viz mermaid renderer
+from tests.test_graph_viz import (
+    CliTests as GraphVizCliTests,
+    RenderMermaidTests,
+    SubgraphTests as GraphVizSubgraphTests,
+)
 
 if __name__ == "__main__":
     failures = run_tests(
@@ -849,6 +862,15 @@ if __name__ == "__main__":
         SkillPersistTests,
         WideResearchPersistenceTests,
         AuditQueryRecordsTests,
+        # v0.58 — resolve-citation skill
+        CitationResolverParserTests,
+        CitationResolverScoreTests,
+        CitationResolverPickBestTests,
+        CitationResolverCLITests,
+        # v0.59 — graph-viz mermaid renderer
+        RenderMermaidTests,
+        GraphVizSubgraphTests,
+        GraphVizCliTests,
         # Integration + regression
         ResearchFlowIntegrationTests,
         CrossSkillArtifactContractTests,

@@ -793,6 +793,14 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 
 All items in this section are landed. See per-version notes.
 
+### v0.59 — graph-viz mermaid renderer ✅
+
+Closes the leftover from earlier roadmap entries — "Visualization (mermaid embed; Cytoscape.js if a web dashboard emerges)". Pure-stdlib mermaid renderer over `graph_nodes` + `graph_edges`.
+
+- `lib/graph_viz.py` — `render_mermaid`, `render_concept_subgraph`, `render_paper_lineage`. Distinct shapes per kind (paper rectangle, concept circle, author flag, manuscript hexagon); collapses parallel edges to `relation ×N`; truncates by in-degree; drops labels on dense graphs.
+- `.claude/skills/graph-viz/` — SKILL.md + `scripts/render.py` CLI for whole-project, BFS-subgraph, and citation-lineage renders. Read-only — no DB writes.
+- 11 new tests (1335 total; 0 failures). Counterpart of `graph-query` (which returns JSON walks).
+
 ### v0.57 — DB persistence + db-notify ✅ (2026-04-28)
 
 User-flagged gap: outputs from v0.51-v0.56 (Wide Research, debate,
