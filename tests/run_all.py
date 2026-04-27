@@ -104,6 +104,12 @@ from tests.test_transaction_edges import (
     IsolationBetweenContextsTests as TxIsolationBetweenContextsTests,
     IsolationLevelTests as TxIsolationLevelTests,
 )
+from tests.test_persona_input import (
+    DiscoveryTests as PersonaInputDiscoveryTests,
+    ErrorHandlingTests as PersonaInputErrorTests,
+    LayoutTests as PersonaInputLayoutTests,
+    RoundTripTests as PersonaInputRoundTripTests,
+)
 from tests.test_arxiv_to_markdown import (
     CliTests as ArxivToMarkdownCliTests,
     NormalizeArxivIdTests,
@@ -463,6 +469,10 @@ if __name__ == "__main__":
         TxCardinalityTests,
         TxIsolationLevelTests,
         TxIsolationBetweenContextsTests,
+        PersonaInputRoundTripTests,
+        PersonaInputErrorTests,
+        PersonaInputDiscoveryTests,
+        PersonaInputLayoutTests,
         EvalReferencesTests,
         EvalClaimsTests,
         MergeEntriesTests,

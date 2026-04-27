@@ -73,3 +73,16 @@ def runs_dir() -> Path:
     p = cache_root() / "runs"
     p.mkdir(parents=True, exist_ok=True)
     return p
+
+
+def run_inputs_dir(run_id: str) -> Path:
+    """Per-run directory for orchestrator-harvested persona input files.
+
+    The smoke-test resume plan (ROADMAP, item 3) pivots search-using
+    personas to consume pre-harvested shortlist files instead of calling
+    MCPs directly (since sub-agents in some runtimes don't inherit MCP
+    access). Files land here as `<persona>-<phase>.json`.
+    """
+    p = cache_root() / "runs" / f"run-{run_id}" / "inputs"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
