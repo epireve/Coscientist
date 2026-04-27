@@ -1,0 +1,19 @@
+{
+  "name": "coscientist-deep-research",
+  "version": "0.50.2",
+  "description": "10-agent Expedition pipeline for end-to-end academic research. Discovers, triages, extracts, and synthesizes papers across Consensus, Semantic Scholar, and Google Scholar with three human-in-the-loop break points.",
+  "author": "Coscientist",
+  "homepage": "https://github.com/coscientist/coscientist",
+  "license": "MIT",
+  "keywords": [
+    "research",
+    "academic",
+    "literature-review",
+    "consensus",
+    "semantic-scholar",
+    "deep-research"
+  ],
+  "requires": {
+    "claude_code": ">=2.0.0"
+  }
+}

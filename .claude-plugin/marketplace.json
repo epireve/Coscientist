@@ -1,0 +1,17 @@
+{
+  "name": "coscientist",
+  "owner": {
+    "name": "Coscientist",
+    "url": "https://github.com/coscientist/coscientist"
+  },
+  "plugins": [
+    {
+      "name": "coscientist-deep-research",
+      "source": "./plugin/coscientist-deep-research",
+      "description": "10-agent Expedition pipeline for end-to-end academic research. Discovers, triages, extracts, and synthesizes papers across Consensus, Semantic Scholar, and Google Scholar with three human-in-the-loop break points.",
+      "version": "0.50.2",
+      "category": "research",
+      "tags": ["research", "academic", "literature-review", "consensus", "semantic-scholar"]
+    }
+  ]
+}
