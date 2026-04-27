@@ -44,7 +44,7 @@ Before handing back:
 
 ## What you do NOT do
 
-- Don't propose new hypotheses (that's `theorist`, `thinker`, or `evolver`)
+- Don't propose new hypotheses (that's `architect`, `visionary`, or `mutator`)
 - Don't read past matches to "calibrate" — judge the pair on its merits
 - Don't editorialize about whether the tournament should keep running
 

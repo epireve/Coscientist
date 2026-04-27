@@ -15,27 +15,29 @@ AGENT_DIR = Path(__file__).resolve().parent.parent / ".claude" / "agents"
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
 
 EXPECTED_AGENTS = {
-    # Deep-research pipeline
-    "social", "grounder", "historian", "gaper",
-    "vision", "theorist", "rude", "synthesizer",
-    "thinker", "scribe",
-    # A5 critical-judgment
+    # v0.46.4: SEEKER → Expedition rebrand. All 31 personas grouped into
+    # 6 narrative phases (A-F). See README.md "The Expedition" section.
+
+    # Phase A — The Expedition (deep-research pipeline)
+    "scout", "cartographer", "chronicler", "surveyor",
+    "synthesist", "architect", "inquisitor", "weaver",
+    "visionary", "steward",
+    # Phase B — The Workshop (manuscript subsystem)
+    "verifier", "panel", "diviner",
+    "drafter", "compositor", "reviser",
+    # Phase C — The Tribunal (critical judgment). The community-facing
+    # names are kept verbatim for these five — they're already idiomatic
+    # in academic literature.
     "novelty-auditor", "publishability-judge", "red-team",
-    # A1 manuscript subsystem
-    "manuscript-auditor", "manuscript-critic", "manuscript-reflector",
-    "manuscript-drafter", "manuscript-formatter", "manuscript-reviser",
-    # A2 reference agent
-    "reference-agent",
-    # A3 writing style
-    "writing-style",
-    # A4 personal knowledge layer
-    "research-journal", "project-dashboard", "cross-project-memory",
-    # Tier B tournament + evolution
-    "ranker", "evolver",
-    # Tier B standalone adversarial
-    "idea-attacker",
-    # Tier C orchestration personas
-    "experimentalist", "dataset-curator", "peer-reviewer", "grant-writer",
+    "advocate", "peer-reviewer",
+    # Phase D — The Laboratory (experimentation)
+    "experimentalist", "curator", "funder",
+    # Phase E — The Tournament (hypothesis evolution).
+    # `ranker` kept (idiomatic Elo-tournament term).
+    "ranker", "mutator",
+    # Phase F — The Archive (knowledge layer)
+    "librarian", "stylist",
+    "diarist", "watchman", "indexer",
 }
 
 

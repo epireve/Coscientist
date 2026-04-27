@@ -7,7 +7,7 @@ real session time to surface.
 
 Coverage:
 - init writes 10 phases in the canonical order
-- next-phase starts at `social`, advances correctly, fires BREAK_0/1/2
+- next-phase starts at `scout`, advances correctly, fires BREAK_0/1/2
   in the right places, ends at DONE
 - breaks: prompt-then-resolve gates phase advance; re-resolving is a no-op
 - record-phase persists output_json + error
@@ -32,8 +32,8 @@ _ROOT = Path(__file__).resolve().parent.parent
 DB = _ROOT / ".claude/skills/deep-research/scripts/db.py"
 
 PHASES = [
-    "social", "grounder", "historian", "gaper", "vision",
-    "theorist", "rude", "synthesizer", "thinker", "scribe",
+    "scout", "cartographer", "chronicler", "surveyor", "synthesist",
+    "architect", "inquisitor", "weaver", "visionary", "steward",
 ]
 
 
@@ -138,55 +138,55 @@ class InitTests(TestCase):
 # ---------------- next-phase state machine ----------------
 
 class NextPhaseTests(TestCase):
-    def test_fresh_run_returns_social(self):
+    def test_fresh_run_returns_scout(self):
         with isolated_cache():
             run_id = _init()
-            self.assertEqual(_next_phase(run_id), "social")
+            self.assertEqual(_next_phase(run_id), "scout")
 
     def test_in_progress_phase_still_returned(self):
         """started_at set but completed_at NULL should still report this phase."""
         with isolated_cache():
             run_id = _init()
-            _start(run_id, "social")
-            self.assertEqual(_next_phase(run_id), "social")
+            _start(run_id, "scout")
+            self.assertEqual(_next_phase(run_id), "scout")
 
-    def test_break_0_fires_after_social(self):
+    def test_break_0_fires_after_scout(self):
         with isolated_cache():
             run_id = _init()
-            _start(run_id, "social")
-            _complete(run_id, "social", {"papers": []})
+            _start(run_id, "scout")
+            _complete(run_id, "scout", {"papers": []})
             self.assertEqual(_next_phase(run_id), "BREAK_0")
 
     def test_break_0_unblocks_after_resolve(self):
         with isolated_cache():
             run_id = _init()
-            _complete(run_id, "social")
+            _complete(run_id, "scout")
             _open_break(run_id, 0)
             # Still BREAK_0 because not yet resolved
             self.assertEqual(_next_phase(run_id), "BREAK_0")
             _resolve_break(run_id, 0)
-            self.assertEqual(_next_phase(run_id), "grounder")
+            self.assertEqual(_next_phase(run_id), "cartographer")
 
-    def test_break_1_fires_after_gaper(self):
+    def test_break_1_fires_after_surveyor(self):
         with isolated_cache():
             run_id = _init()
-            for p in ("social",):
+            for p in ("scout",):
                 _complete(run_id, p)
             _open_break(run_id, 0); _resolve_break(run_id, 0)
-            for p in ("grounder", "historian", "gaper"):
+            for p in ("cartographer", "chronicler", "surveyor"):
                 _complete(run_id, p)
             self.assertEqual(_next_phase(run_id), "BREAK_1")
 
-    def test_break_2_fires_after_synthesizer(self):
+    def test_break_2_fires_after_weaver(self):
         with isolated_cache():
             run_id = _init()
-            for p in ("social",):
+            for p in ("scout",):
                 _complete(run_id, p)
             _open_break(run_id, 0); _resolve_break(run_id, 0)
-            for p in ("grounder", "historian", "gaper"):
+            for p in ("cartographer", "chronicler", "surveyor"):
                 _complete(run_id, p)
             _open_break(run_id, 1); _resolve_break(run_id, 1)
-            for p in ("vision", "theorist", "rude", "synthesizer"):
+            for p in ("synthesist", "architect", "inquisitor", "weaver"):
                 _complete(run_id, p)
             self.assertEqual(_next_phase(run_id), "BREAK_2")
 
@@ -194,15 +194,15 @@ class NextPhaseTests(TestCase):
         """Drive every phase + every break in order; must end at DONE."""
         with isolated_cache():
             run_id = _init()
-            _complete(run_id, "social")
+            _complete(run_id, "scout")
             _open_break(run_id, 0); _resolve_break(run_id, 0)
-            for p in ("grounder", "historian", "gaper"):
+            for p in ("cartographer", "chronicler", "surveyor"):
                 _complete(run_id, p)
             _open_break(run_id, 1); _resolve_break(run_id, 1)
-            for p in ("vision", "theorist", "rude", "synthesizer"):
+            for p in ("synthesist", "architect", "inquisitor", "weaver"):
                 _complete(run_id, p)
             _open_break(run_id, 2); _resolve_break(run_id, 2)
-            for p in ("thinker", "scribe"):
+            for p in ("visionary", "steward"):
                 _complete(run_id, p)
             self.assertEqual(_next_phase(run_id), "DONE")
 
@@ -211,7 +211,7 @@ class NextPhaseTests(TestCase):
         next-phase should still report BREAK_<n>."""
         with isolated_cache():
             run_id = _init()
-            _complete(run_id, "social")
+            _complete(run_id, "scout")
             # Never call --prompt
             self.assertEqual(_next_phase(run_id), "BREAK_0")
 
@@ -223,12 +223,12 @@ class PhaseOutputTests(TestCase):
         with isolated_cache() as cache_dir:
             run_id = _init()
             payload = {"foundational_papers": ["a", "b"], "n": 2}
-            _complete(run_id, "social", payload)
+            _complete(run_id, "scout", payload)
 
             con = sqlite3.connect(_run_db(cache_dir, run_id))
             row = con.execute(
                 "SELECT output_json, completed_at FROM phases "
-                "WHERE run_id=? AND name='social'", (run_id,),
+                "WHERE run_id=? AND name='scout'", (run_id,),
             ).fetchone()
             con.close()
             self.assertTrue(row[1] is not None,
@@ -238,12 +238,12 @@ class PhaseOutputTests(TestCase):
     def test_error_persists(self):
         with isolated_cache() as cache_dir:
             run_id = _init()
-            r = _run("record-phase", "--run-id", run_id, "--phase", "social",
+            r = _run("record-phase", "--run-id", run_id, "--phase", "scout",
                      "--error", "MCP timeout after 3 retries")
             assert r.returncode == 0, r.stderr
             con = sqlite3.connect(_run_db(cache_dir, run_id))
             err = con.execute(
-                "SELECT error FROM phases WHERE run_id=? AND name='social'",
+                "SELECT error FROM phases WHERE run_id=? AND name='scout'",
                 (run_id,),
             ).fetchone()[0]
             con.close()
@@ -252,12 +252,12 @@ class PhaseOutputTests(TestCase):
     def test_start_then_complete_records_both_timestamps(self):
         with isolated_cache() as cache_dir:
             run_id = _init()
-            _start(run_id, "grounder")
-            _complete(run_id, "grounder")
+            _start(run_id, "cartographer")
+            _complete(run_id, "cartographer")
             con = sqlite3.connect(_run_db(cache_dir, run_id))
             row = con.execute(
                 "SELECT started_at, completed_at FROM phases "
-                "WHERE run_id=? AND name='grounder'", (run_id,),
+                "WHERE run_id=? AND name='cartographer'", (run_id,),
             ).fetchone()
             con.close()
             self.assertTrue(row[0] is not None and len(row[0]) > 0,
@@ -274,7 +274,7 @@ class ClaimTests(TestCase):
             run_id = _init()
             r = _run(
                 "record-claim", "--run-id", run_id,
-                "--agent-name", "grounder",
+                "--agent-name", "cartographer",
                 "--text", "Transformers scale well.",
                 "--kind", "finding",
                 "--canonical-id", "vaswani_2017_attn_a1b2c3",
@@ -289,7 +289,7 @@ class ClaimTests(TestCase):
                 "FROM claims WHERE run_id=?", (run_id,),
             ).fetchone()
             con.close()
-            self.assertEqual(row[0], "grounder")
+            self.assertEqual(row[0], "cartographer")
             self.assertEqual(row[1], "Transformers scale well.")
             self.assertEqual(row[2], "finding")
             self.assertAlmostEqual(row[3], 0.85, places=5)
@@ -302,7 +302,7 @@ class ClaimTests(TestCase):
             run_id = _init()
             r = _run(
                 "record-claim", "--run-id", run_id,
-                "--agent-name", "social",
+                "--agent-name", "scout",
                 "--text", "Bare minimum claim.",
             )
             assert r.returncode == 0, r.stderr
@@ -312,7 +312,7 @@ class ClaimTests(TestCase):
                 "FROM claims WHERE run_id=?", (run_id,),
             ).fetchone()
             con.close()
-            self.assertEqual(row[0], "social")
+            self.assertEqual(row[0], "scout")
             self.assertEqual(row[1], "finding")  # default
             self.assertTrue(row[2] is None)
             self.assertTrue(row[3] is None)
@@ -325,17 +325,17 @@ class ResumeTests(TestCase):
     def test_resume_returns_state_json(self):
         with isolated_cache():
             run_id = _init("Specific resume question")
-            _complete(run_id, "social")
+            _complete(run_id, "scout")
             r = _run("resume", "--run-id", run_id)
             assert r.returncode == 0, r.stderr
             state = json.loads(r.stdout)
             self.assertEqual(state["run_id"], run_id)
             self.assertEqual(state["question"], "Specific resume question")
             self.assertEqual(len(state["phases"]), 10)
-            social = next(p for p in state["phases"] if p["name"] == "social")
-            self.assertTrue(social["completed_at"] is not None)
-            grounder = next(p for p in state["phases"] if p["name"] == "grounder")
-            self.assertTrue(grounder["completed_at"] is None)
+            scout = next(p for p in state["phases"] if p["name"] == "scout")
+            self.assertTrue(scout["completed_at"] is not None)
+            cartographer = next(p for p in state["phases"] if p["name"] == "cartographer")
+            self.assertTrue(cartographer["completed_at"] is None)
 
     def test_resume_unknown_run_id_errors(self):
         with isolated_cache():
@@ -348,16 +348,16 @@ class ResumeTests(TestCase):
         the current phase under resume + next-phase."""
         with isolated_cache():
             run_id = _init()
-            _complete(run_id, "social")
+            _complete(run_id, "scout")
             _open_break(run_id, 0); _resolve_break(run_id, 0)
-            _start(run_id, "grounder")
-            # Crash here — grounder has started_at but not completed_at
-            self.assertEqual(_next_phase(run_id), "grounder")
+            _start(run_id, "cartographer")
+            # Crash here — cartographer has started_at but not completed_at
+            self.assertEqual(_next_phase(run_id), "cartographer")
             r = _run("resume", "--run-id", run_id)
             state = json.loads(r.stdout)
-            grounder = next(p for p in state["phases"] if p["name"] == "grounder")
-            self.assertTrue(grounder["started_at"] is not None)
-            self.assertTrue(grounder["completed_at"] is None)
+            cartographer = next(p for p in state["phases"] if p["name"] == "cartographer")
+            self.assertTrue(cartographer["started_at"] is not None)
+            self.assertTrue(cartographer["completed_at"] is None)
 
 
 # ---------------- break idempotency ----------------
@@ -367,7 +367,7 @@ class BreakIdempotencyTests(TestCase):
         """Re-resolving must not overwrite the original user_input."""
         with isolated_cache() as cache_dir:
             run_id = _init()
-            _complete(run_id, "social")
+            _complete(run_id, "scout")
             _open_break(run_id, 0)
             _resolve_break(run_id, 0, user_input="first answer")
             _resolve_break(run_id, 0, user_input="second answer")
@@ -386,7 +386,7 @@ class BreakIdempotencyTests(TestCase):
 
 class EdgeCaseTests(TestCase):
     def test_unknown_phase_name_rejected(self):
-        """An LLM-orchestrator typo (e.g. 'theroist' for 'theorist') must
+        """An LLM-orchestrator typo (e.g. 'theroist' for 'architect') must
         error rather than silently no-op the UPDATE — otherwise the run
         state diverges silently from what the orchestrator believes."""
         with isolated_cache():
@@ -405,33 +405,33 @@ class EdgeCaseTests(TestCase):
         with a phase_run table."""
         with isolated_cache() as cache_dir:
             run_id = _init()
-            _complete(run_id, "social", {"first": True})
-            _complete(run_id, "social", {"second": True})
+            _complete(run_id, "scout", {"first": True})
+            _complete(run_id, "scout", {"second": True})
             con = sqlite3.connect(_run_db(cache_dir, run_id))
             out = con.execute(
                 "SELECT output_json FROM phases "
-                "WHERE run_id=? AND name='social'", (run_id,),
+                "WHERE run_id=? AND name='scout'", (run_id,),
             ).fetchone()[0]
             con.close()
             self.assertEqual(json.loads(out), {"second": True},
                              "second --complete should overwrite output_json")
 
     def test_out_of_order_complete_does_not_skip_intermediate(self):
-        """If the orchestrator completes 'theorist' before 'vision',
-        next-phase must still return 'vision' — not jump ahead. Documents
+        """If the orchestrator completes 'architect' before 'synthesist',
+        next-phase must still return 'synthesist' — not jump ahead. Documents
         that next-phase scans for the first incomplete phase, not the
         highest completed one."""
         with isolated_cache():
             run_id = _init()
-            _complete(run_id, "social")
+            _complete(run_id, "scout")
             _open_break(run_id, 0); _resolve_break(run_id, 0)
-            for p in ("grounder", "historian", "gaper"):
+            for p in ("cartographer", "chronicler", "surveyor"):
                 _complete(run_id, p)
             _open_break(run_id, 1); _resolve_break(run_id, 1)
-            # Skip vision, jump to theorist
-            _complete(run_id, "theorist")
-            self.assertEqual(_next_phase(run_id), "vision",
-                             "vision was skipped — next-phase must still flag it")
+            # Skip synthesist, jump to architect
+            _complete(run_id, "architect")
+            self.assertEqual(_next_phase(run_id), "synthesist",
+                             "synthesist was skipped — next-phase must still flag it")
 
 
 if __name__ == "__main__":

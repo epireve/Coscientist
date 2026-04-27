@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """harvest.py — orchestrator-side MCP shortlist writer (Plan 5 Stage 2).
 
-Six search-using personas (social, grounder, historian, gaper, theorist,
-thinker) used to call MCPs themselves. In runtimes where sub-agents
-don't inherit MCP access, that breaks. This script lifts MCP harvesting
-into the orchestrator (the parent agent has MCP access) and persists
-the result as a shortlist file under
-`~/.cache/coscientist/runs/run-<id>/inputs/<persona>-<phase>.json`.
+Six search-using personas (scout, cartographer, chronicler, surveyor,
+architect, visionary — the Expedition pipeline, ex-SEEKER's social/
+grounder/historian/gaper/theorist/thinker) used to call MCPs themselves.
+In runtimes where sub-agents don't inherit MCP access, that breaks.
+This script lifts MCP harvesting into the orchestrator (the parent
+agent has MCP access) and persists the result as a shortlist file
+under `~/.cache/coscientist/runs/run-<id>/inputs/<persona>-<phase>.json`.
 
 Modes
 =====
@@ -60,20 +61,21 @@ from lib.persona_input import (  # noqa: E402
 
 # Personas allowed to receive harvested input. Adding a new persona
 # here without also creating an upstream consumer is a config error,
-# so we list them explicitly.
+# so we list them explicitly. v0.46.4: renamed from SEEKER (social,
+# grounder, ...) to Expedition (scout, cartographer, ...).
 KNOWN_PERSONAS = {
-    "social", "grounder", "historian", "gaper",
-    "theorist", "thinker",
+    "scout", "cartographer", "chronicler", "surveyor",
+    "architect", "visionary",
 }
 
 # Per-persona budget defaults. Orchestrator can override via flags.
 PERSONA_BUDGETS = {
-    "social":    {"max_papers": 200, "max_mcp_calls": 30},
-    "grounder":  {"max_papers": 30,  "max_mcp_calls": 20},
-    "historian": {"max_papers": 50,  "max_mcp_calls": 15},
-    "gaper":     {"max_papers": 25,  "max_mcp_calls": 10},
-    "theorist":  {"max_papers": 30,  "max_mcp_calls": 15},
-    "thinker":   {"max_papers": 30,  "max_mcp_calls": 15},
+    "scout":         {"max_papers": 200, "max_mcp_calls": 30},
+    "cartographer":  {"max_papers": 30,  "max_mcp_calls": 20},
+    "chronicler":    {"max_papers": 50,  "max_mcp_calls": 15},
+    "surveyor":      {"max_papers": 25,  "max_mcp_calls": 10},
+    "architect":     {"max_papers": 30,  "max_mcp_calls": 15},
+    "visionary":     {"max_papers": 30,  "max_mcp_calls": 15},
 }
 
 

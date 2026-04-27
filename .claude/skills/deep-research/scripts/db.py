@@ -23,19 +23,35 @@ from lib.cache import run_db_path  # noqa: E402
 
 SCHEMA_PATH = _REPO_ROOT / "lib" / "sqlite_schema.sql"
 
+# v0.46.4: Expedition rebrand. Old SEEKER names retained as aliases below
+# for old run DBs (phases.name is TEXT — old rows survive untouched).
 PHASES_IN_ORDER = [
-    "social",
-    "grounder",
-    "historian",
-    "gaper",
-    "vision",
-    "theorist",
-    "rude",
-    "synthesizer",
-    "thinker",
-    "scribe",
+    "scout",         # was: social
+    "cartographer",  # was: grounder
+    "chronicler",    # was: historian
+    "surveyor",      # was: gaper
+    "synthesist",    # was: vision
+    "architect",     # was: theorist
+    "inquisitor",    # was: rude
+    "weaver",        # was: synthesizer
+    "visionary",     # was: thinker
+    "steward",       # was: scribe
 ]
-BREAK_AFTER = {"social": 0, "gaper": 1, "synthesizer": 2}
+# Backward-compat aliases — accept old phase names from in-flight runs that
+# were started before v0.46.4. Maps old → new.
+PHASE_ALIASES = {
+    "social": "scout",
+    "grounder": "cartographer",
+    "historian": "chronicler",
+    "gaper": "surveyor",
+    "vision": "synthesist",
+    "theorist": "architect",
+    "rude": "inquisitor",
+    "synthesizer": "weaver",
+    "thinker": "visionary",
+    "scribe": "steward",
+}
+BREAK_AFTER = {"scout": 0, "surveyor": 1, "weaver": 2}
 
 
 def _connect(run_id: str) -> sqlite3.Connection:
@@ -88,6 +104,10 @@ def cmd_init(args: argparse.Namespace) -> None:
 
 def cmd_record_phase(args: argparse.Namespace) -> None:
     con = _connect(args.run_id)
+    # v0.46.4: accept old SEEKER phase names from in-flight runs (resume
+    # safety). Map to new Expedition name before lookup.
+    if args.phase in PHASE_ALIASES:
+        args.phase = PHASE_ALIASES[args.phase]
     # Reject unknown phase names: a silent no-op UPDATE would let an
     # orchestrator typo (e.g. "theroist") silently desync the run state
     # from what the orchestrator believes is recorded.
@@ -230,13 +250,15 @@ def cmd_resume(args: argparse.Namespace) -> None:
     con.close()
 
     # Per-persona expected phase mapping (matches deep-research SKILL.md)
+    # v0.46.4: SEEKER → Expedition rename. Old names (social, grounder, ...)
+    # replaced with archetype names (scout, cartographer, ...).
     expected_harvests = [
-        ("social", "phase0"),
-        ("grounder", "phase1"),
-        ("historian", "phase1"),
-        ("gaper", "phase1"),
-        ("theorist", "phase2"),
-        ("thinker", "phase3"),
+        ("scout", "phase0"),
+        ("cartographer", "phase1"),
+        ("chronicler", "phase1"),
+        ("surveyor", "phase1"),
+        ("architect", "phase2"),
+        ("visionary", "phase3"),
     ]
     from lib.persona_input import exists as _shortlist_exists
     harvest_status = []

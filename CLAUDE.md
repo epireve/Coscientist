@@ -101,18 +101,20 @@ API is deliberately small (`lib/graph.py`): `add_node`, `add_edge`, `neighbors`,
 
 31 personas live in `.claude/agents/`. Each has its own context window and a minimal `tools:` restriction. The orchestrator invokes the deep-research pipeline in order:
 
-`social → grounder → historian → gaper → [BREAK 1] → vision → theorist → rude → synthesizer → [BREAK 2] → thinker → scribe`
+`scout → cartographer → chronicler → surveyor → [BREAK 1] → synthesist → architect → inquisitor → weaver → [BREAK 2] → visionary → steward`
 
-Break 0 happens after `social`. The 3 breaks are hard stops that ask the user to confirm/redirect before continuing.
+(v0.46.4 Expedition rebrand. Old SEEKER names — social, grounder, historian, gaper, vision, theorist, rude, synthesizer, thinker, scribe — accepted as aliases via `db.py PHASE_ALIASES` for in-flight runs.)
+
+Break 0 happens after `scout`. The 3 breaks are hard stops that ask the user to confirm/redirect before continuing.
 
 Three additional agents are invoked by other workflows (not the deep-research pipeline):
 
 - `novelty-auditor` — structured novelty assessment via the `novelty-check` gate
 - `publishability-judge` — venue-calibrated publishability verdict via `publishability-check`
 - `red-team` — named-attack-vector critique of finished work via `attack-vectors`
-- `manuscript-drafter` — section-by-section drafting via the `manuscript-draft` skill; reads outline.json + research context, fills each section, tracks word counts and cite keys
-- `manuscript-formatter` — pandoc export via the `manuscript-format` skill; strips placeholders, writes to `exports/`
-- `manuscript-reviser` — respond-to-reviewers via the `manuscript-revise` skill; parses structured review, produces `response_letter.md` + `revision_notes.md`
+- `drafter` — section-by-section drafting via the `manuscript-draft` skill; reads outline.json + research context, fills each section, tracks word counts and cite keys
+- `compositor` — pandoc export via the `manuscript-format` skill; strips placeholders, writes to `exports/`
+- `reviser` — respond-to-reviewers via the `manuscript-revise` skill; parses structured review, produces `response_letter.md` + `revision_notes.md`
 
 These are used by manuscript-audit / manuscript-critique workflows, and by the tournament/evolution subsystem when it lands.
 

@@ -40,7 +40,7 @@ class WriteTests(TestCase):
         with isolated_cache():
             r = _run(
                 "write", "--run-id", "rT1",
-                "--persona", "social", "--phase", "phase0",
+                "--persona", "scout", "--phase", "phase0",
                 "--query", "test question",
                 stdin=json.dumps(_sample_mcp_results()),
             )
@@ -51,7 +51,7 @@ class WriteTests(TestCase):
             self.assertEqual(out["kept_count"], 3)
             # Confirm shortlist file was written
             from lib.persona_input import load
-            inp = load("rT1", "social", "phase0")
+            inp = load("rT1", "scout", "phase0")
             self.assertEqual(inp.query, "test question")
             self.assertEqual(len(inp.results), 3)
 
@@ -61,20 +61,20 @@ class WriteTests(TestCase):
             input_file.write_text(json.dumps(_sample_mcp_results()))
             r = _run(
                 "write", "--run-id", "rT2",
-                "--persona", "grounder", "--phase", "phase1",
+                "--persona", "cartographer", "--phase", "phase1",
                 "--query", "q",
                 "--input-file", str(input_file),
             )
             self.assertEqual(r.returncode, 0, r.stderr)
             from lib.persona_input import exists
-            self.assertTrue(exists("rT2", "grounder", "phase1"))
+            self.assertTrue(exists("rT2", "cartographer", "phase1"))
 
     def test_write_results_object_form_accepted(self):
         """Orchestrator may pass {results: [...]} instead of bare array."""
         with isolated_cache():
             r = _run(
                 "write", "--run-id", "rT3",
-                "--persona", "social", "--phase", "phase0",
+                "--persona", "scout", "--phase", "phase0",
                 "--query", "q",
                 stdin=json.dumps({"results": _sample_mcp_results()}),
             )
@@ -84,7 +84,7 @@ class WriteTests(TestCase):
         with isolated_cache():
             r = _run(
                 "write", "--run-id", "rT4",
-                "--persona", "social", "--phase", "phase0",
+                "--persona", "scout", "--phase", "phase0",
                 "--query", "q", "--max-papers", "2",
                 stdin=json.dumps(_sample_mcp_results()),
             )
@@ -106,7 +106,7 @@ class WriteTests(TestCase):
         with isolated_cache():
             r = _run(
                 "write", "--run-id", "rT6",
-                "--persona", "social", "--phase", "phase0",
+                "--persona", "scout", "--phase", "phase0",
                 "--query", "q",
                 stdin="[]",
             )
@@ -118,19 +118,19 @@ class WriteTests(TestCase):
         with isolated_cache():
             r = _run(
                 "write", "--run-id", "rT7",
-                "--persona", "grounder", "--phase", "phase1",
+                "--persona", "cartographer", "--phase", "phase1",
                 "--query", "q",
                 stdin=json.dumps(_sample_mcp_results()),
             )
             out = json.loads(r.stdout)
-            # PERSONA_BUDGETS["grounder"]["max_papers"] = 30
+            # PERSONA_BUDGETS["cartographer"]["max_papers"] = 30
             self.assertEqual(out["budget"]["max_papers"], 30)
 
     def test_write_invalid_json_rejected(self):
         with isolated_cache():
             r = _run(
                 "write", "--run-id", "rT8",
-                "--persona", "social", "--phase", "phase0",
+                "--persona", "scout", "--phase", "phase0",
                 "--query", "q",
                 stdin="{not valid",
             )
@@ -140,7 +140,7 @@ class WriteTests(TestCase):
         with isolated_cache():
             r = _run(
                 "write", "--run-id", "rT9",
-                "--persona", "social", "--phase", "phase0",
+                "--persona", "scout", "--phase", "phase0",
                 "--query", "q",
                 stdin='"a string is not an array"',
             )
@@ -152,9 +152,9 @@ class StatusTests(TestCase):
     def test_status_lists_all_shortlists(self):
         with isolated_cache():
             for persona, phase in (
-                ("social", "phase0"),
-                ("grounder", "phase1"),
-                ("historian", "phase1"),
+                ("scout", "phase0"),
+                ("cartographer", "phase1"),
+                ("chronicler", "phase1"),
             ):
                 _run(
                     "write", "--run-id", "rS1",
@@ -167,7 +167,7 @@ class StatusTests(TestCase):
             out = json.loads(r.stdout)
             self.assertEqual(out["count"], 3)
             personas = {x["persona"] for x in out["shortlists"]}
-            self.assertEqual(personas, {"social", "grounder", "historian"})
+            self.assertEqual(personas, {"scout", "cartographer", "chronicler"})
 
     def test_status_empty_run_returns_empty(self):
         with isolated_cache():
@@ -182,25 +182,25 @@ class ShowTests(TestCase):
         with isolated_cache():
             _run(
                 "write", "--run-id", "rSh1",
-                "--persona", "social", "--phase", "phase0",
+                "--persona", "scout", "--phase", "phase0",
                 "--query", "the question",
                 stdin=json.dumps(_sample_mcp_results()),
             )
             r = _run(
                 "show", "--run-id", "rSh1",
-                "--persona", "social", "--phase", "phase0",
+                "--persona", "scout", "--phase", "phase0",
             )
             self.assertEqual(r.returncode, 0, r.stderr)
             out = json.loads(r.stdout)
             self.assertEqual(out["query"], "the question")
-            self.assertEqual(out["persona"], "social")
+            self.assertEqual(out["persona"], "scout")
             self.assertEqual(len(out["results"]), 3)
 
     def test_show_missing_shortlist_errors(self):
         with isolated_cache():
             r = _run(
                 "show", "--run-id", "missing",
-                "--persona", "social", "--phase", "phase0",
+                "--persona", "scout", "--phase", "phase0",
             )
             self.assertTrue(r.returncode != 0)
             self.assertIn("no shortlist", r.stderr)

@@ -27,7 +27,7 @@ The user has supplied: `$ARGUMENTS`
         ```bash
         uv run python .claude/skills/deep-research/scripts/db.py next-phase --run-id <id>
         ```
-      - If it returns an agent name (e.g., `social`), invoke that sub-agent via the `Task` tool with `subagent_type=<name>`. Before launching, record phase start:
+      - If it returns an agent name (e.g., `scout`), invoke that sub-agent via the `Task` tool with `subagent_type=<name>`. Before launching, record phase start:
         ```bash
         uv run python .claude/skills/deep-research/scripts/db.py record-phase --run-id <id> --phase <name> --start
         ```

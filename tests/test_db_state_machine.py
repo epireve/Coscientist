@@ -27,13 +27,13 @@ class DbTests(TestCase):
         with isolated_cache():
             rid = _run("init", "--question", "Q").stdout.strip()
 
-            # Initial: next phase is social
+            # Initial: next phase is scout
             r = _run("next-phase", "--run-id", rid)
-            self.assertEqual(r.stdout.strip(), "social")
+            self.assertEqual(r.stdout.strip(), "scout")
 
-            # Start + complete social
-            _run("record-phase", "--run-id", rid, "--phase", "social", "--start")
-            _run("record-phase", "--run-id", rid, "--phase", "social", "--complete")
+            # Start + complete scout
+            _run("record-phase", "--run-id", rid, "--phase", "scout", "--start")
+            _run("record-phase", "--run-id", rid, "--phase", "scout", "--complete")
 
             # Should be BREAK_0
             r = _run("next-phase", "--run-id", rid)
@@ -43,25 +43,25 @@ class DbTests(TestCase):
             _run("record-break", "--run-id", rid, "--break-number", "0", "--prompt")
             _run("record-break", "--run-id", rid, "--break-number", "0", "--resolve", "--user-input", "ok")
 
-            # Now grounder
+            # Now cartographer
             r = _run("next-phase", "--run-id", rid)
-            self.assertEqual(r.stdout.strip(), "grounder")
+            self.assertEqual(r.stdout.strip(), "cartographer")
 
     def test_resume_round_trip(self):
         with isolated_cache():
             rid = _run("init", "--question", "Q").stdout.strip()
             r = _run("resume", "--run-id", rid)
             self.assertEqual(r.returncode, 0)
-            self.assertIn("social", r.stdout)
-            self.assertIn("scribe", r.stdout)
+            self.assertIn("scout", r.stdout)
+            self.assertIn("steward", r.stdout)
 
     def test_full_pipeline_reaches_done(self):
         with isolated_cache():
             rid = _run("init", "--question", "Q").stdout.strip()
-            phases = ["social", "grounder", "historian", "gaper",
-                      "vision", "theorist", "rude", "synthesizer",
-                      "thinker", "scribe"]
-            breaks_expected = {"social": 0, "gaper": 1, "synthesizer": 2}
+            phases = ["scout", "cartographer", "chronicler", "surveyor",
+                      "synthesist", "architect", "inquisitor", "weaver",
+                      "visionary", "steward"]
+            breaks_expected = {"scout": 0, "surveyor": 1, "weaver": 2}
             for p in phases:
                 _run("record-phase", "--run-id", rid, "--phase", p, "--start")
                 _run("record-phase", "--run-id", rid, "--phase", p, "--complete")

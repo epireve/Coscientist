@@ -116,7 +116,7 @@ Pairwise self-play over candidate hypotheses with Elo ranking, plus parent-track
 
 | Script under `tournament/` | Job |
 |---|---|
-| `record_hypothesis.py` | Register a hypothesis (from theorist / thinker / evolver) at default Elo 1200 |
+| `record_hypothesis.py` | Register a hypothesis (from architect / visionary / mutator) at default Elo 1200 |
 | `record_match.py` | Update both hypotheses' Elo (K=32) given a winner; persist match + reasoning |
 | `pairwise.py` | Emit pairings: round-robin / top-k-vs-rest / top-k-internal; `--exclude-played` |
 | `leaderboard.py` | Top-N by Elo with W-L-M counts and ancestor lineage |
