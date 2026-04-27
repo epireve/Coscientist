@@ -110,6 +110,12 @@ from tests.test_persona_input import (
     LayoutTests as PersonaInputLayoutTests,
     RoundTripTests as PersonaInputRoundTripTests,
 )
+from tests.test_harvest import (
+    CliTests as HarvestCliTests,
+    ShowTests as HarvestShowTests,
+    StatusTests as HarvestStatusTests,
+    WriteTests as HarvestWriteTests,
+)
 from tests.test_arxiv_to_markdown import (
     CliTests as ArxivToMarkdownCliTests,
     NormalizeArxivIdTests,
@@ -473,6 +479,10 @@ if __name__ == "__main__":
         PersonaInputErrorTests,
         PersonaInputDiscoveryTests,
         PersonaInputLayoutTests,
+        HarvestWriteTests,
+        HarvestStatusTests,
+        HarvestShowTests,
+        HarvestCliTests,
         EvalReferencesTests,
         EvalClaimsTests,
         MergeEntriesTests,
