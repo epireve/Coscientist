@@ -789,9 +789,24 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.63
+## Shipped: v0.51 → v0.64
 
 All items in this section are landed. See per-version notes.
+
+### v0.64 — audit-query resolutions subcommand ✅ (2026-04-27)
+
+Surfaces v0.63's `citation_resolutions` table through the existing
+`audit-query` skill. "How well is resolve-citation actually doing"
+becomes a one-line CLI call.
+
+- `audit-query/scripts/query.py` — new `resolutions` subcommand.
+  Reports total / matched / unmatched / match rate / score buckets
+  (`<0.3`, `0.3-0.5`, `0.5-0.7`, `0.7-0.9`, `>=0.9`) + the most
+  recent N rows. Filters: `--run-id`, `--project-id`,
+  `--matched-only`. Read-only — gracefully reports
+  `table_present: false` for non-coscientist DBs.
+- 5 new tests (1410 total; 0 failures): empty table, missing table,
+  populated summary, matched-only filter, run-id filter.
 
 ### v0.63 — citation_resolutions persistence ✅ (2026-04-27)
 

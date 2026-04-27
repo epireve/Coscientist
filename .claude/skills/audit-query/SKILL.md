@@ -29,6 +29,15 @@ uv run python .claude/skills/audit-query/scripts/query.py sandbox \
 # Combined dashboard (one-screen forensic view)
 uv run python .claude/skills/audit-query/scripts/query.py summary \
   [--since YYYY-MM-DD]
+
+# Per-table row counts in a coscientist DB (v0.57)
+uv run python .claude/skills/audit-query/scripts/query.py records \
+  --db-path <run-or-project-db> [--writes]
+
+# citation_resolutions summary — match rate + score buckets (v0.64)
+uv run python .claude/skills/audit-query/scripts/query.py resolutions \
+  --db-path <coscientist-db> \
+  [--run-id <rid>] [--project-id <pid>] [--matched-only] [--limit 10]
 ```
 
 All output JSON to stdout. `--format md` renders a markdown table.

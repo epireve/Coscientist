@@ -507,6 +507,10 @@ from tests.test_v0_63_citation_resolutions import (
     PersistCitationResolutionTests,
     ResolveCliPersistTests,
 )
+# v0.64 — audit-query resolutions subcommand
+from tests.test_v0_64_audit_resolutions import (
+    ResolutionsCmdTests,
+)
 # v0.61 — calibration set tooling
 from tests.test_calibration import (
     AddRemoveTests as CalibrationAddRemoveTests,
@@ -909,6 +913,8 @@ if __name__ == "__main__":
         MigrationV10Tests,
         PersistCitationResolutionTests,
         ResolveCliPersistTests,
+        # v0.64 — audit-query resolutions subcommand
+        ResolutionsCmdTests,
         # v0.61 — calibration set tooling
         CalibrationCaseTests,
         CalibrationSlugifyTests,

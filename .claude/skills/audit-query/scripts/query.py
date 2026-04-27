@@ -223,6 +223,103 @@ def cmd_records(args: argparse.Namespace) -> dict:
         con.close()
 
 
+def cmd_resolutions(args: argparse.Namespace) -> dict:
+    """v0.64 — read-only summary of citation_resolutions rows.
+
+    Reports total, matched/unmatched counts, match rate, score
+    distribution, and the most-recent attempts. Optional filters by
+    run_id, project_id, and matched-only.
+    """
+    import sqlite3 as _sq
+    db_path = Path(args.db_path)
+    if not db_path.exists():
+        raise SystemExit(f"DB not found: {db_path}")
+    con = _sq.connect(db_path)
+    try:
+        if not con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name='citation_resolutions'"
+        ).fetchone():
+            return {
+                "db_path": str(db_path),
+                "table_present": False,
+                "total": 0,
+            }
+        where: list[str] = []
+        params: list = []
+        if args.run_id:
+            where.append("run_id = ?")
+            params.append(args.run_id)
+        if args.project_id:
+            where.append("project_id = ?")
+            params.append(args.project_id)
+        if args.matched_only:
+            where.append("matched = 1")
+        where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+
+        total = con.execute(
+            f"SELECT COUNT(*) FROM citation_resolutions {where_sql}",
+            params,
+        ).fetchone()[0]
+        matched = con.execute(
+            f"SELECT COUNT(*) FROM citation_resolutions {where_sql} "
+            f"{'AND' if where_sql else 'WHERE'} matched=1",
+            params,
+        ).fetchone()[0]
+        unmatched = total - matched
+
+        # score buckets
+        buckets = {"<0.3": 0, "0.3-0.5": 0, "0.5-0.7": 0, "0.7-0.9": 0,
+                   ">=0.9": 0}
+        for (score,) in con.execute(
+            f"SELECT score FROM citation_resolutions {where_sql}",
+            params,
+        ):
+            s = float(score or 0.0)
+            if s < 0.3:
+                buckets["<0.3"] += 1
+            elif s < 0.5:
+                buckets["0.3-0.5"] += 1
+            elif s < 0.7:
+                buckets["0.5-0.7"] += 1
+            elif s < 0.9:
+                buckets["0.7-0.9"] += 1
+            else:
+                buckets[">=0.9"] += 1
+
+        recent = []
+        for row in con.execute(
+            f"SELECT input_text, matched, score, canonical_id, at "
+            f"FROM citation_resolutions {where_sql} ORDER BY at DESC LIMIT ?",
+            (*params, max(1, args.limit)),
+        ):
+            recent.append({
+                "input_text": row[0],
+                "matched": bool(row[1]),
+                "score": round(float(row[2] or 0.0), 4),
+                "canonical_id": row[3],
+                "at": row[4],
+            })
+
+        return {
+            "db_path": str(db_path),
+            "table_present": True,
+            "filters": {
+                "run_id": args.run_id,
+                "project_id": args.project_id,
+                "matched_only": args.matched_only,
+            },
+            "total": total,
+            "matched": matched,
+            "unmatched": unmatched,
+            "match_rate": round(matched / total, 4) if total else 0.0,
+            "score_buckets": buckets,
+            "recent": recent,
+        }
+    finally:
+        con.close()
+
+
 def cmd_summary(args: argparse.Namespace) -> dict:
     incl = getattr(args, "include_archives", False)
     fa = argparse.Namespace(since=args.since, domain=None, limit=5,
@@ -298,6 +395,20 @@ def main() -> None:
     r.add_argument("--writes", action="store_true",
                     help="Also dump db_writes audit summary")
     r.set_defaults(func=cmd_records)
+
+    rs = sub.add_parser(
+        "resolutions",
+        help="citation_resolutions summary (match rate + score buckets) (v0.64)",
+    )
+    rs.add_argument("--db-path", required=True,
+                    help="Path to a coscientist SQLite DB")
+    rs.add_argument("--run-id", default=None, help="Filter by run_id")
+    rs.add_argument("--project-id", default=None, help="Filter by project_id")
+    rs.add_argument("--matched-only", action="store_true",
+                    help="Show only matched resolutions")
+    rs.add_argument("--limit", type=int, default=10,
+                    help="How many recent rows to include (default 10)")
+    rs.set_defaults(func=cmd_resolutions)
 
     args = p.parse_args()
     out = args.func(args)
