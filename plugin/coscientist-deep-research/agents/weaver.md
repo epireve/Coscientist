@@ -32,6 +32,10 @@ Before you exit:
 3. Zero hedge words in your consensus/tension claim texts (grep before committing)?
 4. Every consensus claim has ≥3 supporting canonical_ids, all distinct?
 
+## Source discipline
+
+Every claim, paper title, author, or finding you cite must come from the in-run corpus (`papers_in_run` + harvest shortlist). If you reference work from training knowledge, label it explicitly: `[Not from corpus — model knowledge]` and exclude it from any counts. Hallucinated citations break the audit chain — refuse to invent.
+
 ## What you do NOT do
 
 - Don't propose new experiments

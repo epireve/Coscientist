@@ -50,7 +50,7 @@ import json
 import sys
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
@@ -115,6 +115,35 @@ def _read_input(args: argparse.Namespace) -> list[dict]:
     return raw
 
 
+def _detect_plan_tier(raw: list[dict]) -> dict:
+    """Detect Consensus/MCP plan-tier signals in harvested results.
+
+    Inspired by Consensus's official skills (April 2026): every search
+    response should reveal whether a cap was hit ("Found 20 papers,
+    showing top 10"). Surfacing the tier lets the user understand
+    whether sparse coverage = plan limit or genuine gap.
+
+    Heuristic per source:
+    - Consensus: anonymous ~3, free ~10, Pro ~20 results per query
+    - S2: 1 RPS authenticated, slower anonymous
+    - Google Scholar (paper-search): no formal tier
+    """
+    by_source: dict[str, int] = {}
+    for r in raw:
+        src = r.get("source", "unknown")
+        by_source[src] = by_source.get(src, 0) + 1
+    tier_signals = {}
+    if "consensus" in by_source:
+        n = by_source["consensus"]
+        if n <= 3:
+            tier_signals["consensus"] = "anonymous_or_capped (≤3 results)"
+        elif n <= 10:
+            tier_signals["consensus"] = "free (≤10 results)"
+        else:
+            tier_signals["consensus"] = "pro (>10 results)"
+    return {"by_source": by_source, "tier_signals": tier_signals}
+
+
 def cmd_write(args: argparse.Namespace) -> dict:
     if args.persona not in KNOWN_PERSONAS:
         raise SystemExit(
@@ -139,6 +168,22 @@ def cmd_write(args: argparse.Namespace) -> dict:
     if budget.get("max_papers"):
         ranked = ranked[: budget["max_papers"]]
 
+    # Three-counter discipline (from Consensus skills): track queries
+    # sent + papers received + papers cited. Stored in notes for steward
+    # to roll into Audit Log section.
+    plan_info = _detect_plan_tier(raw)
+    queries_sent = args.queries_sent or 0
+    counter_note = (
+        f"queries_sent={queries_sent} "
+        f"papers_received={len(raw)} "
+        f"papers_kept={len(ranked)} "
+        f"sources={plan_info['by_source']} "
+        f"tier_signals={plan_info['tier_signals']}"
+    )
+    combined_notes = (
+        f"{args.notes} | {counter_note}" if args.notes else counter_note
+    )
+
     inp = PersonaInput(
         run_id=args.run_id,
         persona=args.persona,
@@ -147,7 +192,7 @@ def cmd_write(args: argparse.Namespace) -> dict:
         results=ranked,
         budget=budget,
         harvested_by=args.harvested_by or "orchestrator",
-        notes=args.notes or "",
+        notes=combined_notes,
     )
     path = save(inp)
     return {
@@ -159,6 +204,8 @@ def cmd_write(args: argparse.Namespace) -> dict:
         "deduped_count": len(merged),
         "kept_count": len(inp.results),
         "budget": budget,
+        "queries_sent": queries_sent,
+        "plan_tier": plan_info,
     }
 
 
@@ -208,6 +255,10 @@ def main() -> None:
                          "(if absent, read from stdin)")
     w.add_argument("--max-papers", type=int)
     w.add_argument("--max-mcp-calls", type=int)
+    w.add_argument("--queries-sent", type=int, default=0,
+                    help="MCP queries fired to produce this harvest "
+                         "(three-counter discipline; defaults to 0 if "
+                         "orchestrator doesn't track)")
     w.add_argument("--notes", default="")
     w.add_argument("--harvested-by", default="orchestrator")
     w.set_defaults(func=cmd_write)

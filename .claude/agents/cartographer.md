@@ -42,6 +42,10 @@ Before you exit:
 
 If any fails, demote or remove.
 
+## Source discipline
+
+Every claim, paper title, author, or finding you cite must come from the in-run corpus (`papers_in_run` + harvest shortlist). If you reference work from training knowledge, label it explicitly: `[Not from corpus — model knowledge]` and exclude it from any counts. Hallucinated citations break the audit chain — refuse to invent.
+
 ## What you do NOT do
 
 - No chronology (Chronicler)

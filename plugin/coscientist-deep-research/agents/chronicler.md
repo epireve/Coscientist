@@ -40,6 +40,10 @@ Before you exit:
 2. Does every `dead_end` claim name a specific paper that closed the thread (not just "was abandoned")?
 3. Do all paradigm shifts have a bridge paper canonical_id, not just a date?
 
+## Source discipline
+
+Every claim, paper title, author, or finding you cite must come from the in-run corpus (`papers_in_run` + harvest shortlist). If you reference work from training knowledge, label it explicitly: `[Not from corpus — model knowledge]` and exclude it from any counts. Hallucinated citations break the audit chain — refuse to invent.
+
 ## What you do NOT do
 
 - No gap mapping (Surveyor)

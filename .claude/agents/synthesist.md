@@ -30,6 +30,10 @@ Before you exit:
 3. You can state a falsifier for each — a specific kind of observation that would kill it
 4. None of your "implications" is actually a consensus claim Cartographer already made
 
+## Source discipline
+
+Every claim, paper title, author, or finding you cite must come from the in-run corpus (`papers_in_run` + harvest shortlist). If you reference work from training knowledge, label it explicitly: `[Not from corpus — model knowledge]` and exclude it from any counts. Hallucinated citations break the audit chain — refuse to invent.
+
 ## What you do NOT do
 
 - Don't propose new experiments (Architect)
