@@ -19,9 +19,14 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from lib.cache import run_db_path  # noqa: E402
+from lib.cache import run_db_path, run_inputs_dir  # noqa: E402
 from lib.search_framework import (  # noqa: E402
     SearchStrategy, suggest_framework, template_for,
+)
+from lib.era_detection import detect_inflections, render_summary as _era_render  # noqa: E402
+from lib.disagreement import (  # noqa: E402
+    compute_disagreement, persist_to_run_db as _disagreement_persist,
+    render_summary as _disagreement_render,
 )
 
 SCHEMA_PATH = _REPO_ROOT / "lib" / "sqlite_schema.sql"
@@ -340,6 +345,67 @@ def cmd_get_strategy(args: argparse.Namespace) -> None:
         con.close()
 
 
+def cmd_detect_eras(args: argparse.Namespace) -> None:
+    """v0.52.3 — detect paradigm-shift inflections in run's corpus.
+
+    Reads all harvest shortlists for the run, extracts year+abstract,
+    runs Jensen-Shannon divergence over per-year n-gram distributions,
+    returns top-K boundary candidates ranked by divergence.
+    """
+    inputs = run_inputs_dir(args.run_id)
+    papers: list[dict] = []
+    if inputs.exists():
+        for shortlist_path in inputs.glob("*-phase*.json"):
+            try:
+                data = json.loads(shortlist_path.read_text())
+            except (json.JSONDecodeError, OSError):
+                continue
+            for entry in data.get("results", []):
+                if entry.get("year") and entry.get("abstract"):
+                    papers.append({
+                        "year": entry["year"],
+                        "abstract": entry["abstract"],
+                    })
+    inflections = detect_inflections(
+        papers,
+        min_papers_per_year=args.min_papers_per_year,
+        top_k_inflections=args.top_k,
+    )
+    if args.format == "md":
+        sys.stdout.write(_era_render(inflections) + "\n")
+    else:
+        sys.stdout.write(json.dumps(
+            {"run_id": args.run_id,
+             "n_papers_analyzed": len(papers),
+             "inflections": [i.to_dict() for i in inflections]},
+            indent=2,
+        ) + "\n")
+
+
+def cmd_compute_disagreement(args: argparse.Namespace) -> None:
+    """v0.52.4 — compute cross-persona disagreement scores for a run.
+
+    Updates papers_in_run.disagreement_score in place. Surfaces top-K
+    high-leverage papers (surfaced by some personas, missed by others).
+    """
+    inputs = run_inputs_dir(args.run_id)
+    db = run_db_path(args.run_id)
+    scores = compute_disagreement(args.run_id, db, inputs)
+    n_updated = 0
+    if args.persist:
+        n_updated = _disagreement_persist(args.run_id, db, scores)
+    if args.format == "md":
+        sys.stdout.write(_disagreement_render(scores, top_k=args.top_k) + "\n")
+    else:
+        sys.stdout.write(json.dumps(
+            {"run_id": args.run_id,
+             "n_scored": len(scores),
+             "n_persisted": n_updated,
+             "top_k": [s.to_dict() for s in scores[:args.top_k]]},
+            indent=2,
+        ) + "\n")
+
+
 def cmd_set_strategy(args: argparse.Namespace) -> None:
     """Lock in user-confirmed search strategy. Idempotent (overwrites)."""
     strategy_path = Path(args.strategy_json)
@@ -412,6 +478,27 @@ def main() -> None:
     pss.add_argument("--strategy-json", required=True,
                       help="Path to JSON file matching SearchStrategy.to_dict()")
     pss.set_defaults(func=cmd_set_strategy)
+
+    # v0.52.3 — empirical era detection
+    pde = sub.add_parser("detect-eras",
+                          help="Detect paradigm-shift inflection points "
+                               "in run's harvested corpus (JS divergence)")
+    pde.add_argument("--run-id", required=True)
+    pde.add_argument("--min-papers-per-year", type=int, default=3)
+    pde.add_argument("--top-k", type=int, default=5)
+    pde.add_argument("--format", choices=["json", "md"], default="json")
+    pde.set_defaults(func=cmd_detect_eras)
+
+    # v0.52.4 — cross-persona disagreement scoring
+    pcd = sub.add_parser("compute-disagreement",
+                          help="Compute cross-persona disagreement scores "
+                               "for papers in this run; optionally persist")
+    pcd.add_argument("--run-id", required=True)
+    pcd.add_argument("--persist", action="store_true",
+                      help="Update papers_in_run.disagreement_score")
+    pcd.add_argument("--top-k", type=int, default=10)
+    pcd.add_argument("--format", choices=["json", "md"], default="json")
+    pcd.set_defaults(func=cmd_compute_disagreement)
 
     args = p.parse_args()
     args.func(args)

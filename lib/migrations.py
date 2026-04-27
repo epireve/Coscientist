@@ -67,6 +67,8 @@ MIGRATIONS: list[tuple[int, str, str]] = [
     # pattern via _ensure_v5_columns().
     # v0.52.2 — runs.strategy_critique_json. Same pattern via
     # _ensure_v6_columns().
+    # v0.52.4 — papers_in_run.disagreement_score. Pattern via
+    # _ensure_v7_columns().
 ]
 
 
@@ -154,9 +156,36 @@ def ensure_current(db_path: Path,
                     (6, "v0.52.2_runs_strategy_critique", now),
                 )
             newly_applied.append(6)
+
+        # v0.52.4 disagreement-score column on papers_in_run
+        if 7 not in applied:
+            _ensure_v7_columns(con)
+            with con:
+                con.execute(
+                    "INSERT INTO schema_versions (version, name, applied_at) "
+                    "VALUES (?, ?, ?)",
+                    (7, "v0.52.4_papers_in_run_disagreement", now),
+                )
+            newly_applied.append(7)
     finally:
         con.close()
     return newly_applied
+
+
+def _ensure_v7_columns(con: sqlite3.Connection) -> None:
+    """Add disagreement_score to papers_in_run if missing.
+
+    v0.52.4 — cross-persona disagreement signal. Papers surfaced by
+    some personas but missed by others are high-leverage. Score in
+    [0, 1] computed by lib.disagreement; persisted here for steward
+    + weaver to surface in brief.
+    """
+    cols = {row[1] for row in con.execute("PRAGMA table_info(papers_in_run)")}
+    with con:
+        if "disagreement_score" not in cols:
+            con.execute(
+                "ALTER TABLE papers_in_run ADD COLUMN disagreement_score REAL"
+            )
 
 
 def _ensure_v6_columns(con: sqlite3.Connection) -> None:

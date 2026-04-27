@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS papers_in_run (
     notes          TEXT,
     harvest_count  INTEGER NOT NULL DEFAULT 1,          -- v0.50.4 — repeat-hit signal across personas
     cites_per_year REAL,                                -- v0.50.4 — cheap importance heuristic
+    disagreement_score REAL,                            -- v0.52.4 — cross-persona disagreement (lib/disagreement.py)
     PRIMARY KEY (run_id, canonical_id)
 );
 
