@@ -789,9 +789,17 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.57
+## Shipped: v0.51 → v0.61
 
 All items in this section are landed. See per-version notes.
+
+### v0.61 — calibration set tooling ✅ (2026-04-27)
+
+Operationalizes the "optional calibration anchors" hook documented in `publishability-check`. Per-venue reference set of known-accepted / -rejected / -borderline papers, lets the gate ground verdicts against empirical priors instead of pure model intuition.
+
+- `lib/calibration.py` — `CalibrationSet`, `CalibrationCase`, `slugify_venue`, atomic `save`, `load`, `add_case` (refuses duplicate by canonical_id, then by case-insensitive title), `remove_case`, `render_summary` (markdown), `coverage_check` (flags `< 3` per bucket + missing buckets + anchored %). Pure stdlib.
+- `.claude/skills/calibration/` — SKILL.md + `scripts/manage.py` CLI: `init` / `add` / `remove` / `show` / `check` / `list`. Storage at `~/.cache/coscientist/calibration/venues/<slug>.json`.
+- 25 new tests (1394 total; 0 failures). 7 classes — case serialization, slugify, add/remove duplicates, save/load roundtrip, summary render, coverage thresholds, CLI smoke (init→add→show, remove, check, list, dup-rejection).
 
 ### v0.60 — writing-style venue overlays ✅ (2026-04-27)
 
