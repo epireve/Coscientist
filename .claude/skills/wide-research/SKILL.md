@@ -123,7 +123,23 @@ Wide outputs feed Deep's scout phase via `--seed-from-wide`. Three levels:
 - **L2 full-text**: Wide-read populates paper artifacts (`content.md`, `references.json`) so Deep's cartographer computes citation in-degree mechanically (not heuristic abstract inference)
 - **L3 cumulative**: Deep → Wide → Deep refinement loop
 
-Migration `runs.parent_run_id` + `runs.seed_mode` ships in v0.53.5.
+Migration `runs.parent_run_id` + `runs.seed_mode` shipped in v0.53.5
+(schema migration v8; idempotent in-code via `_ensure_v8_columns`).
+After Wide finishes, run `wide.py synthesize --run-id <wide-id>
+--write-outputs` to emit synthesis.json. Then:
+
+```bash
+uv run python .claude/skills/deep-research/scripts/db.py init \
+  --question "Refined question" \
+  --seed-from-wide <wide-id> \
+  --seed-mode abstract     # or full-text, cumulative
+```
+
+The Deep run logs `parent_run_id` + `seed_mode` and pre-populates
+`papers_in_run` with the top-K Wide outputs (role=`seed` for abstract
+mode, role=`supporting` for full-text mode, both for cumulative).
+Deep's scout phase reads these existing entries instead of cold-start
+MCP harvesting.
 
 ## Output
 

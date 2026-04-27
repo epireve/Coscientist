@@ -800,9 +800,173 @@ class SynthesizeCLITests(TestCase):
             self.assertIn("compare", err.lower())
 
 
+class WideToDeepHandoffTests(TestCase):
+    """v0.53.5 — Wide → Deep handoff via db.py init --seed-from-wide."""
+
+    def _wide_cli(self, *args: str) -> tuple[int, str, str]:
+        import subprocess
+        cli = (_ROOT / ".claude/skills/wide-research/scripts/wide.py")
+        r = subprocess.run(
+            [sys.executable, str(cli), *args],
+            capture_output=True, text=True,
+        )
+        return r.returncode, r.stdout, r.stderr
+
+    def _deep_cli(self, *args: str) -> tuple[int, str, str]:
+        import subprocess
+        cli = (_ROOT / ".claude/skills/deep-research/scripts/db.py")
+        r = subprocess.run(
+            [sys.executable, str(cli), *args],
+            capture_output=True, text=True,
+        )
+        return r.returncode, r.stdout, r.stderr
+
+    def _build_wide_synthesis(self, run_id: str, mode: str = "triage"):
+        """Run a Wide triage end-to-end so synthesis.json exists."""
+        from lib.cache import cache_root
+        plan = json.loads(
+            (cache_root() / "runs" / f"run-{run_id}" / "plan.json")
+            .read_text()
+        )
+        for i, spec in enumerate(plan["sub_specs"]):
+            ws = Path(spec["filesystem_workspace"])
+            (ws / "result.json").write_text(json.dumps({
+                "canonical_id": f"p{i:03d}",
+                "title": f"P{i}",
+                "year": 2020,
+                "relevance_score": 1.0 - 0.05 * i,
+                "recommend": "include" if i < 5 else "exclude",
+            }))
+        rc, out, err = self._wide_cli(
+            "synthesize", "--run-id", run_id, "--write-outputs",
+        )
+        self.assertEqual(rc, 0, err)
+
+    def test_seed_from_wide_seeds_papers_in_run(self):
+        with isolated_cache() as cache_dir:
+            items_path = cache_dir / "items.json"
+            items_path.write_text(json.dumps([
+                {"canonical_id": f"p{i:03d}", "title": f"P{i}",
+                 "year": 2020} for i in range(10)
+            ]))
+            rc, out, _ = self._wide_cli(
+                "init", "--query", "Q", "--items", str(items_path),
+                "--type", "triage",
+            )
+            wide_id = json.loads(out)["run_id"]
+            self._wide_cli("gate1", "--run-id", wide_id,
+                           "--verdict", "approve")
+            self._build_wide_synthesis(wide_id)
+
+            rc, out, err = self._deep_cli(
+                "init", "--question", "Refined Q",
+                "--seed-from-wide", wide_id,
+                "--seed-mode", "abstract",
+                "--seed-top-k", "3",
+            )
+            self.assertEqual(rc, 0, err)
+            deep_id = out.strip()
+            self.assertTrue(deep_id)
+
+            from lib.cache import cache_root
+            import sqlite3
+            db = cache_root() / "runs" / f"run-{deep_id}.db"
+            con = sqlite3.connect(db)
+            row = con.execute(
+                "SELECT parent_run_id, seed_mode FROM runs WHERE run_id=?",
+                (deep_id,),
+            ).fetchone()
+            self.assertEqual(row[0], wide_id)
+            self.assertEqual(row[1], "abstract")
+            seeded = con.execute(
+                "SELECT canonical_id, role, added_in_phase "
+                "FROM papers_in_run WHERE run_id=?",
+                (deep_id,),
+            ).fetchall()
+            con.close()
+            # Top 3 by relevance — p000, p001, p002
+            self.assertEqual(len(seeded), 3)
+            cids = sorted(r[0] for r in seeded)
+            self.assertEqual(cids, ["p000", "p001", "p002"])
+            for _, role, phase in seeded:
+                self.assertEqual(role, "seed")
+                self.assertEqual(phase, "seed-from-wide")
+
+    def test_seed_mode_defaults_to_abstract(self):
+        with isolated_cache() as cache_dir:
+            items_path = cache_dir / "items.json"
+            items_path.write_text(json.dumps([
+                {"canonical_id": f"p{i:03d}", "title": f"P{i}",
+                 "year": 2020} for i in range(10)
+            ]))
+            rc, out, _ = self._wide_cli(
+                "init", "--query", "Q", "--items", str(items_path),
+                "--type", "triage",
+            )
+            wide_id = json.loads(out)["run_id"]
+            self._wide_cli("gate1", "--run-id", wide_id,
+                           "--verdict", "approve")
+            self._build_wide_synthesis(wide_id)
+
+            rc, out, err = self._deep_cli(
+                "init", "--question", "Q",
+                "--seed-from-wide", wide_id,
+            )
+            self.assertEqual(rc, 0, err)
+            deep_id = out.strip()
+            from lib.cache import cache_root
+            import sqlite3
+            db = cache_root() / "runs" / f"run-{deep_id}.db"
+            con = sqlite3.connect(db)
+            row = con.execute(
+                "SELECT seed_mode FROM runs WHERE run_id=?", (deep_id,),
+            ).fetchone()
+            con.close()
+            self.assertEqual(row[0], "abstract")
+
+    def test_seed_missing_synthesis_rejected(self):
+        with isolated_cache() as cache_dir:
+            rc, out, err = self._deep_cli(
+                "init", "--question", "Q",
+                "--seed-from-wide", "deadbeef",
+                "--seed-mode", "abstract",
+            )
+            self.assertTrue(rc != 0)
+            self.assertIn("no seed papers", err)
+
+    def test_seed_invalid_mode_rejected(self):
+        with isolated_cache() as cache_dir:
+            rc, out, err = self._deep_cli(
+                "init", "--question", "Q",
+                "--seed-from-wide", "deadbeef",
+                "--seed-mode", "garbage",
+            )
+            self.assertTrue(rc != 0)
+
+    def test_init_without_seed_works(self):
+        with isolated_cache():
+            rc, out, err = self._deep_cli(
+                "init", "--question", "vanilla deep",
+            )
+            self.assertEqual(rc, 0, err)
+            deep_id = out.strip()
+            from lib.cache import cache_root
+            import sqlite3
+            db = cache_root() / "runs" / f"run-{deep_id}.db"
+            con = sqlite3.connect(db)
+            row = con.execute(
+                "SELECT parent_run_id, seed_mode FROM runs WHERE run_id=?",
+                (deep_id,),
+            ).fetchone()
+            con.close()
+            self.assertIsNone(row[0])
+            self.assertIsNone(row[1])
+
+
 if __name__ == "__main__":
     sys.exit(run_tests(
         TaskSpecTests, DecomposeTests, CostEstimateTests, WorkspaceTests,
         CollectResultsTests, TaskTypeDefaultsTests, CLITests,
         Gate23ObserveTests, SynthesisTests, SynthesizeCLITests,
+        WideToDeepHandoffTests,
     ))

@@ -69,6 +69,8 @@ MIGRATIONS: list[tuple[int, str, str]] = [
     # _ensure_v6_columns().
     # v0.52.4 — papers_in_run.disagreement_score. Pattern via
     # _ensure_v7_columns().
+    # v0.53.5 — runs.parent_run_id + runs.seed_mode for Wide → Deep
+    # handoff lineage. Pattern via _ensure_v8_columns().
 ]
 
 
@@ -167,9 +169,39 @@ def ensure_current(db_path: Path,
                     (7, "v0.52.4_papers_in_run_disagreement", now),
                 )
             newly_applied.append(7)
+
+        # v0.53.5 Wide → Deep handoff lineage on runs
+        if 8 not in applied:
+            _ensure_v8_columns(con)
+            with con:
+                con.execute(
+                    "INSERT INTO schema_versions (version, name, applied_at) "
+                    "VALUES (?, ?, ?)",
+                    (8, "v0.53.5_runs_parent_and_seed_mode", now),
+                )
+            newly_applied.append(8)
     finally:
         con.close()
     return newly_applied
+
+
+def _ensure_v8_columns(con: sqlite3.Connection) -> None:
+    """Add parent_run_id + seed_mode to runs if missing.
+
+    v0.53.5 — Wide → Deep handoff lineage. parent_run_id points back
+    at the Wide run that seeded this Deep run; seed_mode records the
+    handoff level (none|abstract|full-text|cumulative).
+    """
+    cols = {row[1] for row in con.execute("PRAGMA table_info(runs)")}
+    with con:
+        if "parent_run_id" not in cols:
+            con.execute(
+                "ALTER TABLE runs ADD COLUMN parent_run_id TEXT"
+            )
+        if "seed_mode" not in cols:
+            con.execute(
+                "ALTER TABLE runs ADD COLUMN seed_mode TEXT"
+            )
 
 
 def _ensure_v7_columns(con: sqlite3.Connection) -> None:

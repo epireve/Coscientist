@@ -98,19 +98,93 @@ def cmd_init(args: argparse.Namespace) -> None:
         json.loads(Path(args.config).read_text()) if args.config else {}
     )
     overnight = 1 if getattr(args, "overnight", False) else 0
+
+    # v0.53.5 — Wide → Deep handoff
+    parent_run_id = getattr(args, "seed_from_wide", None)
+    seed_mode = getattr(args, "seed_mode", None)
+    seed_top_k = getattr(args, "seed_top_k", 30) or 30
+    seed_papers: list[tuple[str, str]] = []  # (canonical_id, role)
+
+    if parent_run_id:
+        if not seed_mode:
+            seed_mode = "abstract"
+        if seed_mode not in ("abstract", "full-text", "cumulative"):
+            raise SystemExit(
+                f"--seed-mode must be abstract|full-text|cumulative "
+                f"(got {seed_mode!r})"
+            )
+        seed_papers = _load_wide_seed(
+            parent_run_id, seed_mode, seed_top_k
+        )
+        if not seed_papers:
+            raise SystemExit(
+                f"no seed papers found from Wide run "
+                f"{parent_run_id} — synthesis.json missing or empty"
+            )
+
     with con:
         con.execute(
-            "INSERT INTO runs (run_id, question, started_at, config_json, overnight) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (run_id, args.question, datetime.now(UTC).isoformat(), json.dumps(config), overnight),
+            "INSERT INTO runs (run_id, question, started_at, config_json, "
+            "overnight, parent_run_id, seed_mode) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (run_id, args.question, datetime.now(UTC).isoformat(),
+             json.dumps(config), overnight, parent_run_id, seed_mode),
         )
         for i, name in enumerate(PHASES_IN_ORDER):
             con.execute(
                 "INSERT INTO phases (run_id, name, ordinal) VALUES (?, ?, ?)",
                 (run_id, name, i),
             )
+        # Seed papers_in_run with wide handoff
+        for cid, role in seed_papers:
+            con.execute(
+                "INSERT OR IGNORE INTO papers_in_run "
+                "(run_id, canonical_id, added_in_phase, role) "
+                "VALUES (?, ?, ?, ?)",
+                (run_id, cid, "seed-from-wide", role),
+            )
     con.close()
     print(run_id)
+
+
+def _load_wide_seed(
+    wide_run_id: str, seed_mode: str, top_k: int
+) -> list[tuple[str, str]]:
+    """Read Wide synthesis.json for handoff into Deep.
+
+    Returns list of (canonical_id, role) tuples.
+
+    seed_mode mapping:
+      abstract   → triage top-K shortlist (relevance-sorted)
+      full-text  → read digests (already extracted; full-text known)
+      cumulative → both (Deep refines on top of Wide's full-text reads)
+
+    role assignments:
+      abstract  → 'seed'      (Deep scout will harvest more around them)
+      full-text → 'supporting' (already vetted in Wide)
+    """
+    from lib.cache import cache_root  # noqa: WPS433
+    synth_path = (
+        cache_root() / "runs" / f"run-{wide_run_id}" / "synthesis.json"
+    )
+    if not synth_path.exists():
+        return []
+    synth = json.loads(synth_path.read_text())
+    out: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    if seed_mode in ("abstract", "cumulative"):
+        for row in synth.get("top_shortlist", [])[:top_k]:
+            cid = row.get("canonical_id")
+            if cid and cid not in seen:
+                seen.add(cid)
+                out.append((cid, "seed"))
+    if seed_mode in ("full-text", "cumulative"):
+        for d in synth.get("digests", [])[:top_k]:
+            cid = d.get("canonical_id")
+            if cid and cid not in seen:
+                seen.add(cid)
+                out.append((cid, "supporting"))
+    return out
 
 
 def cmd_record_phase(args: argparse.Namespace) -> None:
@@ -475,6 +549,13 @@ def main() -> None:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     pi = sub.add_parser("init"); pi.add_argument("--question", required=True); pi.add_argument("--config", default=None); pi.add_argument("--overnight", action="store_true", default=False)
+    pi.add_argument("--seed-from-wide", default=None,
+                     help="Wide run_id whose synthesis.json seeds this Deep run")
+    pi.add_argument("--seed-mode", default=None,
+                     choices=["abstract", "full-text", "cumulative"],
+                     help="Wide → Deep handoff level (default: abstract)")
+    pi.add_argument("--seed-top-k", type=int, default=30,
+                     help="Max seed papers from Wide (default 30)")
     pi.set_defaults(func=cmd_init)
 
     pp = sub.add_parser("record-phase")

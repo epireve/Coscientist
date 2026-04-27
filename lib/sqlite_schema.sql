@@ -14,7 +14,9 @@ CREATE TABLE IF NOT EXISTS runs (
     final_brief    TEXT,
     understanding_map TEXT,
     search_strategy_json TEXT,  -- v0.52.1 — framework + sub-area decomposition (lib/search_framework.py)
-    strategy_critique_json TEXT  -- v0.52.2 — adversarial critique of search strategy (search-strategy-critique skill)
+    strategy_critique_json TEXT, -- v0.52.2 — adversarial critique of search strategy (search-strategy-critique skill)
+    parent_run_id   TEXT,       -- v0.53.5 — Wide run that seeded this Deep run
+    seed_mode       TEXT        -- v0.53.5 — none|abstract|full-text|cumulative
 );
 
 CREATE TABLE IF NOT EXISTS phases (
