@@ -138,6 +138,7 @@ from tests.test_citation_format_converter import (
     FormatStyleTests,
     StylesCommandTests,
 )
+from tests.test_expedition_dry_run import FullPipelineTests
 from tests.test_arxiv_to_markdown import (
     CliTests as ArxivToMarkdownCliTests,
     NormalizeArxivIdTests,
@@ -521,6 +522,7 @@ if __name__ == "__main__":
         ConvertTests,
         FormatStyleTests,
         CFCliTests,
+        FullPipelineTests,
         EvalReferencesTests,
         EvalClaimsTests,
         MergeEntriesTests,
