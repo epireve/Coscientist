@@ -210,7 +210,14 @@ def cmd_next_phase(args: argparse.Namespace) -> None:
 
 
 def cmd_resume(args: argparse.Namespace) -> None:
-    """Print a summary of current state + next action."""
+    """Print a summary of current state + next action + harvest status.
+
+    v0.46.3: Sub-agents in some runtimes don't inherit MCP tools, so the
+    six search-using personas (social, grounder, historian, gaper,
+    theorist, thinker) read from orchestrator-harvested shortlist files.
+    Resume reports which shortlists exist so the orchestrator knows
+    whether harvest is required before invoking the next persona.
+    """
     con = _connect(args.run_id)
     run = con.execute("SELECT * FROM runs WHERE run_id=?", (args.run_id,)).fetchone()
     if not run:
@@ -222,11 +229,32 @@ def cmd_resume(args: argparse.Namespace) -> None:
     ).fetchall()
     con.close()
 
+    # Per-persona expected phase mapping (matches deep-research SKILL.md)
+    expected_harvests = [
+        ("social", "phase0"),
+        ("grounder", "phase1"),
+        ("historian", "phase1"),
+        ("gaper", "phase1"),
+        ("theorist", "phase2"),
+        ("thinker", "phase3"),
+    ]
+    from lib.persona_input import exists as _shortlist_exists
+    harvest_status = []
+    for persona, phase in expected_harvests:
+        harvest_status.append({
+            "persona": persona,
+            "phase": phase,
+            "shortlist_present": _shortlist_exists(
+                args.run_id, persona, phase
+            ),
+        })
+
     print(json.dumps({
         "run_id": args.run_id,
         "question": run["question"],
         "status": run["status"],
         "phases": [dict(r) for r in phases],
+        "harvests": harvest_status,
     }, indent=2))
 
 

@@ -95,11 +95,29 @@ Each sub-agent is invoked via Claude Code's native sub-agent mechanism — they 
 When you (the calling Claude agent) run this skill:
 
 1. **Create or resume the run** — `db.py init` or `db.py resume`.
-2. **Invoke each sub-agent in order** — via Claude Code's `Task` tool with `subagent_type=<agent-name>`. Do not inline their prompts here; they are defined in `.claude/agents/`.
-3. **After each agent completes**, call `db.py record-phase` with the agent's structured output.
-4. **At break points**, stop the pipeline. Use `AskUserQuestion` to prompt the user. Record their input via `db.py record-break`. Do not proceed until resolved.
-5. **If any agent errors or returns low-confidence output**, record the error and prompt the user — do not silently skip a phase.
-6. **On completion**, the final Scribe phase produces the artifacts; the orchestrator runs `/research-eval` automatically before marking the run complete.
+2. **For each search-using persona**, harvest MCP results into a shortlist file *before* invoking the persona. Sub-agents in this runtime do not inherit MCP tool access; the orchestrator (you) has it. Pipe MCP results through `harvest.py write` so the persona can read from disk:
+
+   ```bash
+   # Pseudo-code — call your MCPs, collect results into a JSON array, then:
+   echo '<json-array-of-mcp-results>' | python .claude/skills/deep-research/scripts/harvest.py write \
+     --run-id <run_id> --persona <persona-name> --phase <phaseN> \
+     --query "<the run's research question>"
+   ```
+
+   Six personas need this: `social`, `grounder`, `historian`, `gaper`, `theorist`, `thinker`. The `vision`, `rude`, `synthesizer`, and `scribe` personas operate purely over in-run artifacts and need no harvest. Suggested per-persona MCP mapping (override via `config.json`):
+
+   - `social` (phase0): consensus + paper-search + academic + semantic-scholar — broad sweep
+   - `grounder` (phase1): semantic-scholar citation graph + paper-search — find seminal works
+   - `historian` (phase1): consensus + paper-search — retrospectives and surveys
+   - `gaper` (phase1): consensus + semantic-scholar — null-result probes
+   - `theorist` (phase2): semantic-scholar — adjacent-field precedents
+   - `thinker` (phase3): semantic-scholar — cross-field analogues
+
+3. **Invoke each sub-agent in order** — via Claude Code's `Task` tool with `subagent_type=<agent-name>`. Pass the run_id and phase in the prompt so the persona can call `harvest.py show`. Do not inline their prompts here; they are defined in `.claude/agents/`.
+4. **After each agent completes**, call `db.py record-phase` with the agent's structured output.
+5. **At break points**, stop the pipeline. Use `AskUserQuestion` to prompt the user. Record their input via `db.py record-break`. Do not proceed until resolved.
+6. **If any agent errors or returns low-confidence output**, record the error and prompt the user — do not silently skip a phase.
+7. **On completion**, the final Scribe phase produces the artifacts; the orchestrator runs `/research-eval` automatically before marking the run complete.
 
 ## Configuration (`config.json`)
 
