@@ -789,9 +789,34 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.66
+## Shipped: v0.51 → v0.69
 
 All items in this section are landed. See per-version notes.
+
+### v0.69 — db_writes retention ✅ (2026-04-27)
+
+`db_writes` is append-only and grows unbounded. Adds bounded
+retention.
+
+- `lib/db_notify.py::prune_writes(con, *, keep_last_n=, older_than=)`
+  — deletes rows outside the retention window. Read-only when both
+  args are None (just returns counts).
+- `audit-query` gains `prune-writes` subcommand. Args: `--db-path`
+  (required), `--keep-last-n N`, `--older-than ISO-TIMESTAMP`.
+- 8 new tests (1458 → 1466 passing): no-args report, keep-last-N,
+  keep-last-0 clears, older-than future / past, missing table,
+  CLI smoke (count + keep).
+- Idempotent. Safe to run on a stopped pipeline as part of a cron.
+
+### v0.68 — deferred-mention sweep ✅ NO-ACTION (2026-04-27)
+
+Audited 110 raw matches for `deferred|stub|placeholder` across
+`lib/` + `.claude/`. Only 1 actual deferred-feature mention found
+(`agents/librarian.md` — Zotero write ops, intentionally manual).
+The remaining 109 are legit feature naming (`[PLACEHOLDER: ...]`
+template markers in manuscript-draft / dmp-generator / grant-draft,
+test stubs, manuscript section state machine values like
+`placeholder | drafted | revised`). No backlog to triage.
 
 ### v0.66 — connect_wal retrofit on critical paths ✅ (2026-04-27)
 

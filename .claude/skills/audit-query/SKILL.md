@@ -38,6 +38,11 @@ uv run python .claude/skills/audit-query/scripts/query.py records \
 uv run python .claude/skills/audit-query/scripts/query.py resolutions \
   --db-path <coscientist-db> \
   [--run-id <rid>] [--project-id <pid>] [--matched-only] [--limit 10]
+
+# Prune the db_writes audit table (v0.69)
+uv run python .claude/skills/audit-query/scripts/query.py prune-writes \
+  --db-path <coscientist-db> \
+  [--keep-last-n N | --older-than ISO-TIMESTAMP]
 ```
 
 All output JSON to stdout. `--format md` renders a markdown table.

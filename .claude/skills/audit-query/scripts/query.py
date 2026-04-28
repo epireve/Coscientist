@@ -320,6 +320,29 @@ def cmd_resolutions(args: argparse.Namespace) -> dict:
         con.close()
 
 
+def cmd_prune_writes(args: argparse.Namespace) -> dict:
+    """v0.69 — prune the db_writes audit table.
+
+    Read-only when neither --keep-last-n nor --older-than passed
+    (returns current row count). Otherwise applies the retention
+    rules and returns deletion stats.
+    """
+    import sqlite3 as _sq
+    db_path = Path(args.db_path)
+    if not db_path.exists():
+        raise SystemExit(f"DB not found: {db_path}")
+    con = _sq.connect(db_path)
+    try:
+        from lib.db_notify import prune_writes
+        return prune_writes(
+            con,
+            keep_last_n=args.keep_last_n,
+            older_than=args.older_than,
+        )
+    finally:
+        con.close()
+
+
 def cmd_summary(args: argparse.Namespace) -> dict:
     incl = getattr(args, "include_archives", False)
     fa = argparse.Namespace(since=args.since, domain=None, limit=5,
@@ -409,6 +432,18 @@ def main() -> None:
     rs.add_argument("--limit", type=int, default=10,
                     help="How many recent rows to include (default 10)")
     rs.set_defaults(func=cmd_resolutions)
+
+    pw = sub.add_parser(
+        "prune-writes",
+        help="Prune the db_writes audit table (v0.69)",
+    )
+    pw.add_argument("--db-path", required=True,
+                    help="Path to a coscientist SQLite DB")
+    pw.add_argument("--keep-last-n", type=int, default=None,
+                    help="Keep only the N newest rows by `at` timestamp")
+    pw.add_argument("--older-than", default=None,
+                    help="Delete rows with at < this ISO timestamp")
+    pw.set_defaults(func=cmd_prune_writes)
 
     args = p.parse_args()
     out = args.func(args)

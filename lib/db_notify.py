@@ -154,6 +154,56 @@ def per_table_counts(con: sqlite3.Connection) -> dict[str, int]:
     return out
 
 
+def prune_writes(
+    con: sqlite3.Connection,
+    *,
+    keep_last_n: int | None = None,
+    older_than: str | None = None,
+) -> dict:
+    """v0.69 — bounded retention for db_writes.
+
+    Deletes rows that fall outside the retention window. Two modes
+    (combinable):
+      keep_last_n: keep only the N newest rows (by `at` timestamp).
+      older_than: delete every row with `at < older_than`.
+
+    Returns: {deleted: N, remaining: M, table_present: bool}.
+    Idempotent. Read-only when both args are None.
+    """
+    if not _table_exists(con, "db_writes"):
+        return {"deleted": 0, "remaining": 0, "table_present": False}
+    if keep_last_n is None and older_than is None:
+        n = con.execute("SELECT COUNT(*) FROM db_writes").fetchone()[0]
+        return {"deleted": 0, "remaining": int(n), "table_present": True}
+
+    deleted = 0
+    with con:
+        if older_than is not None:
+            cur = con.execute(
+                "DELETE FROM db_writes WHERE at < ?",
+                (older_than,),
+            )
+            deleted += cur.rowcount or 0
+        if keep_last_n is not None and keep_last_n >= 0:
+            # Keep the N newest by at; delete older. Use write_id (PK,
+            # autoincrement) for tiebreaks on equal timestamps.
+            cur = con.execute(
+                "DELETE FROM db_writes WHERE write_id NOT IN ("
+                "  SELECT write_id FROM db_writes "
+                "  ORDER BY at DESC, write_id DESC LIMIT ?"
+                ")",
+                (keep_last_n,),
+            )
+            deleted += cur.rowcount or 0
+
+    remaining = con.execute("SELECT COUNT(*) FROM db_writes").fetchone()[0]
+    return {
+        "deleted": deleted,
+        "remaining": int(remaining),
+        "table_present": True,
+    }
+
+
 def _table_exists(con: sqlite3.Connection, name: str) -> bool:
     row = con.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
