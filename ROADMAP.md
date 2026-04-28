@@ -789,9 +789,27 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.67
+## Shipped: v0.51 → v0.66
 
 All items in this section are landed. See per-version notes.
+
+### v0.66 — connect_wal retrofit on critical paths ✅ (2026-04-27)
+
+Adopts the v0.65g `lib.cache.connect_wal` helper at the three
+parallel-write surfaces. Eliminates SQLITE_BUSY risk in the
+orchestrator-worker fan-out paths.
+
+- `lib/skill_persist.py::_ensure_db` — every `persist_*` helper now
+  returns a WAL connection.
+- `.claude/skills/deep-research/scripts/db.py::_connect` — Phase-1
+  parallel dispatch (cartographer + chronicler + surveyor concurrent)
+  no longer races on the run DB.
+- `.claude/skills/wide-research/scripts/wide.py::_connect_wide_db` —
+  cap-30 sub-agent fan-out can persist results without contention.
+- 2 new tests (1456 → 1458 passing): persist_* roundtrip leaves
+  journal_mode=wal, deep-research `db.py init` produces WAL run DB.
+- WAL is a per-DB on-disk flag; pre-existing rollback-journal DBs
+  upgrade transparently on first connection through the retrofit.
 
 ### v0.67 — auto-generated SKILLS.md index ✅ (2026-04-27)
 

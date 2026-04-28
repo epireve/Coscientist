@@ -29,7 +29,15 @@ _SCHEMA_SQL = _REPO_ROOT / "lib" / "sqlite_schema.sql"
 
 
 def _ensure_db(db_path: Path) -> sqlite3.Connection:
-    """Open or create DB; ensure schema + migrations applied."""
+    """Open or create DB; ensure schema + migrations applied.
+
+    v0.66: returns a WAL-mode connection (lib.cache.connect_wal) so
+    parallel skill writers (Wide Research orchestrator-worker) don't
+    deadlock on SQLITE_BUSY. WAL is a per-DB on-disk flag; pre-existing
+    rollback-journal DBs upgrade transparently on first connect_wal
+    open.
+    """
+    from lib.cache import connect_wal
     fresh = not db_path.exists()
     if fresh:
         db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -38,7 +46,7 @@ def _ensure_db(db_path: Path) -> sqlite3.Connection:
         con.close()
     from lib.migrations import ensure_current
     ensure_current(db_path)
-    return sqlite3.connect(db_path)
+    return connect_wal(db_path)
 
 
 def _emit(note: dict) -> None:

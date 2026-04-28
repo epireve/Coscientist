@@ -77,7 +77,10 @@ def _connect(run_id: str) -> sqlite3.Connection:
     # v0.14: apply any unapplied migrations before returning the connection
     from lib.migrations import ensure_current
     ensure_current(db)
-    con = sqlite3.connect(db)
+    # v0.66: WAL mode lets Phase-1 parallel-dispatch (cartographer +
+    # chronicler + surveyor concurrent) write without SQLITE_BUSY.
+    from lib.cache import connect_wal
+    con = connect_wal(db)
     con.row_factory = sqlite3.Row
     return con
 

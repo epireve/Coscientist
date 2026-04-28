@@ -62,7 +62,12 @@ def _wide_db_path(run_id: str) -> Path:
 
 
 def _connect_wide_db(run_id: str) -> sqlite3.Connection:
-    """Open (or create) the Wide-run DB; ensure migrations applied."""
+    """Open (or create) the Wide-run DB; ensure migrations applied.
+
+    v0.66: returns a WAL-mode connection so the orchestrator-worker
+    fan-out (cap 30 concurrent sub-agents) can persist results without
+    SQLITE_BUSY contention against parallel writers.
+    """
     db = _wide_db_path(run_id)
     fresh = not db.exists()
     if fresh:
@@ -73,7 +78,8 @@ def _connect_wide_db(run_id: str) -> sqlite3.Connection:
         con.executescript(schema)
         con.close()
     ensure_current(db)
-    return sqlite3.connect(db)
+    from lib.cache import connect_wal
+    return connect_wal(db)
 
 
 def _emit_notification(note: dict) -> None:
