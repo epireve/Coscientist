@@ -789,9 +789,30 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.65
+## Shipped: v0.51 → v0.67
 
 All items in this section are landed. See per-version notes.
+
+### v0.67 — auto-generated SKILLS.md index ✅ (2026-04-27)
+
+64 skills, no global index until now. Adding a new skill could
+silently fail to surface in docs.
+
+- `lib/skill_index.py` — pure-stdlib generator. Walks
+  `.claude/skills/*/SKILL.md`, parses YAML frontmatter (name +
+  description + when_to_use), emits sorted markdown table.
+  Run as module: `uv run python -m lib.skill_index > SKILLS.md`.
+- `SKILLS.md` — top-level index, 64 entries.
+- `tests/test_skill_index.py` — 8 tests:
+  * discovers ≥60 skills (ratchet)
+  * every entry has name, description, when_to_use
+  * frontmatter name field matches directory name
+  * no duplicate names
+  * `SKILLS.md` exists
+  * `SKILLS.md` byte-matches generator output (drift detector)
+- `README.md` updated to point at the index.
+
+Suite: 1448 → 1456 passing.
 
 ### v0.65 — structural hardening ✅ (2026-04-27)
 

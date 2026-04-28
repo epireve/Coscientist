@@ -67,6 +67,10 @@ State flows: `discovered → triaged → acquired → extracted → read → cit
 
 ## Skills
 
+For a complete auto-generated index of every skill with frontmatter
+description, see [SKILLS.md](./SKILLS.md). Regenerate via `uv run
+python -m lib.skill_index > SKILLS.md` (a CI test enforces parity).
+
 ### Literature pipeline (v0.1)
 
 | Skill | Job |
