@@ -11,6 +11,22 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.97 — stale-span detector (2026-04-28)
+
+`lib.trace_status.find_stale_spans(db, *, max_age_minutes=30)`
+returns spans still `status='running'` past the threshold —
+phases / sub-agents that crashed without closing their span.
+
+CLI: `uv run python -m lib.trace_status --stale-only
+[--run-id <rid>] [--max-age 30] [--format md|json]`. Without
+`--run-id` scans every run DB.
+
+Reports kind/name/age but does not auto-mutate state — caller
+decides whether to mark error or re-resume. Smoke-test
+companion to v0.95 trace-status quick view.
+
+5 new tests. 1744 total passing.
+
 ## v0.96 — cross-run agent quality leaderboard (2026-04-28)
 
 `lib.agent_quality.leaderboard(roots=None)` walks every

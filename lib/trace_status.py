@@ -135,6 +135,60 @@ def summarize_runs(roots: list[Path] | None = None) -> list[dict[str, Any]]:
     return out
 
 
+def find_stale_spans(
+    db_path: Path, *, max_age_minutes: int = 30,
+    now_iso: str | None = None,
+) -> list[dict[str, Any]]:
+    """v0.97 — return spans still status='running' past `max_age_minutes`.
+
+    Useful during smoke tests: a phase or sub-agent crashed without
+    closing its span, leaving status=running indefinitely. Caller
+    decides whether to mark them error or just report.
+
+    Each entry: {span_id, trace_id, kind, name, started_at,
+                 age_minutes}.
+    """
+    from datetime import UTC, datetime, timedelta
+    if now_iso is None:
+        now = datetime.now(UTC)
+    else:
+        now = datetime.fromisoformat(now_iso.replace("Z", "+00:00"))
+    cutoff = now - timedelta(minutes=max_age_minutes)
+    if not db_path.exists():
+        return []
+    con = _open(db_path)
+    try:
+        try:
+            rows = list(con.execute(
+                "SELECT span_id, trace_id, kind, name, started_at "
+                "FROM spans WHERE status='running' "
+                "ORDER BY started_at",
+            ))
+        except sqlite3.OperationalError:
+            return []
+    finally:
+        con.close()
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        try:
+            started = datetime.fromisoformat(
+                r["started_at"].replace("Z", "+00:00"),
+            )
+        except (ValueError, AttributeError):
+            continue
+        if started < cutoff:
+            age = int((now - started).total_seconds() / 60)
+            out.append({
+                "span_id": r["span_id"],
+                "trace_id": r["trace_id"],
+                "kind": r["kind"],
+                "name": r["name"],
+                "started_at": r["started_at"],
+                "age_minutes": age,
+            })
+    return out
+
+
 def render_md(summaries: list[dict[str, Any]]) -> str:
     if not summaries:
         return "# Trace status\n\n_No traces found._\n"
@@ -178,7 +232,46 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--run-id", default=None,
                     help="Inspect one run; default scans all runs.")
     p.add_argument("--format", choices=("md", "json"), default="md")
+    p.add_argument(
+        "--stale-only", action="store_true",
+        help="v0.97: list spans still running past --max-age minutes.",
+    )
+    p.add_argument("--max-age", type=int, default=30,
+                    help="Stale threshold in minutes (default 30).")
     args = p.parse_args(argv)
+    if args.stale_only:
+        from lib.cache import run_db_path, runs_dir
+        if args.run_id:
+            stale = find_stale_spans(
+                run_db_path(args.run_id),
+                max_age_minutes=args.max_age,
+            )
+        else:
+            stale = []
+            d = runs_dir()
+            if d.exists():
+                for db in sorted(d.glob("run-*.db")):
+                    stale.extend(find_stale_spans(
+                        db, max_age_minutes=args.max_age,
+                    ))
+        if args.format == "json":
+            sys.stdout.write(json.dumps(stale, indent=2,
+                                         default=str) + "\n")
+        else:
+            if not stale:
+                sys.stdout.write("# Stale spans\n\n_None._\n")
+            else:
+                lines = ["# Stale spans (still running)", ""]
+                for s in stale:
+                    lines.append(
+                        f"- ⏳ `{s['kind']}`/{s['name']} "
+                        f"(span={s['span_id'][:16]}, "
+                        f"trace={s['trace_id'][:16]}) "
+                        f"age={s['age_minutes']}m"
+                    )
+                lines.append("")
+                sys.stdout.write("\n".join(lines))
+        return 0
     if args.run_id:
         from lib.cache import run_db_path
         s = summarize_trace(run_db_path(args.run_id), args.run_id)
