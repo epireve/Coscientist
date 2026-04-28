@@ -30,18 +30,18 @@ class ReleaseWorkflowTests(TestCase):
         self.assertIn("uv build", text)
 
     def test_publish_step_gated(self):
-        # Publish to PyPI must be commented out / behind a gate;
-        # auto-publish is risky.
+        # Publish to PyPI must require an explicit env-var gate.
         text = self.PATH.read_text()
         publish_idx = text.find("publish:")
         if publish_idx == -1:
             return
-        # If `publish:` is present, every line in the block must be
-        # commented (start with `#`) or we accept gates via env.
-        block = text[publish_idx:publish_idx + 800]
-        # Permissive: just ensure it doesn't run unconditionally.
-        self.assertTrue("#" in block,
-                        "release.yml has uncommented publish step — gate it")
+        block = text[publish_idx:publish_idx + 1500]
+        # v0.85: gate via vars.PYPI_PUBLISH_ENABLED
+        self.assertIn("PYPI_PUBLISH_ENABLED", block,
+                      "release.yml publish step must gate on "
+                      "vars.PYPI_PUBLISH_ENABLED")
+        self.assertIn("if:", block,
+                      "release.yml publish step missing `if:` gate")
 
 
 class InstallScriptTests(TestCase):

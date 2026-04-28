@@ -789,9 +789,43 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.84
+## Shipped: v0.51 → v0.85
 
 All items in this section are landed. See per-version notes.
+
+### v0.85 — plugin uninstall cleanup + checksums + PyPI publish gate ✅ (2026-04-28)
+
+Plugin polish triple.
+
+**Plugin uninstall cleanup** (`lib/plugin_cleanup.py`): Claude Code
+plugin spec doesn't define a formal uninstall hook (as of v2.0.x).
+This module fills the gap with manual cleanup per plugin:
+`retraction-mcp` drops `retraction_flags` rows where
+`source='retraction-mcp'`. Other 3 plugins are no-op (no
+persistent state). Dry-run by default; `--confirm` for actual
+deletes.
+
+**Plugin file checksums** (`lib/plugin_checksums.py`): SHA-256
+manifest at `<plugin>/CHECKSUMS.txt` per plugin. Compatible with
+standard `sha256sum -c`. CLI: `generate` + `verify`. All 4
+plugins now have CHECKSUMS.txt files.
+
+**PyPI publish gate**: `release.yml` publish step now gated on
+`vars.PYPI_PUBLISH_ENABLED == 'true'` + trusted-publisher
+configuration. Without that flag, the workflow only validates
+the build. To enable:
+```bash
+gh variable set PYPI_PUBLISH_ENABLED --body 'true'
+```
+
+9 new tests in `tests/test_v0_85_plugin_polish.py`:
+- 6 cleanup (unknown plugin, 3 no-op plugins, dry-run, confirm)
+- 3 checksums (every plugin has manifest, verify passes,
+  excludes `__pycache__` / `.pyc`)
+- Updated `test_v0_83_release.py::test_publish_step_gated` to
+  check for the new `PYPI_PUBLISH_ENABLED` flag.
+
+Suite: 1644 → 1653 passing (+9).
 
 ### v0.84 — CONTRIBUTING.md + db_check + manuscript-mcp .docx fixture ✅ (2026-04-28)
 

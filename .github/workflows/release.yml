@@ -49,18 +49,37 @@ jobs:
           name: dist-${{ steps.plugin.outputs.name }}
           path: plugin/coscientist-${{ steps.plugin.outputs.name }}/dist/
 
-  # Publish step is intentionally separate + manual gate. Uncomment +
-  # configure trusted-publishing once a maintainer is ready to push to
-  # PyPI. Until then, the build job alone validates packaging.
+  # Publish step — gated behind both:
+  #   1. `vars.PYPI_PUBLISH_ENABLED == 'true'` (set in repo settings)
+  #   2. PyPI trusted-publisher configured for the package name
   #
-  # publish:
-  #   needs: build
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     id-token: write
-  #   steps:
-  #     - uses: actions/download-artifact@v4
-  #       with:
-  #         name: dist-${{ needs.build.outputs.plugin }}
-  #         path: dist/
-  #     - uses: pypa/gh-action-pypi-publish@release/v1
+  # Without (1), this job is a no-op even on tag push. To turn on:
+  #   gh variable set PYPI_PUBLISH_ENABLED --body 'true'
+  # Then configure trusted-publishing at:
+  #   https://pypi.org/manage/account/publishing/
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ vars.PYPI_PUBLISH_ENABLED == 'true' }}
+    permissions:
+      id-token: write
+    steps:
+      - name: Determine plugin from tag or input
+        id: plugin
+        run: |
+          if [[ -n "${{ github.event.inputs.plugin }}" ]]; then
+            echo "name=${{ github.event.inputs.plugin }}" >> $GITHUB_OUTPUT
+          else
+            tag="${GITHUB_REF#refs/tags/}"
+            plugin="${tag%-v*}"
+            echo "name=${plugin}" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-${{ steps.plugin.outputs.name }}
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
