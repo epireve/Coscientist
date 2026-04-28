@@ -11,6 +11,27 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.121 — open questions all resolved (2026-04-28)
+
+8 "open questions and decisions pending" all marked resolved
+with verdict + reasoning. No code changes — pure roadmap
+hygiene continuing v0.120.
+
+Highlights:
+- **Q1 Graph DB**: stay SQLite-adjacency. Kuzu parked until
+  >1s query latency. Neo4j ruled out.
+- **Q3 Refactor timing**: piecemeal-during validated by
+  outcome. Risk avoided = "wrong abstraction" — features
+  first surfaced real abstractions empirically.
+- Q4–Q8 all answered by what shipped (Docker local, both
+  tournament strategies, multi-project per repo, queued-only
+  overnight, lazy citation graph).
+
+Kuzu added to Parked section with explicit migration trigger
+("when query latency >1s").
+
+1897 tests pass.
+
 ## v0.120 — ROADMAP audit: Tier A/B/C all (2026-04-28)
 
 Stale roadmap markers updated. Tier A/B/C all shipped status

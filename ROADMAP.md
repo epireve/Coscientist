@@ -789,7 +789,28 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.120
+## Shipped: v0.51 → v0.121
+
+### v0.121 — open questions all resolved ✅ (2026-04-28)
+
+8 "open questions and decisions pending" all marked resolved
+with verdict + reasoning. No code changes — pure roadmap
+hygiene continuing v0.120.
+
+Highlights:
+- **Q1 Graph DB**: stay SQLite-adjacency. Kuzu parked until
+  >1s query latency. Neo4j ruled out.
+- **Q3 Refactor timing**: piecemeal-during validated by
+  outcome. Risk avoided = "wrong abstraction" — features
+  first surfaced real abstractions empirically.
+- Q4–Q8 all answered by what shipped (Docker local, both
+  tournament strategies, multi-project per repo, queued-only
+  overnight, lazy citation graph).
+
+Kuzu added to Parked section with explicit migration trigger
+("when query latency >1s").
+
+1897 tests pass.
 
 ### v0.120 — ROADMAP audit: Tier A/B/C all ✅ (2026-04-28)
 
@@ -2727,17 +2748,20 @@ finishes inside the stream-idle window.
 
 ## Open questions and decisions pending
 
-1. Graph DB: Kuzu vs SQLite-adjacency vs Neo4j (lean toward Kuzu)
-2. Manuscript format: LaTeX-first or markdown-first for `manuscript-draft`?
-3. Refactor timing: before Tier A (recommended) or after?
-4. Sandbox backend for reproducibility-mcp: Docker local / E2B / Modal / all three?
-5. Tournament compute budget: willing to spend tokens on pairwise Elo, or start with top-K selection?
-6. Research-project scope: one project per GitHub repo, or one repo hosts many projects?
-7. "Overnight mode" breaks: queued-only, or user-configurable per-run?
-8. Citation graph population: eagerly during discovery (slower, costlier) or lazily on demand?
+1. Graph DB: Kuzu vs SQLite-adjacency vs Neo4j — **resolved 2026-04-28**: stay on SQLite-adjacency. Kuzu parked until query-latency pain shows up (>1s on real workloads). Neo4j ruled out (overkill).
+2. Manuscript format: LaTeX-first or markdown-first for `manuscript-draft`? — **resolved**: markdown-first ships in v0.26. LaTeX export via pandoc (`manuscript-format`).
+3. Refactor timing: before Tier A (recommended) or after? — **resolved 2026-04-28**: piecemeal-during-Tier-A worked. Risk avoided was "wrong abstraction" — building features first surfaced real abstractions empirically. v0.3 → v0.34 incremental refactor; Tier A complete + refactor complete with no big-bang.
+4. Sandbox backend for reproducibility-mcp: Docker local / E2B / Modal / all three? — **resolved**: Docker local (v0.34). E2B/Modal parked.
+5. Tournament compute budget: willing to spend tokens on pairwise Elo, or start with top-K selection? — **resolved**: shipped both (round-robin + top-K-vs-rest + top-K-internal strategies in v0.12).
+6. Research-project scope: one project per GitHub repo, or one repo hosts many projects? — **resolved**: one repo hosts many projects (`~/.cache/coscientist/projects/<pid>/`).
+7. "Overnight mode" breaks: queued-only, or user-configurable per-run? — **resolved**: queued-only (v0.28). `--overnight` flag at run init.
+8. Citation graph population: eagerly during discovery (slower, costlier) or lazily on demand? — **resolved**: lazy on demand via `populate_citations.py` (v0.6). User runs explicitly when they want graph fresh.
+
+All open questions resolved as of 2026-04-28.
 
 ## Parked (considered, deferred, not dropped)
 
+- Kuzu graph migration — current SQLite-adjacency handles per-project volume (~thousands of nodes). Migrate when query latency >1s.
 - Neo4j integration — overkill for a personal tool
 - Distributed/cloud agent deployment — keep local-first
 - Non-English corpus support — out of scope for now
