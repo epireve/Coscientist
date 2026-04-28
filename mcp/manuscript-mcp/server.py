@@ -178,6 +178,20 @@ def _extract_sections_from_text(text: str, fmt: str) -> list[dict[str, Any]]:
 mcp = FastMCP("manuscript-mcp")
 
 
+def _trace_emit(tool_name: str, args_summary: dict | None,
+                result_summary: dict | None) -> None:
+    """v0.93c — best-effort tool-call span emit."""
+    try:
+        from lib.trace import maybe_emit_tool_call
+        maybe_emit_tool_call(
+            tool_name,
+            args_summary=args_summary,
+            result_summary=result_summary,
+        )
+    except Exception:
+        pass
+
+
 @mcp.tool()
 def detect_format(path: str) -> dict[str, str]:
     """Sniff manuscript format from file extension.
@@ -242,11 +256,15 @@ def parse_manuscript(
     try:
         text, resolved_fmt = _resolve_text(path_or_text, fmt)
     except RuntimeError as e:
-        return {"error": str(e)}
+        result = {"error": str(e)}
+        _trace_emit("parse_manuscript",
+                    {"path_or_text_len": len(path_or_text), "fmt": fmt},
+                    {"error": str(e)})
+        return result
     sections = _extract_sections_from_text(text, resolved_fmt)
     citations = _extract_citations_from_text(text)
     word_count = len(re.findall(r"\b\w+\b", text))
-    return {
+    result = {
         "format": resolved_fmt,
         "word_count": word_count,
         "char_count": len(text),
@@ -256,6 +274,12 @@ def parse_manuscript(
         "sections": sections,
         "citations": citations,
     }
+    _trace_emit("parse_manuscript",
+                {"format": resolved_fmt, "fmt": fmt},
+                {"word_count": word_count,
+                 "n_sections": len(sections),
+                 "n_citations": len(citations)})
+    return result
 
 
 def main() -> None:

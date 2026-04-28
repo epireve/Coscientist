@@ -201,11 +201,22 @@ def main() -> None:
         print("[publishability-check] REJECTED", file=sys.stderr)
         for e in errors:
             print(f"  - {e}", file=sys.stderr)
+        # v0.93b — emit gate span before exiting.
+        try:
+            from lib.gate_trace import emit_gate_span
+            emit_gate_span(
+                run_id=args.run_id, gate_name="publishability-check",
+                verdict="rejected", errors=errors,
+                target_id=args.target_manuscript_id,
+            )
+        except Exception:
+            pass
         sys.exit(2)
 
     # v0.12.1: hard-fail when a calibration set is present but unreferenced.
     # Pass --allow-uncalibrated to revert to v0.10 warning behavior.
     warn = calibration_warning(report)
+    warnings = [warn] if warn else []
     if warn:
         if args.allow_uncalibrated:
             print(f"[publishability-check] WARN: {warn}", file=sys.stderr)
@@ -215,10 +226,29 @@ def main() -> None:
                 "  pass --allow-uncalibrated to override (not recommended)",
                 file=sys.stderr,
             )
+            try:
+                from lib.gate_trace import emit_gate_span
+                emit_gate_span(
+                    run_id=args.run_id, gate_name="publishability-check",
+                    verdict="rejected", errors=[warn],
+                    target_id=args.target_manuscript_id,
+                )
+            except Exception:
+                pass
             sys.exit(2)
 
     out = persist(report, args.target_manuscript_id, args.run_id)
     print(f"[publishability-check] OK → {out}")
+    # v0.93b — gate passed.
+    try:
+        from lib.gate_trace import emit_gate_span
+        emit_gate_span(
+            run_id=args.run_id, gate_name="publishability-check",
+            verdict="ok", warnings=warnings,
+            target_id=args.target_manuscript_id,
+        )
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

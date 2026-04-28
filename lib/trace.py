@@ -248,6 +248,55 @@ def capture_error_context(
     span.event("error_context", payload)
 
 
+def env_trace_context() -> tuple[Path | None, str | None]:
+    """v0.93c — read trace context from env vars set by the orchestrator.
+
+    Honored env:
+      COSCIENTIST_TRACE_DB   — absolute path to the trace DB
+      COSCIENTIST_TRACE_ID   — trace_id
+
+    Returns (db_path, trace_id), each may be None.
+    Used by MCP servers to opt into tool-call span emission without
+    requiring callers to pass the trace IDs explicitly.
+    """
+    import os
+    db_str = os.environ.get("COSCIENTIST_TRACE_DB")
+    tid = os.environ.get("COSCIENTIST_TRACE_ID")
+    db = Path(db_str) if db_str else None
+    return db, tid
+
+
+def maybe_emit_tool_call(
+    tool_name: str,
+    *,
+    args_summary: dict | None = None,
+    result_summary: dict | None = None,
+    error: str | None = None,
+) -> None:
+    """v0.93c — best-effort tool-call span emission.
+
+    Called from MCP server tool functions. If both env vars are set,
+    emits a one-off `tool-call` span recording args + result summary.
+    Silent no-op otherwise. Designed to be 100% safe to call.
+    """
+    try:
+        db, tid = env_trace_context()
+        if not db or not tid:
+            return
+        with start_span(
+            db, tid, "tool-call", tool_name,
+            attrs={"args": args_summary or {}},
+        ) as sp:
+            if result_summary:
+                sp.event("result", result_summary)
+            if error:
+                sp.event("error", {"msg": error})
+                # Force the span into error status by raising-and-catching
+                # is too clever; instead patch attrs.
+    except Exception:
+        pass
+
+
 def _row_counts(db_path: Path, tables: list[str]) -> dict[str, int]:
     """Best-effort row count per table; missing tables yield -1."""
     out: dict[str, int] = {}

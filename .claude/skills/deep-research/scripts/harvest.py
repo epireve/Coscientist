@@ -195,7 +195,7 @@ def cmd_write(args: argparse.Namespace) -> dict:
         notes=combined_notes,
     )
     path = save(inp)
-    return {
+    out_payload = {
         "wrote": str(path),
         "run_id": args.run_id,
         "persona": args.persona,
@@ -207,6 +207,31 @@ def cmd_write(args: argparse.Namespace) -> dict:
         "queries_sent": queries_sent,
         "plan_tier": plan_info,
     }
+    # v0.93b — emit a v0.89 span event for live debug visibility.
+    _emit_harvest_event(args.run_id, args.persona, args.phase, out_payload)
+    return out_payload
+
+
+def _emit_harvest_event(run_id: str, persona: str, phase: str,
+                        payload: dict) -> None:
+    """Mirror harvest write into a v0.89 trace span. Best-effort."""
+    try:
+        from lib import trace
+        from lib.cache import run_db_path
+        db = run_db_path(run_id)
+        trace.init_trace(db, trace_id=run_id, run_id=run_id)
+        with trace.start_span(
+            db, run_id, "harvest", f"{persona}/{phase}",
+            attrs={"persona": persona, "phase": phase},
+        ) as sp:
+            sp.event("harvest_write", {
+                "raw_count": payload.get("raw_count"),
+                "deduped_count": payload.get("deduped_count"),
+                "kept_count": payload.get("kept_count"),
+                "queries_sent": payload.get("queries_sent"),
+            })
+    except Exception:
+        pass
 
 
 def cmd_status(args: argparse.Namespace) -> dict:

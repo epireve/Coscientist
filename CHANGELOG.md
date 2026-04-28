@@ -11,6 +11,41 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.93 — instrumentation hookup (2026-04-28)
+
+Wires the v0.89–v0.92 traceability/quality framework into live hot
+paths. Framework existed but no live data flowed until now.
+
+**v0.93a — phase span wrapper**: `db.py record-phase` now calls
+`_emit_phase_span(run_id, phase, *, start, complete, error,
+output_json)`. Each phase transition produces a `phase`-kind span;
+errors capture `error_kind` + `error_msg`.
+
+**v0.93b — harvest + gate spans**: `harvest.py` emits a `harvest`
+span event (raw/deduped/kept counts + queries) after every write.
+`publishability-check/gate.py` calls `lib.gate_trace.emit_gate_span`
+on ok / warning / rejection paths. Helper module `lib/gate_trace.py`
+shared across gates.
+
+**v0.93c — MCP tool-call spans**: env-var trace context propagation
+(`COSCIENTIST_TRACE_DB`, `COSCIENTIST_TRACE_ID`) so MCP servers
+opt-in without API changes. `lib.trace.maybe_emit_tool_call` is a
+best-effort emitter; `retraction-mcp.lookup_doi`,
+`manuscript-mcp.parse_manuscript`, and
+`graph-query-mcp.shortest_path` instrumented (success + error
+paths). Plugin sources resynced.
+
+**v0.93d — score-quality CLI**: `db.py score-quality --run-id X
+--agent NAME --artifact-path P` runs the auto-rubric and persists
+to `agent_quality`. Direct entry point for orchestrator hooks.
+
+8 new tests covering env trace context, maybe_emit_tool_call
+(noop + writes), gate trace (noop + ok + rejected), and end-to-end
+phase span emission via CLI.
+
+Plugin checksums regenerated. All instrumentation is best-effort:
+parent flow never breaks if tracing fails.
+
 ## v0.92 — agent quality scoring (2026-04-28)
 
 Three judging modes, one persistence target. Pairs with v0.89-v0.91

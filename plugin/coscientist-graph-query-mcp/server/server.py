@@ -73,6 +73,20 @@ def _project_con(project_id: str) -> sqlite3.Connection:
 mcp = FastMCP("graph-query-mcp")
 
 
+def _trace_emit(tool_name: str, args_summary: dict | None,
+                result_summary: dict | None) -> None:
+    """v0.93c — best-effort tool-call span emit."""
+    try:
+        from lib.trace import maybe_emit_tool_call
+        maybe_emit_tool_call(
+            tool_name,
+            args_summary=args_summary,
+            result_summary=result_summary,
+        )
+    except Exception:
+        pass
+
+
 @mcp.tool()
 def neighbors(
     project_id: str,
@@ -221,10 +235,15 @@ def shortest_path(
             project_id, start_node, end_node, max_hops, relation,
         )
     except Exception as e:
-        return {"error": str(e), "start_node": start_node,
-                "end_node": end_node}
+        result = {"error": str(e), "start_node": start_node,
+                  "end_node": end_node}
+        _trace_emit("shortest_path",
+                    {"start": start_node, "end": end_node,
+                     "max_hops": max_hops},
+                    result)
+        return result
     if path is None:
-        return {
+        result = {
             "project_id": project_id,
             "start_node": start_node,
             "end_node": end_node,
@@ -232,7 +251,12 @@ def shortest_path(
             "relation": relation,
             "found": False,
         }
-    return {
+        _trace_emit("shortest_path",
+                    {"start": start_node, "end": end_node,
+                     "max_hops": max_hops},
+                    {"found": False})
+        return result
+    result = {
         "project_id": project_id,
         "start_node": start_node,
         "end_node": end_node,
@@ -242,6 +266,11 @@ def shortest_path(
         "length": len(path) - 1,
         "path": path,
     }
+    _trace_emit("shortest_path",
+                {"start": start_node, "end": end_node,
+                 "max_hops": max_hops},
+                {"found": True, "length": len(path) - 1})
+    return result
 
 
 def main() -> None:

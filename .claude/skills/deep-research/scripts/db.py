@@ -302,6 +302,74 @@ def cmd_record_phase(args: argparse.Namespace) -> None:
                 (args.error, args.run_id, args.phase),
             )
     con.close()
+    # v0.93a — emit a v0.89 trace span mirror for live debugging.
+    _emit_phase_span(args.run_id, args.phase,
+                     start=args.start, complete=args.complete,
+                     error=args.error, output_json=args.output_json)
+
+
+# v0.93a: per-phase span tracking. The CLI is one-shot per
+# --start/--complete, so we model phases as "open span on start,
+# close on complete/error" by storing span_id in the phases row's
+# output_json prefix. Simpler: emit a one-off span per command call
+# with kind='phase' so the trace shows when each transition fired.
+def _emit_phase_span(run_id: str, phase: str, *,
+                     start: bool, complete: bool, error: str | None,
+                     output_json: str | None) -> None:
+    """Mirror a phase-state transition into the v0.89 trace tables.
+
+    Each command call emits ONE span:
+      - --start: kind=phase, name=<phase>, status=running, attrs={op:start}
+      - --complete: kind=phase, name=<phase>, status=ok, attrs={op:complete}
+      - --error: kind=phase, name=<phase>, status=error, attrs={op:error}
+    Trace ID = run_id (1:1 mapping).
+    Failures inside this helper never abort the parent record-phase call.
+    """
+    try:
+        from lib import trace
+        from lib.cache import run_db_path
+        db = run_db_path(run_id)
+        # init_trace is idempotent — safe to call repeatedly.
+        trace.init_trace(db, trace_id=run_id, run_id=run_id)
+        op = "start" if start else ("complete" if complete else "error")
+        from datetime import UTC, datetime as _dt
+        # Use a manual span entry (not the context-manager API) since
+        # the work has already happened.
+        span_id = trace.make_span_id()
+        now = _dt.now(UTC).isoformat()
+        attrs = {"op": op, "phase": phase}
+        if output_json:
+            attrs["output_json_path"] = output_json
+        status = (
+            "ok" if complete else
+            "error" if error else
+            "running"
+        )
+        import sqlite3 as _sq
+        con = trace._connect(db)
+        try:
+            with con:
+                con.execute(
+                    "INSERT INTO spans (span_id, trace_id, parent_span_id, "
+                    "kind, name, started_at, ended_at, duration_ms, "
+                    "status, error_kind, error_msg, attrs_json) "
+                    "VALUES (?, ?, NULL, 'phase', ?, ?, ?, 0, ?, ?, ?, ?)",
+                    (span_id, run_id, phase, now, now, status,
+                     "phase-error" if error else None,
+                     error, _import_json().dumps(attrs)),
+                )
+        finally:
+            con.close()
+        if complete:
+            trace.end_trace(db, trace_id=run_id, status="ok")
+    except Exception:
+        # Tracing is observability — never let it break the run.
+        pass
+
+
+def _import_json():
+    import json
+    return json
 
 
 def cmd_record_break(args: argparse.Namespace) -> None:
@@ -706,6 +774,24 @@ def cmd_set_strategy(args: argparse.Namespace) -> None:
     }, indent=2) + "\n")
 
 
+def cmd_score_quality(args: argparse.Namespace) -> None:
+    """v0.93d — score a persona's output via the v0.92 auto-rubric.
+
+    Persists to agent_quality. Run-id ties the row to the run +
+    span trace. Best-effort — surfaces ok=False if no rubric exists.
+    """
+    from lib import agent_quality
+    from lib.cache import run_db_path
+    db = run_db_path(args.run_id)
+    res = agent_quality.score_auto(
+        db_path=db, run_id=args.run_id, span_id=None,
+        agent_name=args.agent, artifact_path=Path(args.artifact_path),
+    )
+    print(json.dumps(res, indent=2))
+    if not res.get("ok"):
+        sys.exit(1)
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -799,6 +885,17 @@ def main() -> None:
     pcv.add_argument("--top-k", type=int, default=15)
     pcv.add_argument("--format", choices=["json", "md"], default="json")
     pcv.set_defaults(func=cmd_compute_velocity)
+
+    # v0.93d — auto-quality scoring after a persona finishes.
+    psq = sub.add_parser("score-quality",
+                          help="Score a persona's output via auto-rubric "
+                               "(v0.92). Persists to agent_quality.")
+    psq.add_argument("--run-id", required=True)
+    psq.add_argument("--agent", required=True,
+                     help="Persona name (scout, surveyor, architect, ...)")
+    psq.add_argument("--artifact-path", required=True,
+                     help="Path to the persona's output JSON or text file")
+    psq.set_defaults(func=cmd_score_quality)
 
     args = p.parse_args()
     args.func(args)

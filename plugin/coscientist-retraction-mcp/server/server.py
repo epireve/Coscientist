@@ -41,6 +41,21 @@ _PUBPEER_BASE = "https://api.pubpeer.com/v3/publications/"
 _TIMEOUT = 15.0
 
 
+def _trace_emit(tool_name: str, args_summary: dict | None,
+                result_summary: dict | None) -> None:
+    """v0.93c — best-effort tool-call span emit. No-op if lib.trace
+    or env vars unavailable."""
+    try:
+        from lib.trace import maybe_emit_tool_call
+        maybe_emit_tool_call(
+            tool_name,
+            args_summary=args_summary,
+            result_summary=result_summary,
+        )
+    except Exception:
+        pass
+
+
 def _http_get_json(url: str) -> dict[str, Any]:
     """GET a URL, parse JSON. Raises on HTTP error."""
     req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
@@ -114,20 +129,34 @@ def lookup_doi(doi: str) -> dict[str, Any]:
     """
     norm = _normalize_doi(doi)
     if not norm:
-        return {"doi": doi, "found": False, "error": "empty DOI"}
+        result = {"doi": doi, "found": False, "error": "empty DOI"}
+        _trace_emit("lookup_doi", {"doi": doi},
+                    {"found": False, "error": "empty DOI"})
+        return result
     url = _CROSSREF_BASE + urllib.parse.quote(norm, safe="")
     try:
         data = _http_get_json(url)
     except urllib.error.HTTPError as e:
         if e.code == 404:
-            return {"doi": norm, "found": False,
-                    "error": "not in Crossref"}
-        return {"doi": norm, "found": False, "error": f"HTTP {e.code}"}
+            result = {"doi": norm, "found": False,
+                      "error": "not in Crossref"}
+            _trace_emit("lookup_doi", {"doi": norm}, result)
+            return result
+        result = {"doi": norm, "found": False, "error": f"HTTP {e.code}"}
+        _trace_emit("lookup_doi", {"doi": norm}, result)
+        return result
     except Exception as e:
-        return {"doi": norm, "found": False, "error": str(e)}
+        result = {"doi": norm, "found": False, "error": str(e)}
+        _trace_emit("lookup_doi", {"doi": norm}, result)
+        return result
     msg = data.get("message") or {}
     parsed = _parse_crossref_message(msg)
-    return {"doi": norm, "found": True, "source": "crossref", **parsed}
+    success = {"doi": norm, "found": True, "source": "crossref", **parsed}
+    _trace_emit("lookup_doi", {"doi": norm}, {
+        "found": True,
+        "is_retracted": parsed.get("is_retracted"),
+    })
+    return success
 
 
 @mcp.tool()
