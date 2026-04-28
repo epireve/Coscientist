@@ -789,7 +789,90 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.153
+## Shipped: v0.51 → v0.155
+
+### v0.155 — tree-aware ranker with subtree pruning ✅ (2026-04-29)
+
+Tournament gains tree awareness on top of the v0.153 idea-tree
+columns. New `lib/tree_ranker.py` (pure stdlib) plus CLI wrapper
+`.claude/skills/tournament/scripts/tree_ranker.py`.
+
+Helpers:
+
+- `tree_pairs(run_db, tree_id, strategy)` — emit (hyp_a, hyp_b)
+  pairs scoped to one tree. Strategies: `siblings` (same parent),
+  `round-robin` (every C(n,2) within tree), `depth-bands` (same
+  depth level).
+- `subtree_mean_elo(run_db, root_hyp_id)` — mean Elo of every node
+  in the subtree. Defaults to 1200.0 on empty / missing root.
+- `prune_low_elo_subtrees(run_db, tree_id, threshold=1100,
+  min_matches=3)` — drops subtrees rooted at depth ≥ 1 whose mean
+  Elo is strictly below `threshold`, but only once every node has
+  played `>= min_matches` matches. Never prunes the root itself.
+  Idempotent. Returns the list of pruned root hyp_ids.
+- `tree_leaderboard(run_db, tree_id)` — Elo-sorted leaderboard
+  scoped to one tree, surfacing `depth` + `parent_hyp_id`.
+
+CLI subcommands `pairs / prune / leaderboard` emit JSON; errors
+return `{"error": ...}` rather than tracebacks.
+
+Tests: `tests/test_v0_155_tree_ranker.py` — 19 tests across pair
+strategies, mean-Elo aggregation, prune semantics (immature skip,
+strict-`<` threshold, root-protection, idempotency), leaderboard
+ordering, and end-to-end CLI invocation.
+
+### v0.154 — thinking-trace persistence + render ✅ (2026-04-29)
+
+Verdict-producing tables now carry an optional structured deliberation
+log alongside their committed output. Captures *why* a verdict landed —
+what other options were considered, which were rejected and why, the
+final choice + rationale, plus optional steelman / attack flow.
+
+Migration v15 (`lib/migrations_sql/v15.sql` + in-code
+`_ensure_v15_columns`) adds `thinking_log_json TEXT` to four tables:
+
+- `hypotheses`
+- `attack_findings`
+- `novelty_assessments`
+- `publishability_verdicts`
+
+Plus partial index `idx_hypotheses_has_thinking ON hypotheses(hyp_id)
+WHERE thinking_log_json IS NOT NULL` for cheap "rows with deliberation"
+lookups. Gate fires on any of the four verdict tables existing — run
+DBs get it, project DBs and unrelated test DBs don't.
+
+`lib/thinking_trace.py` — pure-stdlib helpers:
+
+- `record_thinking(run_db, table, row_id_col, row_id, log)` — writes
+  JSON. `table` validated against allowlist; ValueError on unknown.
+- `get_thinking(run_db, table, row_id_col, row_id) → dict | None` —
+  parsed dict or None when absent / NULL / invalid JSON / column
+  missing on older DBs.
+- `format_thinking_md(log)` — markdown rendering. Liberal in shape:
+  any of `considered`, `rejected`, `chose`, `rationale`, `steelman`,
+  `attack` rendered when present; extras dumped under "Other".
+  Empty / non-dict input → empty string.
+- `collect_for_run(run_db, run_id)` — walk the four verdict tables;
+  return non-NULL thinking rows. Tables missing the column on older
+  DBs silently skipped via `PRAGMA table_info` probe.
+- `render_thinking_section(run_db, run_id)` — markdown section ready
+  for the trace renderer; empty when no traces present.
+
+`lib/trace_render.py` extended with `--with-thinking` opt-in flag.
+Default off keeps existing renders byte-identical. The renderer wraps
+the `render_thinking_section` call in a try/except so older DBs
+without the column don't break rendering.
+
+Vendored copies (`plugin/coscientist-graph-query-mcp/lib/`) synced +
+checksums regenerated.
+
+23 tests covering migration application + v15 in ALL_VERSIONS, column
+addition to all four tables, partial-index existence, idempotent
+rerun, record/get round-trip, unknown-table rejection, attack-finding
+round-trip, get-returns-None for missing/absent rows,
+format_thinking_md on full / partial / empty / non-dict / extra-key
+shapes, trace-render with and without `--with-thinking`, silent skip
+when DB lacks the column, collect_for_run filtering.
 
 ### v0.153 — schema v14 idea-tree columns + idea-tree-generator agent ✅ (2026-04-29)
 
