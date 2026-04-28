@@ -789,9 +789,38 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.78
+## Shipped: v0.51 → v0.79
 
 All items in this section are landed. See per-version notes.
+
+### v0.79 — tournament integration + lib.shortest_path + CHANGELOG.md ✅ (2026-04-28)
+
+Quick-win bundle: 3 items.
+
+**Tournament integration tests** (`tests/test_tournament_integration.py`):
+6 end-to-end tests on the `tournament` skill — register → match →
+leaderboard → child lineage. Validates Elo zero-sum property, draw
+neutrality, match-count accumulation, parent_hyp_id wiring,
+duplicate hyp_id rejection. Pre-existing `test_tournament.py`
+covered per-script units; this fills the lifecycle gap.
+
+**Promote shortest_path to `lib.graph`**: BFS shortest-path was
+introduced in graph-query-mcp v0.74 (MCP-only). v0.79 lifts it
+into `lib.graph.shortest_path(project_id, start, end, max_hops=4,
+relation=None)` — same algorithm, callable from any Python code.
+The MCP server now delegates: `_bfs_shortest_path` is a 3-line
+wrapper. 6 new unit tests in `tests/test_graph_shortest_path.py`
+mirror the MCP coverage (self-path, two-hop, no-path,
+max_hops cutoff, relation filter, one-hop direct).
+
+**Auto-generated CHANGELOG.md**: `lib/changelog.py` parses ROADMAP's
+`### v*` headings out of the `## Shipped` section, sorts by version
+(letters become sub-indices: `v0.78a` → `(0, 78, 1)`), emits a
+single CHANGELOG.md newest-first. `tests/test_changelog.py` has 6
+tests covering the parser + version-key sort + parity check
+(CHANGELOG.md byte-matches generator output, drift detected by CI).
+
+Suite: 1583 → 1601 passing (+18).
 
 ### v0.78 — feature loop closure: retraction wiring + version sync + mcp dep ✅ (2026-04-28)
 

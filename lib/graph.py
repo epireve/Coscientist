@@ -177,3 +177,59 @@ def hubs(project_id: str, kind: str, relation: str = "cites", top_k: int = 20) -
     ).fetchall()
     con.close()
     return [dict(r) for r in rows]
+
+
+def shortest_path(
+    project_id: str,
+    start: str,
+    end: str,
+    max_hops: int = 4,
+    relation: str | None = None,
+) -> list[str] | None:
+    """v0.79 — BFS shortest path from `start` to `end` along directed
+    edges. Optionally filtered by a single relation.
+
+    Returns the inclusive node-id path (length = number of hops) or
+    None if no path exists within `max_hops`. `start == end` returns
+    a length-0 path containing just the start.
+
+    Promoted from graph-query-mcp v0.74 — same algorithm, exposed in
+    Python so callers don't need to spawn a sub-process.
+    """
+    from collections import deque
+    if start == end:
+        return [start]
+    con = _connect(project_id)
+    try:
+        if relation:
+            edge_q = (
+                "SELECT to_node FROM graph_edges "
+                "WHERE from_node=? AND relation=?"
+            )
+            def _next(n: str) -> list[str]:
+                return [r[0] for r in con.execute(edge_q, (n, relation))]
+        else:
+            edge_q = "SELECT to_node FROM graph_edges WHERE from_node=?"
+            def _next(n: str) -> list[str]:
+                return [r[0] for r in con.execute(edge_q, (n,))]
+
+        seen: dict[str, str | None] = {start: None}
+        q: deque[tuple[str, int]] = deque([(start, 0)])
+        while q:
+            cur, depth = q.popleft()
+            if depth >= max_hops:
+                continue
+            for nxt in _next(cur):
+                if nxt in seen:
+                    continue
+                seen[nxt] = cur
+                if nxt == end:
+                    path: list[str] = [end]
+                    while seen[path[-1]] is not None:
+                        path.append(seen[path[-1]])
+                    path.reverse()
+                    return path
+                q.append((nxt, depth + 1))
+    finally:
+        con.close()
+    return None

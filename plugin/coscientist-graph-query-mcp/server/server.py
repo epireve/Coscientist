@@ -195,45 +195,11 @@ def _bfs_shortest_path(
     max_hops: int,
     relation: str | None,
 ) -> list[str] | None:
-    """Pure-Python BFS over graph_edges. Returns the node-id path
-    (inclusive of endpoints) or None if no path within max_hops."""
-    if start == end:
-        return [start]
-    con = _project_con(project_id)
-    try:
-        if relation:
-            edge_q = (
-                "SELECT to_node FROM graph_edges "
-                "WHERE from_node=? AND relation=?"
-            )
-            def _next(n):
-                return [r[0] for r in con.execute(edge_q, (n, relation))]
-        else:
-            edge_q = "SELECT to_node FROM graph_edges WHERE from_node=?"
-            def _next(n):
-                return [r[0] for r in con.execute(edge_q, (n,))]
-
-        seen: dict[str, str | None] = {start: None}
-        q: deque[tuple[str, int]] = deque([(start, 0)])
-        while q:
-            cur, depth = q.popleft()
-            if depth >= max_hops:
-                continue
-            for nxt in _next(cur):
-                if nxt in seen:
-                    continue
-                seen[nxt] = cur
-                if nxt == end:
-                    # Reconstruct path
-                    path: list[str] = [end]
-                    while seen[path[-1]] is not None:
-                        path.append(seen[path[-1]])
-                    path.reverse()
-                    return path
-                q.append((nxt, depth + 1))
-    finally:
-        con.close()
-    return None
+    """v0.79: now a thin wrapper around `lib.graph.shortest_path`."""
+    return _gmod().shortest_path(
+        project_id, start, end,
+        max_hops=max_hops, relation=relation,
+    )
 
 
 @mcp.tool()
