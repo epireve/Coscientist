@@ -54,25 +54,25 @@ def project_db_path(project_id: str) -> Path:
 
 
 def _connect(project_id: str) -> sqlite3.Connection:
+    """Open project DB; ensure schema + migrations applied.
+
+    v0.71: returns a WAL-mode connection (lib.cache.connect_wal). Many
+    skills write to the project DB simultaneously (artifact_index +
+    graph_nodes + graph_edges + reading_state + journal_entries...);
+    WAL eliminates SQLITE_BUSY contention between concurrent writers.
+    """
+    from lib.cache import connect_wal  # lazy to avoid cycles
     db = project_db_path(project_id)
     fresh = not db.exists()
-    con = sqlite3.connect(db)
-    con.row_factory = sqlite3.Row
     if fresh:
+        con = sqlite3.connect(db)
         con.executescript(SCHEMA_PATH.read_text())
         con.close()
-        # v0.14: register baseline + apply any pending migrations.
-        from lib.migrations import ensure_current  # lazy to avoid cycles
-        ensure_current(db)
-        con = sqlite3.connect(db)
-        con.row_factory = sqlite3.Row
-    else:
-        # Existing DB — apply any unapplied migrations before handing it back
-        from lib.migrations import ensure_current
-        con.close()
-        ensure_current(db)
-        con = sqlite3.connect(db)
-        con.row_factory = sqlite3.Row
+    # Apply any unapplied migrations on every open (idempotent).
+    from lib.migrations import ensure_current
+    ensure_current(db)
+    con = connect_wal(db)
+    con.row_factory = sqlite3.Row
     return con
 
 

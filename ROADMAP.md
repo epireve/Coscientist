@@ -789,9 +789,26 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.69
+## Shipped: v0.51 → v0.71
 
 All items in this section are landed. See per-version notes.
+
+### v0.71 — connect_wal retrofit on project DBs ✅ (2026-04-27)
+
+Project DB at `~/.cache/coscientist/projects/<pid>/project.db` is
+written by ~10 different skills (artifact_index, graph_nodes,
+graph_edges, reading_state, journal_entries, manuscript_claims,
+audit findings...). High contention surface.
+
+- `lib/project.py::_connect` now returns a WAL connection via
+  `lib.cache.connect_wal`. Idempotent — pre-existing DBs upgrade
+  transparently.
+- 3 new tests (1466 → 1469 passing): `create()` produces WAL DB,
+  `get()` preserves WAL on reopen, concurrent reader+writer don't
+  collide.
+- Cleanup: collapsed the fork in `_connect` (fresh vs existing) into
+  a single linear flow — schema executescript only on first create,
+  `ensure_current()` always runs (idempotent), then connect_wal.
 
 ### v0.69 — db_writes retention ✅ (2026-04-27)
 
