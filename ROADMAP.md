@@ -789,7 +789,34 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.123
+## Shipped: v0.51 → v0.124
+
+### v0.124 — OTLP collector push ✅ (2026-04-28)
+
+`lib/trace_export.py` — POSTs OTLP-rendered trace JSON
+(v0.116/v0.117) to a remote collector. Validates spec
+compliance against real consumer.
+
+API: `push(payload, *, endpoint=None, headers=None,
+dry_run=False, timeout=10.0)`. Best-effort — never raises;
+network errors caught + reported in result dict.
+
+Defaults match OpenTelemetry spec:
+- Endpoint: `$OTEL_EXPORTER_OTLP_ENDPOINT` or
+  `http://localhost:4318/v1/traces`
+- Auto-appends `/v1/traces` if env value is base URL only
+- Auth headers via `$OTEL_EXPORTER_HEADERS` env
+  (`key=val,key2=val2` format) — avoids hardcoded credentials
+
+CLI: `uv run python -m lib.trace_export --db <path>
+--trace-id <rid> [--endpoint URL] [--dry-run]`. Exit code:
+0 ok, 1 trace not found, 2 push failed.
+
+Pure stdlib (urllib). No external deps.
+
+11 new tests including local HTTPServer collector that
+captures POSTed payload + headers (validates real round
+trip). 1908 total passing.
 
 ### v0.123 — wire tournament into deep-research live path ✅ (2026-04-28)
 
