@@ -789,7 +789,28 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.110
+## Shipped: v0.51 → v0.111
+
+### v0.111 — prune empty run DBs ✅ (2026-04-28)
+
+`lib.trace_status.prune_empty_run_dbs(*, dry_run=False)`
+companion to v0.110. Walks every `run-*.db`; deletes files
+where both `traces` AND `phases` tables have zero rows.
+
+Pairs with v0.110: prune old traces first, then run this to
+remove the now-empty DB files. Cleans up sidecar files (-wal, -shm)
+too.
+
+CLI: `uv run python -m lib.trace_status --prune-empty-dbs
+[--dry-run] [--format md|json]`. Returns `{n_deleted, deleted,
+skipped, dry_run}`.
+
+DBs with any phase OR trace state are skipped — never touches
+live runs.
+
+8 new tests (no-DBs, empty deleted, traces skip, phases skip,
+dry-run preservation, mixed DBs, CLI dry-run, CLI actual).
+1839 total passing.
 
 ### v0.110 — trace pruning ✅ (2026-04-28)
 

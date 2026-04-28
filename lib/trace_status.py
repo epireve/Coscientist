@@ -626,6 +626,72 @@ def prune_old_traces(
         con.close()
 
 
+def prune_empty_run_dbs(
+    *, dry_run: bool = False,
+    roots: list[Path] | None = None,
+) -> dict[str, Any]:
+    """v0.111 — delete run-*.db files with zero traces AND
+    zero phases (no useful state).
+
+    Pairs with v0.110: prune old traces first, then run this to
+    delete the now-empty DB files.
+
+    Returns: {n_deleted, deleted: [paths], skipped: [paths],
+              dry_run}.
+    """
+    from lib.cache import runs_dir
+    root = roots[0] if roots else runs_dir()
+    deleted: list[str] = []
+    skipped: list[str] = []
+    if not root.exists():
+        return {"n_deleted": 0, "deleted": [], "skipped": [],
+                "dry_run": dry_run}
+    for db in sorted(root.glob("run-*.db")):
+        try:
+            con = _open(db)
+            try:
+                # Count traces + phases (run state). If both zero
+                # the DB is safe to delete.
+                try:
+                    n_traces = con.execute(
+                        "SELECT COUNT(*) FROM traces",
+                    ).fetchone()[0]
+                except sqlite3.OperationalError:
+                    n_traces = 0
+                try:
+                    n_phases = con.execute(
+                        "SELECT COUNT(*) FROM phases",
+                    ).fetchone()[0]
+                except sqlite3.OperationalError:
+                    n_phases = 0
+            finally:
+                con.close()
+        except Exception:
+            skipped.append(str(db))
+            continue
+        if n_traces == 0 and n_phases == 0:
+            if not dry_run:
+                try:
+                    db.unlink()
+                    # also remove WAL/SHM if present
+                    for suffix in ("-wal", "-shm"):
+                        sidecar = db.parent / (db.name + suffix)
+                        if sidecar.exists():
+                            sidecar.unlink()
+                except OSError:
+                    skipped.append(str(db))
+                    continue
+            deleted.append(str(db))
+        else:
+            skipped.append(str(db))
+    return {
+        "n_deleted": len(deleted),
+        "deleted": deleted,
+        "skipped": skipped,
+        "dry_run": dry_run,
+    }
+
+
 def render_md(summaries: list[dict[str, Any]]) -> str:
     if not summaries:
         return "# Trace status\n\n_No traces found._\n"
@@ -694,8 +760,28 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--prune-days", type=int, default=30,
                     help="Age threshold for --prune (default 30).")
     p.add_argument("--dry-run", action="store_true",
-                    help="With --prune, show counts without deleting.")
+                    help="With --prune or --prune-empty-dbs, "
+                         "show counts without deleting.")
+    p.add_argument(
+        "--prune-empty-dbs", action="store_true",
+        help="v0.111: delete run-*.db files with zero traces "
+             "AND zero phases.",
+    )
     args = p.parse_args(argv)
+    if args.prune_empty_dbs:
+        r = prune_empty_run_dbs(dry_run=args.dry_run)
+        if args.format == "json":
+            sys.stdout.write(
+                json.dumps(r, indent=2, default=str) + "\n",
+            )
+        else:
+            label = "Would delete" if args.dry_run else "Deleted"
+            sys.stdout.write(
+                f"# Prune empty run DBs\n\n"
+                f"_{label} {r['n_deleted']} empty DB(s); "
+                f"skipped {len(r['skipped'])} non-empty._\n",
+            )
+        return 0
     if args.prune:
         from lib.cache import run_db_path, runs_dir
         results: list[dict] = []
