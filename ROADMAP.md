@@ -789,7 +789,34 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.101
+## Shipped: v0.51 → v0.102
+
+### v0.102 — persona output schema validator ✅ (2026-04-28)
+
+`lib/persona_schema.py` — strict shape gate per persona. Auto-rubric
+(v0.92) checks semantic content but not structure; this fills the
+gap. Pure stdlib, no jsonschema dep.
+
+`SCHEMAS` dict per persona (scout, surveyor, architect,
+synthesist, weaver) declares top_kind (list|dict),
+item_required_fields, dict_required_fields, min_items.
+
+`validate(agent_name, artifact_path) -> ValidationResult` returns
+ok/payload/error. Unknown agents pass permissively (schema is
+opt-in).
+
+CLI: `uv run python -m lib.persona_schema --agent scout
+--artifact-path X.json`. Exits 0 if valid, 1 if not.
+
+Wired into v0.94 auto-quality hook: invalid shape skips rubric
+(would score garbage) and emits a `gate`-kind span named
+`schema-<phase>` with a `schema_error` event. Visible in
+trace-status + trace-render output.
+
+13 new tests: scout list shape (4), weaver dict shape (3),
+unknown-agent passthrough, file errors (2), CLI exit codes (2),
+integration (invalid shape → no quality row + schema-gate span).
+1772 total passing.
 
 ### v0.101 — smoke-test runbook ✅ (2026-04-28)
 

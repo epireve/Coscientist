@@ -317,14 +317,34 @@ def _maybe_auto_score(run_id: str, phase: str, output_json: str) -> None:
     Phase name maps 1:1 to rubric agent name (scout, surveyor,
     architect, synthesist, weaver). Personas without a rubric: noop.
     All errors swallowed — quality scoring is observability.
+
+    v0.102 — runs persona_schema.validate first; if shape invalid,
+    skips rubric (would score garbage) and emits a `schema_error`
+    span event for the trace.
     """
     try:
-        from lib import agent_quality
+        from lib import agent_quality, persona_schema, trace
         from lib.cache import run_db_path
         if phase not in agent_quality.RUBRICS:
             return
         artifact = Path(output_json)
         if not artifact.exists():
+            return
+        # v0.102 shape gate.
+        res = persona_schema.validate(phase, artifact)
+        if not res.ok:
+            try:
+                db = run_db_path(run_id)
+                trace.init_trace(db, trace_id=run_id, run_id=run_id)
+                with trace.start_span(
+                    db, run_id, "gate", f"schema-{phase}",
+                    attrs={"phase": phase, "error": res.error},
+                ) as sp:
+                    sp.event("schema_error",
+                             {"agent": phase, "error": res.error,
+                              "artifact_path": str(artifact)})
+            except Exception:
+                pass
             return
         agent_quality.score_auto(
             db_path=run_db_path(run_id), run_id=run_id, span_id=None,

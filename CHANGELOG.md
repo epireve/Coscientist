@@ -11,6 +11,33 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.102 — persona output schema validator (2026-04-28)
+
+`lib/persona_schema.py` — strict shape gate per persona. Auto-rubric
+(v0.92) checks semantic content but not structure; this fills the
+gap. Pure stdlib, no jsonschema dep.
+
+`SCHEMAS` dict per persona (scout, surveyor, architect,
+synthesist, weaver) declares top_kind (list|dict),
+item_required_fields, dict_required_fields, min_items.
+
+`validate(agent_name, artifact_path) -> ValidationResult` returns
+ok/payload/error. Unknown agents pass permissively (schema is
+opt-in).
+
+CLI: `uv run python -m lib.persona_schema --agent scout
+--artifact-path X.json`. Exits 0 if valid, 1 if not.
+
+Wired into v0.94 auto-quality hook: invalid shape skips rubric
+(would score garbage) and emits a `gate`-kind span named
+`schema-<phase>` with a `schema_error` event. Visible in
+trace-status + trace-render output.
+
+13 new tests: scout list shape (4), weaver dict shape (3),
+unknown-agent passthrough, file errors (2), CLI exit codes (2),
+integration (invalid shape → no quality row + schema-gate span).
+1772 total passing.
+
 ## v0.101 — smoke-test runbook (2026-04-28)
 
 `docs/SMOKE-TEST-RUNBOOK.md` consolidates the v0.93–v0.100
