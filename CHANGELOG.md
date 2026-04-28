@@ -11,6 +11,35 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.119 — sub-agent spans around Task dispatches (2026-04-28)
+
+Closes one of the v0.118 digest's "deliberately NOT done" items.
+Sub-agents now appear in the trace as `kind=sub-agent` spans.
+
+`db.py record-subagent --run-id X --persona NAME --start|--end
+[--error MSG]` — orchestrator wraps Task tool dispatches with
+start/end calls. Span_id persisted via sidecar JSON
+`run-<rid>-subagent-state.json` keyed by persona, so multiple
+personas in flight stay independent.
+
+`--start` opens `kind=sub-agent` span (status=running). `--end`
+closes with computed duration_ms + status=ok, or status=error
+when `--error` provided.
+
+Orchestrator SKILL.md (`/deep-research`) updated with the new
+3-step pattern: record-subagent --start → Task dispatch →
+record-subagent --end.
+
+5 new tests (start creates running, end closes with duration,
+error path, end-without-start fails, concurrent personas
+independent). 1897 total passing.
+
+Now visible in:
+- `lib.health` (failed_spans_total + active span detection)
+- `lib.trace_render --format md` (timeline with sub-agent
+  durations)
+- `lib.trace_status` (kind counts include `sub-agent`)
+
 ## v0.118 — session digest v0.97-v0.117 (2026-04-28)
 
 `docs/SESSION-DIGEST-v0.97-v0.117.md` — AFK auto-pilot session

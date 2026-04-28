@@ -147,6 +147,22 @@ When you (the calling Claude agent) run this skill:
    When a higher-priority source rate-limits, log it as a `notes` line on the harvest write and fall through to the next tier — do not abort the harvest.
 
 3. **Invoke each sub-agent in order** — via Claude Code's `Task` tool with `subagent_type=<agent-name>`. Pass the run_id and phase in the prompt so the persona can call `harvest.py show`. Do not inline their prompts here; they are defined in `.claude/agents/`.
+
+   **v0.119 — wrap each Task dispatch with sub-agent spans** for trace visibility:
+
+   ```bash
+   # Before Task dispatch
+   uv run python .claude/skills/deep-research/scripts/db.py record-subagent \
+     --run-id <rid> --persona <name> --start
+
+   # Task tool fires here
+
+   # After Task returns
+   uv run python .claude/skills/deep-research/scripts/db.py record-subagent \
+     --run-id <rid> --persona <name> --end [--error "<msg>" if failed]
+   ```
+
+   The span lands as `kind=sub-agent` in the trace. Duration + status visible in `lib.health` and `lib.trace_render`. Multiple personas in flight concurrently are independent (sidecar state file keyed by persona).
 4. **After each agent completes**, call `db.py record-phase` with the agent's structured output.
 5. **At break points**, stop the pipeline. Use `AskUserQuestion` to prompt the user. Record their input via `db.py record-break`. Do not proceed until resolved.
 6. **If any agent errors or returns low-confidence output**, record the error and prompt the user — do not silently skip a phase.

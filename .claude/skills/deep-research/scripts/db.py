@@ -14,6 +14,7 @@ import sqlite3
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(_REPO_ROOT) not in sys.path:
@@ -845,6 +846,119 @@ def cmd_set_strategy(args: argparse.Namespace) -> None:
     }, indent=2) + "\n")
 
 
+def cmd_record_subagent(args: argparse.Namespace) -> None:
+    """v0.119 — emit a sub-agent span around a Task dispatch.
+
+    Two modes:
+      --start: opens a span, writes span_id to sidecar file.
+      --end:   reads span_id from sidecar, closes the span.
+
+    Sidecar: ~/.cache/coscientist/runs/run-<rid>-subagent-state.json
+    Keyed by `persona` so multiple personas can be in flight.
+    """
+    import json as _j
+    from datetime import UTC, datetime as _dt
+    from lib.cache import run_db_path
+    from lib import trace
+    db = run_db_path(args.run_id)
+    sidecar = (run_db_path(args.run_id).parent /
+                f"run-{args.run_id}-subagent-state.json")
+
+    state: dict[str, Any] = {}
+    if sidecar.exists():
+        try:
+            state = _j.loads(sidecar.read_text())
+        except _j.JSONDecodeError:
+            state = {}
+
+    if args.start:
+        try:
+            trace.init_trace(db, trace_id=args.run_id,
+                              run_id=args.run_id)
+            span_id = trace.make_span_id()
+            now = _dt.now(UTC).isoformat()
+            con = trace._connect(db)
+            try:
+                with con:
+                    con.execute(
+                        "INSERT INTO spans (span_id, trace_id, "
+                        "parent_span_id, kind, name, started_at, "
+                        "status, attrs_json) "
+                        "VALUES (?, ?, NULL, 'sub-agent', ?, ?, "
+                        "'running', ?)",
+                        (span_id, args.run_id, args.persona, now,
+                         _j.dumps({"persona": args.persona})),
+                    )
+            finally:
+                con.close()
+            state[args.persona] = {
+                "span_id": span_id, "started_at": now,
+            }
+            sidecar.write_text(_j.dumps(state))
+            print(_j.dumps({
+                "ok": True, "span_id": span_id,
+                "persona": args.persona,
+            }))
+        except Exception as e:
+            print(_j.dumps({"ok": False, "error": str(e)}))
+            sys.exit(1)
+        return
+
+    if args.end:
+        rec = state.get(args.persona)
+        if not rec:
+            print(_j.dumps({
+                "ok": False,
+                "error": f"no open sub-agent span for persona "
+                          f"{args.persona!r}",
+            }))
+            sys.exit(1)
+        span_id = rec["span_id"]
+        started_at = rec["started_at"]
+        ended = _dt.now(UTC).isoformat()
+        try:
+            started_dt = _dt.fromisoformat(
+                started_at.replace("Z", "+00:00"),
+            )
+            ended_dt = _dt.fromisoformat(
+                ended.replace("Z", "+00:00"),
+            )
+            duration_ms = int(
+                (ended_dt - started_dt).total_seconds() * 1000,
+            )
+        except (ValueError, AttributeError):
+            duration_ms = 0
+        status = "error" if args.error else "ok"
+        try:
+            con = trace._connect(db)
+            try:
+                with con:
+                    con.execute(
+                        "UPDATE spans SET ended_at=?, "
+                        "duration_ms=?, status=?, error_kind=?, "
+                        "error_msg=? WHERE span_id=?",
+                        (ended, duration_ms, status,
+                         "sub-agent-error" if args.error else None,
+                         args.error[:2000] if args.error else None,
+                         span_id),
+                    )
+            finally:
+                con.close()
+            state.pop(args.persona, None)
+            if state:
+                sidecar.write_text(_j.dumps(state))
+            else:
+                sidecar.unlink(missing_ok=True)
+            print(_j.dumps({
+                "ok": True, "span_id": span_id,
+                "duration_ms": duration_ms, "status": status,
+            }))
+        except Exception as e:
+            print(_j.dumps({"ok": False, "error": str(e)}))
+            sys.exit(1)
+        return
+
+
 def cmd_score_quality(args: argparse.Namespace) -> None:
     """v0.93d — score a persona's output via the v0.92 auto-rubric.
 
@@ -973,6 +1087,23 @@ def main() -> None:
     psq.add_argument("--artifact-path", required=True,
                      help="Path to the persona's output JSON or text file")
     psq.set_defaults(func=cmd_score_quality)
+
+    # v0.119 — sub-agent span emission around Task dispatches.
+    psa = sub.add_parser(
+        "record-subagent",
+        help="Emit a sub-agent span around a Task dispatch. "
+             "Use --start before, --end after.",
+    )
+    psa.add_argument("--run-id", required=True)
+    psa.add_argument("--persona", required=True,
+                      help="Sub-agent name (scout, ranker, etc.)")
+    psa.add_argument("--start", action="store_true",
+                      help="Open a new sub-agent span.")
+    psa.add_argument("--end", action="store_true",
+                      help="Close the open sub-agent span.")
+    psa.add_argument("--error", default=None,
+                      help="With --end: mark span status=error.")
+    psa.set_defaults(func=cmd_record_subagent)
 
     args = p.parse_args()
     args.func(args)
