@@ -16,7 +16,7 @@ This is an academic-research-agent toolkit built as atomic skills. Read this fil
 
 `select_mode(question, items=, explicit_mode=)` → `ModeRecommendation` with confidence + warnings. Wide → Deep handoff via `db.py init --seed-from-wide`.
 
-## Recent landings (v0.51–v0.56)
+## Recent landings (v0.51–v0.114)
 
 - v0.51 Phase 1 parallel dispatch (`db.py next-phase-batch`)
 - v0.52 search-strategy depth (PICO/SPIDER + adversarial critique + era detection + cross-persona disagreement + concept velocity)
@@ -24,8 +24,14 @@ This is an academic-research-agent toolkit built as atomic skills. Read this fil
 - v0.54 brief richness — hypothesis cards, evidence tables, discussion questions, RUN-RECOVERY.md
 - v0.55 A5 trio — `gap-analyzer`, `contribution-mapper`, `venue-match`
 - v0.56 self-play debate — PRO + CON + JUDGE for high-stakes verdicts
+- **v0.89–v0.92** observability foundation — execution traces (migration v11), agent quality scoring (migration v12), trace renderer
+- **v0.93–v0.96** instrumentation hookup — phase / harvest / gate / MCP tool-call spans (env-var context), auto-quality hook on phase complete, cross-run leaderboard
+- **v0.97–v0.100** smoke-test infra — stale-span detector + auto-close, version-parser audit (v0.100 sorts after v0.99), tool-call latency aggregator
+- **v0.101–v0.105** persona schemas + rubrics — `--quality-artifact` separate from `--output-json`, 10 personas registered, dict-aware OG rubrics
+- **v0.106–v0.110** `lib.health` one-shot diagnostics + `/health` skill + harvest/gate summaries + trace pruning
+- **v0.111–v0.114** prune empty DBs, tool-call error spans actually error (bug fix), alert thresholds + exit codes, threshold config file
 
-Every landing has a test class registered in `tests/run_all.py`. Run `uv run python tests/run_all.py` for the full suite (~1300 tests).
+Every landing has a test class registered in `tests/run_all.py`. Run `uv run python tests/run_all.py` for the full suite (~1860 tests).
 
 ## The contract: polymorphic artifacts
 
@@ -103,6 +109,47 @@ Resume works by replaying run phases whose `completed_at IS NULL`. Never write d
 Citations, concepts, authors, manuscripts — stored as typed nodes + labeled edges in the project DB. Node IDs: `paper:<cid>`, `concept:<slug>`, `author:<s2_id>`, `manuscript:<mid>`. Edge relations: `cites | cited-by | extends | refutes | uses | depends-on | coauthored | about | authored-by | in-project`.
 
 API is deliberately small (`lib/graph.py`): `add_node`, `add_edge`, `neighbors`, `walk`, `in_degree`, `hubs`. Kuzu is the planned upgrade when volume demands it — the surface here is designed to map cleanly.
+
+## Observability stack (v0.89–v0.114)
+
+Three-table OpenTelemetry-style trace model lives in every coscientist DB (added by migrations v11+v12):
+
+- **`traces`** — one row per run. Status: running / ok / error.
+- **`spans`** — kind ∈ {`phase`, `sub-agent`, `tool-call`, `gate`, `persist`, `harvest`, `other`}. Auto-records `started_at` / `ended_at` / `duration_ms` / `status` / `error_kind` / `error_msg` / `attrs_json`.
+- **`span_events`** — append-only side notes per span (e.g. `harvest_write` payload, `schema_error` from v0.102 gate).
+- **`agent_quality`** — per-persona auto-rubric or LLM-judge scores. 10 personas registered.
+
+### How to instrument
+
+- **From Python**: `from lib.trace import start_span` — context manager that auto-closes on exit, captures exceptions as `status='error'`.
+- **From MCP servers**: `lib.trace.maybe_emit_tool_call(tool_name, args_summary, result_summary, error=...)` reads `COSCIENTIST_TRACE_DB` + `COSCIENTIST_TRACE_ID` env vars set by the orchestrator. Best-effort — silent no-op if env unset.
+- **From gates**: `lib.gate_trace.emit_gate_span(run_id, gate_name, verdict, errors, ...)`.
+- **Auto-quality hook**: `db.py record-phase --complete --output-json X --quality-artifact Y` runs `persona_schema.validate` on `--output-json` (schema gate) and `agent_quality.score_auto` on `--quality-artifact` (rubric).
+
+### How to inspect
+
+| Question | Command |
+|---|---|
+| What's running, what's stuck, slowest tools, lowest-quality agents? | `uv run python -m lib.health` (exits non-zero on alerts) |
+| One run's full timeline? | `uv run python -m lib.trace_render --db <path> --trace-id <rid>` |
+| Span counts + latest phase per run? | `uv run python -m lib.trace_status [--run-id X]` |
+| Spans still `running` past N min? | `uv run python -m lib.trace_status --stale-only [--mark-error]` |
+| Cross-run agent quality leaderboard? | `uv run python -m lib.agent_quality leaderboard` |
+| Tool-call latency (p50/p95/error rate)? | `uv run python -m lib.trace_status --tool-latency` |
+| Delete old data? | `uv run python -m lib.trace_status --prune --prune-days 30` then `--prune-empty-dbs` |
+
+### Health alerts
+
+`lib.health.evaluate_alerts(report)` derives named alerts from thresholds. Defaults in `lib.health.DEFAULT_THRESHOLDS`; override per-cache via `~/.cache/coscientist/health_thresholds.json`. CLI exit codes: `0` clean, `1` warns only, `2` any crit. CI/cron-friendly.
+
+### Instrumentation invariants
+
+1. **Best-effort.** Tracing failures NEVER break the parent flow. All emit helpers wrap in `try/except: pass`.
+2. **Pure stdlib.** `lib/trace.py`, `lib/trace_status.py`, `lib/trace_render.py`, `lib/health.py`, `lib/agent_quality.py`, `lib/persona_schema.py` — no external deps.
+3. **WAL mode.** All DB writes via `lib.cache.connect_wal`.
+4. **Schema-as-single-source.** `lib/sqlite_schema.sql` mirrors every migration; `lib/migrations.py` applies forward.
+
+See `docs/SMOKE-TEST-RUNBOOK.md` for the operator walkthrough.
 
 ## Skill composition rules
 

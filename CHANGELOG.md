@@ -11,6 +11,35 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.115 — CLAUDE.md observability docs (2026-04-28)
+
+Documents v0.89–v0.114 instrumentation stack in `CLAUDE.md` for
+new contributors. Was zero coverage before.
+
+**Recent landings** section expanded — includes v0.89–v0.114
+landings with one-line summaries grouped by sub-range
+(v0.89–v0.92 foundation, v0.93–v0.96 hookup, v0.97–v0.100 smoke
+infra, v0.101–v0.105 schemas + rubrics, v0.106–v0.110 health,
+v0.111–v0.114 polish + bug fix).
+
+New "## Observability stack" section between graph layer and
+skill rules:
+- 4 tables (traces / spans / span_events / agent_quality) +
+  span kinds enumeration
+- "How to instrument" — 4 entry points (Python context manager,
+  MCP env-var helper, gate helper, auto-quality hook)
+- "How to inspect" — table mapping operator question to CLI
+- Health alerts subsection — exit codes, config file
+- 4 invariants (best-effort, pure stdlib, WAL mode,
+  schema-as-single-source)
+- Runbook reference
+
+9 regression tests pin: section exists, lists 3 tables, lists
+7 span kinds, mentions key modules, mentions env vars, lists
+invariants, references runbook, recent-landings updated.
+
+1869 total passing.
+
 ## v0.114 — health threshold config file (2026-04-28)
 
 Hardcoded `DEFAULT_THRESHOLDS` (v0.113) reasonable but research
