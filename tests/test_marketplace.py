@@ -131,9 +131,56 @@ class RetractionMcpPluginTests(TestCase):
         )
 
 
+class ManuscriptMcpPluginTests(TestCase):
+    """manuscript-mcp plugin specifics."""
+
+    PLUGIN = _REPO / "plugin" / "coscientist-manuscript-mcp"
+    SOURCE = _REPO / "mcp" / "manuscript-mcp" / "server.py"
+
+    def test_plugin_dir_exists(self):
+        self.assertTrue(self.PLUGIN.exists())
+
+    def test_server_script_present(self):
+        srv = self.PLUGIN / "server" / "server.py"
+        self.assertTrue(srv.exists(), f"missing {srv}")
+        text = srv.read_text()
+        self.assertIn("FastMCP", text)
+        # All four tools.
+        for tool in ("detect_format", "extract_sections",
+                     "extract_citations", "parse_manuscript"):
+            self.assertIn(f"def {tool}", text,
+                          f"missing tool {tool} in plugin server.py")
+
+    def test_mcp_json_declares_server(self):
+        cfg_path = self.PLUGIN / ".mcp.json"
+        self.assertTrue(cfg_path.exists(), f"missing {cfg_path}")
+        cfg = json.loads(cfg_path.read_text())
+        self.assertIn("mcpServers", cfg)
+        self.assertIn("manuscript", cfg["mcpServers"])
+        srv = cfg["mcpServers"]["manuscript"]
+        self.assertEqual(srv.get("type"), "stdio")
+        joined = " ".join(srv.get("args", []))
+        self.assertIn("CLAUDE_PLUGIN_ROOT", joined)
+        self.assertIn("server.py", joined)
+
+    def test_readme_present(self):
+        self.assertTrue((self.PLUGIN / "README.md").exists())
+
+    def test_plugin_server_matches_source(self):
+        plugin_srv = (self.PLUGIN / "server" / "server.py").read_text()
+        source_srv = self.SOURCE.read_text()
+        self.assertEqual(
+            plugin_srv, source_srv,
+            "plugin server.py drifted from mcp/manuscript-mcp/server.py — "
+            "regenerate via `cp mcp/manuscript-mcp/server.py "
+            "plugin/coscientist-manuscript-mcp/server/server.py`",
+        )
+
+
 if __name__ == "__main__":
     raise SystemExit(run_tests(
         MarketplaceManifestTests,
         PluginManifestParityTests,
         RetractionMcpPluginTests,
+        ManuscriptMcpPluginTests,
     ))

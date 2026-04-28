@@ -20,6 +20,14 @@
       "version": "0.1.0",
       "category": "mcp",
       "tags": ["retraction", "retraction-watch", "pubpeer", "crossref", "mcp", "research-integrity"]
+    },
+    {
+      "name": "coscientist-manuscript-mcp",
+      "source": "./plugin/coscientist-manuscript-mcp",
+      "description": "Stdio MCP server: .docx / .tex / .md → structured AST. Extracts sections, citations (latex / pandoc / numeric / author-year), word count. Markdown + LaTeX paths are pure stdlib; .docx requires pandoc on PATH.",
+      "version": "0.1.0",
+      "category": "mcp",
+      "tags": ["manuscript", "ast", "citations", "latex", "markdown", "docx", "mcp"]
     }
   ]
 }

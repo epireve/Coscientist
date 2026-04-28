@@ -789,9 +789,57 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.72
+## Shipped: v0.51 → v0.73
 
 All items in this section are landed. See per-version notes.
+
+### v0.73 — manuscript-mcp + marketplace plugin ✅ (2026-04-28)
+
+Second custom MCP. Stdio server that converts `.docx` / `.tex` /
+`.md` (or raw text) into a structured AST: sections, citations,
+word count.
+
+**Tools (4):**
+- `detect_format(path)` — sniff format from extension.
+- `extract_sections(path_or_text, fmt="auto")` — heading tree
+  with levels + spans.
+- `extract_citations(path_or_text, fmt="auto")` — citation list
+  + unique keys, supporting 4 styles: `latex` (`\cite`, `\citep`,
+  `\citet`, `\citeauthor`), `pandoc` (`[@key]`, `[@a; @b]`),
+  `numeric` (`[1]`, `[1,2-5]`), `author-year` (`(Smith, 2020)`).
+- `parse_manuscript(path_or_text, fmt="auto")` — full AST.
+
+**Format autodetect:** `.md`/`.markdown` → markdown; `.tex`/`.latex`
+→ latex; `.docx` → docx (pandoc shell-out); raw text → markdown.
+
+**Pure-stdlib for markdown + latex paths** — only `.docx` requires
+pandoc. Missing pandoc returns a structured `{"error": "..."}`
+rather than crashing.
+
+**Tests:** `tests/test_manuscript_mcp.py` — 28 unit tests (format
+detect 7, citations 9, sections 5, resolve_text 4, full AST 2,
+docx fallback 1). All offline; pandoc absence simulated via
+`unittest.mock.patch`.
+
+**Plugin:**
+- `plugin/coscientist-manuscript-mcp/.claude-plugin/plugin.json`
+  — versioned 0.1.0, MIT.
+- `plugin/coscientist-manuscript-mcp/server/server.py` — bundled,
+  byte-equal to `mcp/manuscript-mcp/server.py` (test enforced).
+- `plugin/coscientist-manuscript-mcp/.mcp.json` — uses
+  `${CLAUDE_PLUGIN_ROOT}` so install location-agnostic.
+- `.claude-plugin/marketplace.json` — entry added.
+
+**Marketplace tests extended:** 12 → 17 (new `ManuscriptMcpPluginTests`
+class with 5 tests mirroring the retraction-mcp shape).
+
+Suite: 1501 → 1534 passing (+33).
+
+**Install:**
+```bash
+/plugin marketplace add epireve/coscientist
+/plugin install coscientist-manuscript-mcp@coscientist
+```
 
 ### v0.72 — retraction-mcp + marketplace plugin ✅ (2026-04-28)
 
