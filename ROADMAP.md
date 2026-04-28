@@ -789,7 +789,30 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.125
+## Shipped: v0.51 → v0.126
+
+### v0.126 — per-project health threshold overlay ✅ (2026-04-28)
+
+Extends v0.114 single-config-file design with per-project
+overlay at
+`~/.cache/coscientist/projects/<pid>/health_thresholds.json`.
+
+`load_thresholds(*, overrides=None, config_path=None,
+project_id=None)` resolves with precedence:
+DEFAULT < global_config < **project_config** < overrides.
+
+`evaluate_alerts(report, *, project_id=...)` plumbs through.
+
+CLI `--project-id <pid>` flag flows through `--show-thresholds`
++ alert evaluation. Show-thresholds output extended:
+`global_config_path`, `global_config_exists`, `project_id`,
+`project_config_path`, `project_config_exists`, `thresholds`.
+
+Use case: tight projects (high-stakes manuscripts) override
+defaults strictly; relaxed exploratory projects loosen.
+
+9 new tests + 1 v0.114 test updated for renamed key. 1917
+total passing.
 
 ### v0.125 — commit uv.lock for CI reproducibility ✅ (2026-04-28)
 

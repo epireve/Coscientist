@@ -129,7 +129,8 @@ class CliShowThresholdsTests(TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
             payload = json.loads(r.stdout)
             self.assertIn("thresholds", payload)
-            self.assertIn("config_path", payload)
+            # v0.126: renamed to global_config_path
+            self.assertIn("global_config_path", payload)
             self.assertIn("max_failed_spans",
                            payload["thresholds"])
 

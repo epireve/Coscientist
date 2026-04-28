@@ -35,44 +35,72 @@ DEFAULT_THRESHOLDS = {
 
 
 def _config_path() -> Path:
-    """v0.114 — config file path."""
+    """v0.114 — global config file path."""
     from lib.cache import cache_root
     return cache_root() / "health_thresholds.json"
+
+
+def _project_config_path(project_id: str) -> Path:
+    """v0.126 — per-project config file path."""
+    from lib.cache import cache_root
+    return (
+        cache_root() / "projects" / project_id /
+        "health_thresholds.json"
+    )
+
+
+def _apply_overrides(
+    out: dict[str, Any], data: Any,
+) -> None:
+    """Mutate `out` with type-checked values from `data` dict."""
+    if not isinstance(data, dict):
+        return
+    for k, v in data.items():
+        if k not in DEFAULT_THRESHOLDS:
+            continue
+        expected_type = type(DEFAULT_THRESHOLDS[k])
+        if isinstance(v, expected_type):
+            out[k] = v
+        elif expected_type is float and isinstance(v, int):
+            out[k] = float(v)
+
+
+def _read_config(path: Path) -> dict[str, Any]:
+    """Read config file; silent fallback on errors."""
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def load_thresholds(
     *,
     overrides: dict[str, Any] | None = None,
     config_path: Path | None = None,
+    project_id: str | None = None,
 ) -> dict[str, Any]:
-    """v0.114 — resolve thresholds with precedence:
-    DEFAULT_THRESHOLDS < config_file < overrides.
+    """v0.114/v0.126 — resolve thresholds with precedence:
+    DEFAULT_THRESHOLDS < global_config < project_config < overrides.
 
-    Bad config file (missing/invalid JSON/wrong types) silently
-    falls back to defaults — health is observability, never breaks.
-    Unknown keys in config are ignored.
+    `config_path` overrides the global path lookup (for tests +
+    explicit config). `project_id` adds per-project overlay
+    after global, before kwargs.
+
+    Bad config file (missing/invalid JSON/wrong types) silent
+    fallback. Unknown keys ignored.
     """
     out = dict(DEFAULT_THRESHOLDS)
     cfg = config_path if config_path is not None else _config_path()
-    if cfg.exists():
-        try:
-            data = json.loads(cfg.read_text())
-            if isinstance(data, dict):
-                for k, v in data.items():
-                    if k not in DEFAULT_THRESHOLDS:
-                        continue
-                    expected_type = type(DEFAULT_THRESHOLDS[k])
-                    if isinstance(v, expected_type):
-                        out[k] = v
-                    elif (expected_type is float
-                            and isinstance(v, int)):
-                        out[k] = float(v)
-        except (json.JSONDecodeError, OSError):
-            pass
+    _apply_overrides(out, _read_config(cfg))
+    if project_id:
+        _apply_overrides(
+            out, _read_config(_project_config_path(project_id)),
+        )
     if overrides:
-        for k, v in overrides.items():
-            if k in DEFAULT_THRESHOLDS:
-                out[k] = v
+        _apply_overrides(out, overrides)
     return out
 
 
@@ -81,18 +109,20 @@ def evaluate_alerts(
     *,
     thresholds: dict[str, Any] | None = None,
     config_path: Path | None = None,
+    project_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """v0.113 — derive named alerts from a health report.
 
     Each alert: {severity: 'warn'|'crit', code, message, value,
     threshold}.
 
-    v0.114 — thresholds resolved via load_thresholds (defaults
-    + config file + overrides). `thresholds=` kwarg = highest
-    precedence.
+    v0.114 — thresholds resolved via load_thresholds.
+    v0.126 — `project_id` adds per-project overlay between
+    global config and kwargs.
     """
     t = load_thresholds(
         overrides=thresholds, config_path=config_path,
+        project_id=project_id,
     )
     alerts: list[dict[str, Any]] = []
 
@@ -377,18 +407,35 @@ def main(argv: list[str] | None = None) -> int:
         help="v0.114: print resolved thresholds + config path "
              "as JSON, then exit.",
     )
+    p.add_argument(
+        "--project-id", default=None,
+        help="v0.126: apply per-project threshold overlay "
+             "from <cache>/projects/<pid>/health_thresholds.json.",
+    )
     args = p.parse_args(argv)
     if args.show_thresholds:
         out = {
-            "config_path": str(_config_path()),
-            "config_exists": _config_path().exists(),
-            "thresholds": load_thresholds(),
+            "global_config_path": str(_config_path()),
+            "global_config_exists": _config_path().exists(),
+            "project_id": args.project_id,
+            "project_config_path": (
+                str(_project_config_path(args.project_id))
+                if args.project_id else None
+            ),
+            "project_config_exists": (
+                _project_config_path(args.project_id).exists()
+                if args.project_id else False
+            ),
+            "thresholds": load_thresholds(
+                project_id=args.project_id,
+            ),
         }
         sys.stdout.write(json.dumps(out, indent=2) + "\n")
         return 0
     report = collect(max_age_minutes=args.max_age)
     alerts = (
-        [] if args.no_alerts else evaluate_alerts(report)
+        [] if args.no_alerts
+        else evaluate_alerts(report, project_id=args.project_id)
     )
     if args.format == "json":
         out = dict(report)
