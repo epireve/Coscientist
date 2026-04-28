@@ -278,21 +278,38 @@ def maybe_emit_tool_call(
     Called from MCP server tool functions. If both env vars are set,
     emits a one-off `tool-call` span recording args + result summary.
     Silent no-op otherwise. Designed to be 100% safe to call.
+
+    v0.112 — when `error` is given, the span is closed with
+    status='error' + error_msg=<error> so tool-latency aggregator
+    counts it as a failure. Previously logged as event only.
     """
     try:
         db, tid = env_trace_context()
         if not db or not tid:
             return
-        with start_span(
-            db, tid, "tool-call", tool_name,
-            attrs={"args": args_summary or {}},
-        ) as sp:
-            if result_summary:
-                sp.event("result", result_summary)
-            if error:
-                sp.event("error", {"msg": error})
-                # Force the span into error status by raising-and-catching
-                # is too clever; instead patch attrs.
+        if error:
+            # Closed-form error path: raise inside the context so
+            # _SpanHandle._close records status=error+error_msg.
+            class _ToolCallError(RuntimeError):
+                pass
+            try:
+                with start_span(
+                    db, tid, "tool-call", tool_name,
+                    attrs={"args": args_summary or {}},
+                ) as sp:
+                    if result_summary:
+                        sp.event("result", result_summary)
+                    sp.event("error", {"msg": error})
+                    raise _ToolCallError(error)
+            except _ToolCallError:
+                pass
+        else:
+            with start_span(
+                db, tid, "tool-call", tool_name,
+                attrs={"args": args_summary or {}},
+            ) as sp:
+                if result_summary:
+                    sp.event("result", result_summary)
     except Exception:
         pass
 

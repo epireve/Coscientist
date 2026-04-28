@@ -179,14 +179,17 @@ mcp = FastMCP("manuscript-mcp")
 
 
 def _trace_emit(tool_name: str, args_summary: dict | None,
-                result_summary: dict | None) -> None:
-    """v0.93c — best-effort tool-call span emit."""
+                result_summary: dict | None,
+                error: str | None = None) -> None:
+    """v0.93c — best-effort tool-call span emit. v0.112 — error
+    forwarded for status='error' marking."""
     try:
         from lib.trace import maybe_emit_tool_call
         maybe_emit_tool_call(
             tool_name,
             args_summary=args_summary,
             result_summary=result_summary,
+            error=error,
         )
     except Exception:
         pass
@@ -259,7 +262,8 @@ def parse_manuscript(
         result = {"error": str(e)}
         _trace_emit("parse_manuscript",
                     {"path_or_text_len": len(path_or_text), "fmt": fmt},
-                    {"error": str(e)})
+                    {"error": str(e)},
+                    error=str(e)[:200])
         return result
     sections = _extract_sections_from_text(text, resolved_fmt)
     citations = _extract_citations_from_text(text)

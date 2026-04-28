@@ -789,7 +789,29 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.111
+## Shipped: v0.51 → v0.112
+
+### v0.112 — tool-call error spans actually error ✅ (2026-04-28)
+
+**Bug fix.** v0.93c `maybe_emit_tool_call(error=...)` accepted
+the error param but only logged it as event — span stayed
+`status='ok'`. Tool-latency aggregator (v0.100) counted error
+spans as successes. Gate-summary (v0.109) similar issue.
+
+`maybe_emit_tool_call` now raises `_ToolCallError(error)` inside
+the context manager when `error` is given. `_SpanHandle._close`
+catches the exception, sets `status='error'` + `error_msg=<error>`
++ `error_kind='_ToolCallError'`. Caller never sees the exception
+(swallowed in the same try/except).
+
+All 3 MCP servers (retraction-mcp, manuscript-mcp,
+graph-query-mcp) `_trace_emit` helpers extended with `error=`
+param + every error-path call updated to forward the message.
+Plugin sources resynced + checksums regenerated.
+
+3 new tests (success path stays ok, error sets
+status+msg+kind, n_errors counted in tool-latency aggregator).
+1842 total passing.
 
 ### v0.111 — prune empty run DBs ✅ (2026-04-28)
 

@@ -74,14 +74,17 @@ mcp = FastMCP("graph-query-mcp")
 
 
 def _trace_emit(tool_name: str, args_summary: dict | None,
-                result_summary: dict | None) -> None:
-    """v0.93c — best-effort tool-call span emit."""
+                result_summary: dict | None,
+                error: str | None = None) -> None:
+    """v0.93c — best-effort tool-call span emit. v0.112 — error
+    forwarded for status='error' marking."""
     try:
         from lib.trace import maybe_emit_tool_call
         maybe_emit_tool_call(
             tool_name,
             args_summary=args_summary,
             result_summary=result_summary,
+            error=error,
         )
     except Exception:
         pass
@@ -240,7 +243,8 @@ def shortest_path(
         _trace_emit("shortest_path",
                     {"start": start_node, "end": end_node,
                      "max_hops": max_hops},
-                    result)
+                    result,
+                    error=str(e)[:200])
         return result
     if path is None:
         result = {

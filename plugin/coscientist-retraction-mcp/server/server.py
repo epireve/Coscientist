@@ -42,15 +42,18 @@ _TIMEOUT = 15.0
 
 
 def _trace_emit(tool_name: str, args_summary: dict | None,
-                result_summary: dict | None) -> None:
+                result_summary: dict | None,
+                error: str | None = None) -> None:
     """v0.93c — best-effort tool-call span emit. No-op if lib.trace
-    or env vars unavailable."""
+    or env vars unavailable. v0.112 — forward error so span gets
+    status='error'."""
     try:
         from lib.trace import maybe_emit_tool_call
         maybe_emit_tool_call(
             tool_name,
             args_summary=args_summary,
             result_summary=result_summary,
+            error=error,
         )
     except Exception:
         pass
@@ -131,7 +134,8 @@ def lookup_doi(doi: str) -> dict[str, Any]:
     if not norm:
         result = {"doi": doi, "found": False, "error": "empty DOI"}
         _trace_emit("lookup_doi", {"doi": doi},
-                    {"found": False, "error": "empty DOI"})
+                    {"found": False, "error": "empty DOI"},
+                    error="empty DOI")
         return result
     url = _CROSSREF_BASE + urllib.parse.quote(norm, safe="")
     try:
@@ -140,14 +144,17 @@ def lookup_doi(doi: str) -> dict[str, Any]:
         if e.code == 404:
             result = {"doi": norm, "found": False,
                       "error": "not in Crossref"}
-            _trace_emit("lookup_doi", {"doi": norm}, result)
+            _trace_emit("lookup_doi", {"doi": norm}, result,
+                         error="not in Crossref")
             return result
         result = {"doi": norm, "found": False, "error": f"HTTP {e.code}"}
-        _trace_emit("lookup_doi", {"doi": norm}, result)
+        _trace_emit("lookup_doi", {"doi": norm}, result,
+                     error=f"HTTP {e.code}")
         return result
     except Exception as e:
         result = {"doi": norm, "found": False, "error": str(e)}
-        _trace_emit("lookup_doi", {"doi": norm}, result)
+        _trace_emit("lookup_doi", {"doi": norm}, result,
+                     error=str(e)[:200])
         return result
     msg = data.get("message") or {}
     parsed = _parse_crossref_message(msg)
