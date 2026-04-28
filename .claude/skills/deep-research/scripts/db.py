@@ -306,6 +306,32 @@ def cmd_record_phase(args: argparse.Namespace) -> None:
     _emit_phase_span(args.run_id, args.phase,
                      start=args.start, complete=args.complete,
                      error=args.error, output_json=args.output_json)
+    # v0.94 — auto-quality scoring on phase completion. Best-effort.
+    if args.complete and args.output_json:
+        _maybe_auto_score(args.run_id, args.phase, args.output_json)
+
+
+def _maybe_auto_score(run_id: str, phase: str, output_json: str) -> None:
+    """v0.94 — auto-rubric score the persona output if a rubric exists.
+
+    Phase name maps 1:1 to rubric agent name (scout, surveyor,
+    architect, synthesist, weaver). Personas without a rubric: noop.
+    All errors swallowed — quality scoring is observability.
+    """
+    try:
+        from lib import agent_quality
+        from lib.cache import run_db_path
+        if phase not in agent_quality.RUBRICS:
+            return
+        artifact = Path(output_json)
+        if not artifact.exists():
+            return
+        agent_quality.score_auto(
+            db_path=run_db_path(run_id), run_id=run_id, span_id=None,
+            agent_name=phase, artifact_path=artifact,
+        )
+    except Exception:
+        pass
 
 
 # v0.93a: per-phase span tracking. The CLI is one-shot per

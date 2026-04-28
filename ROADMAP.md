@@ -789,7 +789,24 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.93
+## Shipped: v0.51 → v0.94
+
+### v0.94 — auto-quality hook on phase completion ✅ (2026-04-28)
+
+`db.py record-phase --complete --output-json <path>` now triggers
+`_maybe_auto_score(run_id, phase, output_json)`. When phase name
+matches a `lib.agent_quality.RUBRICS` key (scout, surveyor,
+architect, synthesist, weaver), the auto-rubric runs and persists
+to `agent_quality` keyed by run_id. Non-rubric personas are
+silent noops. All errors swallowed — quality scoring is pure
+observability.
+
+2 new tests: known-persona writes a row with high score on a
+30-paper artifact; unknown-persona phase writes nothing. Total
+suite 1727 passing.
+
+This closes the v0.92 deferred item: "live data flowing into
+agent_quality without operator action".
 
 ### v0.93 — instrumentation hookup ✅ (2026-04-28)
 

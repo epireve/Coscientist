@@ -183,10 +183,98 @@ class PhaseSpanCliTests(TestCase):
             self.assertEqual(rows[0][0], "scout")
 
 
+class AutoQualityHookTests(TestCase):
+    """v0.94 — record-phase --complete auto-scores known personas."""
+
+    def test_complete_with_output_writes_quality_row(self):
+        with isolated_cache():
+            db_py = (_REPO / ".claude" / "skills" / "deep-research"
+                     / "scripts" / "db.py")
+            r = subprocess.run(
+                [sys.executable, str(db_py), "init",
+                 "--question", "test"],
+                capture_output=True, text=True, cwd=str(_REPO),
+            )
+            self.assertEqual(r.returncode, 0, r.stderr)
+            rid = r.stdout.strip().split()[-1]
+            # Build a scout-rubric-compatible artifact: 30 papers w/
+            # canonical_id, title, source from 3+ origins.
+            import tempfile
+            sources = ["s2", "consensus", "arxiv"]
+            items = [
+                {"canonical_id": f"p{i}", "title": f"Paper {i}",
+                 "source": sources[i % 3]}
+                for i in range(30)
+            ]
+            tf = tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False,
+            )
+            json.dump(items, tf); tf.close()
+            # First start, then complete with the artifact path.
+            for flag in ("--start", "--complete"):
+                args = [sys.executable, str(db_py), "record-phase",
+                        "--run-id", rid, "--phase", "scout", flag]
+                if flag == "--complete":
+                    args += ["--output-json", tf.name]
+                r = subprocess.run(args, capture_output=True,
+                                   text=True, cwd=str(_REPO))
+                self.assertEqual(r.returncode, 0, r.stderr)
+            db = run_db_path(rid)
+            con = sqlite3.connect(db)
+            try:
+                rows = con.execute(
+                    "SELECT agent_name, score_total FROM agent_quality "
+                    "WHERE run_id=?", (rid,),
+                ).fetchall()
+            finally:
+                con.close()
+            self.assertGreater(len(rows), 0)
+            self.assertEqual(rows[0][0], "scout")
+            # Should be a high score — all criteria pass.
+            self.assertGreater(rows[0][1], 0.8)
+
+    def test_complete_unknown_persona_no_row(self):
+        with isolated_cache():
+            db_py = (_REPO / ".claude" / "skills" / "deep-research"
+                     / "scripts" / "db.py")
+            r = subprocess.run(
+                [sys.executable, str(db_py), "init",
+                 "--question", "test"],
+                capture_output=True, text=True, cwd=str(_REPO),
+            )
+            rid = r.stdout.strip().split()[-1]
+            # cartographer has no rubric → no auto-score row.
+            import tempfile
+            tf = tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False,
+            )
+            json.dump([], tf); tf.close()
+            for flag in ("--start", "--complete"):
+                args = [sys.executable, str(db_py), "record-phase",
+                        "--run-id", rid, "--phase", "cartographer",
+                        flag]
+                if flag == "--complete":
+                    args += ["--output-json", tf.name]
+                r = subprocess.run(args, capture_output=True,
+                                   text=True, cwd=str(_REPO))
+                self.assertEqual(r.returncode, 0, r.stderr)
+            db = run_db_path(rid)
+            con = sqlite3.connect(db)
+            try:
+                rows = con.execute(
+                    "SELECT COUNT(*) FROM agent_quality WHERE run_id=?",
+                    (rid,),
+                ).fetchone()
+            finally:
+                con.close()
+            self.assertEqual(rows[0], 0)
+
+
 if __name__ == "__main__":
     raise SystemExit(run_tests(
         EnvTraceContextTests,
         MaybeEmitToolCallTests,
         GateTraceTests,
         PhaseSpanCliTests,
+        AutoQualityHookTests,
     ))
