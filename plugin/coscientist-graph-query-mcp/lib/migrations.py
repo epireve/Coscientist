@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS schema_versions (
 # v9..v10 add tables via `_ensure_vN_tables`). Kept as a single list
 # so the monotonicity test can assert no version is silently skipped
 # between the SQL-based MIGRATIONS list and the in-code migrations.
-ALL_VERSIONS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+ALL_VERSIONS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
 
 
 def _table_exists(con: sqlite3.Connection, name: str) -> bool:
@@ -234,6 +234,17 @@ def ensure_current(db_path: Path,
                     (10, "v0.63_citation_resolutions", now),
                 )
             newly_applied.append(10)
+
+        # v0.89 — execution traces (OpenTelemetry-style spans).
+        if 11 not in applied and is_coscientist_db:
+            _ensure_v11_tables(con)
+            with con:
+                con.execute(
+                    "INSERT INTO schema_versions (version, name, applied_at) "
+                    "VALUES (?, ?, ?)",
+                    (11, "v0.89_execution_traces", now),
+                )
+            newly_applied.append(11)
     finally:
         con.close()
     return newly_applied
@@ -268,6 +279,14 @@ def _ensure_v10_tables(con: sqlite3.Connection) -> None:
     """
     with con:
         con.executescript(_read_migration_sql(10))
+
+
+def _ensure_v11_tables(con: sqlite3.Connection) -> None:
+    """v0.89 — execution traces (traces, spans, span_events).
+    DDL in migrations_sql/v11.sql.
+    """
+    with con:
+        con.executescript(_read_migration_sql(11))
 
 
 def _ensure_v8_columns(con: sqlite3.Connection) -> None:

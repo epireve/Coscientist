@@ -11,6 +11,49 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.89 — execution traces (OpenTelemetry-style spans) (2026-04-28)
+
+Layer A of the traceability plan. Lays the foundation for live
+deep-research debugging.
+
+**Migration v11** — three new tables:
+- `traces` (trace_id, run_id, started_at, completed_at, status)
+- `spans` (span_id, trace_id, parent_span_id, kind, name, started_at,
+  ended_at, duration_ms, status, error_kind, error_msg, attrs_json)
+- `span_events` (event_id, span_id, name, payload_json, at)
+
+Plus 4 indexes. Mirrored in `lib/sqlite_schema.sql`.
+
+**`lib/trace.py`** — pure-stdlib helper API:
+- `init_trace(db_path, trace_id, run_id)` — idempotent.
+- `start_span(db, trace_id, kind, name, parent_span_id=, attrs=)` —
+  context manager. Auto-records started_at/ended_at/duration_ms.
+  On exception: status='error' + error_kind + error_msg captured;
+  exception re-raised after persistence.
+- Span handle: `.event(name, payload)`, `.set_attrs(dict)`.
+- `end_trace(db, trace_id, status)` — ok|error.
+- `get_trace(db, trace_id)` — full read-back: trace + spans + events
+  for renderer (v0.91).
+
+Span `kind` enum: phase | sub-agent | tool-call | gate | persist |
+harvest | other.
+
+12 new tests in `tests/test_v0_89_traces.py`:
+- 1 migration v11 (3 tables created)
+- 3 trace lifecycle (init/end, idempotent, invalid-status rejected)
+- 6 span context manager (ok records duration, error persists
+  traceback, invalid-kind rejected, nested-parent, event payload,
+  attrs persisted)
+- 2 get_trace round-trip (full + missing returns None)
+
+Suite: 1675 → 1687 passing (+12).
+
+**Next**:
+- v0.90 — error context capture (traceback persistence,
+  stdout/stderr tail, DB state at failure)
+- v0.91 — trace renderer CLI (mermaid + markdown + JSON)
+- Then instrument `db.py` phases + MCP tool calls
+
 ## v0.88 — risk evaluation: WAL sweep + audit-self-log (2026-04-28)
 
 Three risks identified post-v0.85; evaluated all three.
