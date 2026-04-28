@@ -789,7 +789,82 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.132
+## Shipped: v0.51 → v0.137
+
+### v0.137 — README rewrite + freshness regression ✅ (2026-04-29)
+
+`README.md` was stuck at v0.56 — missed v0.57 → v0.134
+landings. "What it does" missing tournament, observability,
+critical judgment. Fixed.
+
+Changes:
+- **What it does** expanded to 9 numbered steps (added
+  Tournament + Critical judgment + Observability)
+- New "**Beyond the literature pipeline**" section listing
+  6 lifecycle subsystems (manuscripts, experiments, datasets,
+  grants/IRB/DMP, knowledge layer, Wide Research)
+- New "**Quick start**" section: clone → uv sync → configure
+  .mcp.json → install_hooks → verify → first run
+- v0.57 → v0.134 condensed into per-range tables (DB
+  persistence, observability foundation, instrumentation
+  hookup, smoke-test infra, production polish)
+- New "**Observability + diagnostics**" section: 7 operator
+  commands (health, trace_render, trace_status, trace_export,
+  ci-status, test-like-ci) + runbook reference
+
+10 regression tests pin: observability mention, tournament
+integration mention, lifecycle subsystem coverage, Quick Start
+section + 6 required commands, v0.120-v0.134 listed,
+runbook+CHANGELOG references.
+
+1982 total passing.
+
+### v0.136 — pre-commit hook install detection ✅ (2026-04-29)
+
+`lib/hook_check.py` — detects `.git/hooks/pre-commit` symlink
+state. Returns OK / "not installed" / "wrong target" / "broken
+symlink" with action hint pointing to `scripts/install_hooks.sh`.
+
+CLI: `uv run python -m lib.hook_check [--quiet]`. Exit 0 if
+installed, 1 otherwise. CI/cron-friendly.
+
+Detects 4 misinstall states: missing, regular file (not
+symlink), wrong-target symlink, broken symlink. Each reports
+the specific issue.
+
+7 tests including symlink manipulation + restore. 1972 total.
+
+### v0.135 — ci-status + test-like-ci coverage ✅ (2026-04-29)
+
+Tests for v0.132 scripts. Covers: file existence + executable
+bit, content markers (handles missing `gh`, supports
+`--watch`/`--logs`/`--rerun`, `test-like-ci` runs uv sync +
+stages mcp.json + runs ruff lint + supports `--fresh`),
+end-to-end `gh` availability test (runs `ci-status.sh` no-arg
+when `gh` authed; skips otherwise).
+
+12 new tests. 1965 total.
+
+### v0.134 — persona doc static check ✅ (2026-04-29)
+
+`lib/persona_doc_check.py` — static check that
+`.claude/agents/<name>.md` JSON example block satisfies
+`lib.persona_schema.SCHEMAS[name]`. Catches doc drift when
+SCHEMAS or persona spec changes independently.
+
+`extract_json_example(md_text)` pulls first ```json fenced
+block, substitutes `<placeholder>` tokens with `null`, strips
+JSON comments. Returns parsed dict or None.
+
+`check_persona(agent_name)` validates one persona. `check_all()`
+walks every persona in SCHEMAS.
+
+CLI: `uv run python -m lib.persona_doc_check [--agent NAME]
+[--format md|json]`. Exit 0/1 by drift status.
+
+13 new tests including all 10 registered personas pass static
+check. Closes the v0.118 digest's "deliberately NOT done"
+item: persona spec static check.
 
 ### v0.132 — local CI emulation + GitHub MCP ✅ (2026-04-28)
 

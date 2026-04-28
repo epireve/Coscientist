@@ -11,7 +11,19 @@ Given a research question, an agent works through it end-to-end:
 3. **Acquisition** — fetches PDFs through an open-access fallback chain, falling through to your institution's access via OpenAthens when OA sources don't have it.
 4. **Extraction** — Docling converts PDFs into structured Markdown with figures, tables, equations, and references preserved.
 5. **Analysis** — 10 specialized sub-agents (Scout, Cartographer, Chronicler, Surveyor, Synthesist, Architect, Inquisitor, Weaver, Visionary, Steward) work through the corpus with three human-in-the-loop review breaks. Phase 1 personas run in parallel (v0.51).
-6. **Output** — produces a Research Brief + six-section Understanding Map + RUN-RECOVERY.md, with every claim traceable to its source paper in a SQLite run log. Brief now includes hypothesis cards + per-section evidence tables + Socratic discussion questions (v0.54).
+6. **Tournament** (v0.123) — Architect + Visionary hypotheses ranked via pairwise Elo before downstream personas judge them; Inquisitor + Steward read the leaderboard, not raw output order.
+7. **Critical judgment** (v0.3 + v0.55 + v0.56) — gate-enforced novelty / publishability / attack-vector audits with self-play debate (PRO + CON + JUDGE) for borderline verdicts.
+8. **Output** — Research Brief + six-section Understanding Map + RUN-RECOVERY.md, every claim traceable to source paper. Brief includes hypothesis cards, evidence tables, Socratic discussion questions (v0.54).
+9. **Observability** (v0.89–v0.133) — every phase + tool-call + gate + harvest + sub-agent emits an OpenTelemetry-style span. Auto-rubric scores agent quality on phase complete. Health dump (`/health`) surfaces stale runs, slow MCPs, low-quality agents, decline trends, gate rejection patterns. OTLP export for Jaeger/Honeycomb. Alert thresholds + CI exit codes + per-project overlay.
+
+Beyond the literature pipeline, Coscientist supports the full research lifecycle:
+
+- **Manuscripts**: ingest → audit → critique → reflect → draft → revise → format → version (markdown-first, pandoc export to LaTeX/.docx/PDF)
+- **Experiments**: design → preregister → Docker-sandboxed run → analyze → reproduce
+- **Datasets**: register → Zenodo deposit → version
+- **Grants/IRB/DMP**: NIH / NSF / ERC / Wellcome funder-specific scaffolds
+- **Personal knowledge layer**: research journal, project dashboard, cross-project memory, citation alerts, retraction watch, preprint alerts
+- **Wide Research**: orchestrator-worker fan-out for N-item parallel processing (10-250 items, 6 task types)
 
 ## Three research modes
 
@@ -36,10 +48,35 @@ uv run python .claude/skills/deep-research/scripts/db.py init \
   --question "..." --seed-from-wide <wide-id> --seed-mode abstract
 ```
 
-## Install
+## Quick start
 
-Coscientist ships as a Claude Code plugin marketplace. Add the
-marketplace once, then install whichever components you want:
+```bash
+# 1. Clone + install
+git clone https://github.com/epireve/coscientist.git
+cd coscientist
+uv sync --extra dev --extra mcp
+
+# 2. Configure MCP credentials (template has placeholders for keys)
+cp .mcp.json.example .mcp.json
+# Edit .mcp.json — fill <semantic_scholar_api_key> etc with real keys
+
+# 3. Install pre-commit hook (auto-regens checksums + indexes)
+scripts/install_hooks.sh
+
+# 4. Verify
+uv run python tests/run_all.py        # 1900+ tests, ~25s
+uv run python -m lib.health           # diagnostics dump
+
+# 5. Run your first deep-research
+uv run python .claude/skills/deep-research/scripts/db.py init \
+  --question "<your research question>"
+# Returns a run_id. Then dispatch sub-agents per orchestrator
+# instructions in .claude/skills/deep-research/SKILL.md.
+```
+
+For Claude Code plugin install (recommended for end users) see Install section below.
+
+## Install
 
 ```bash
 /plugin marketplace add epireve/coscientist
@@ -336,12 +373,93 @@ Test suite progression: 251 (v0.13) → 310 (v0.17) → 507 (v0.28) → 651 (v0.
 
 | Version | What landed |
 |---|---|
-| v0.51 | Phase 1 parallel dispatch (`db.py next-phase-batch`) — cartographer, chronicler, surveyor run concurrently. Run-time target 30–60min → 15–25min. |
-| v0.52 | Search-strategy depth — PICO/SPIDER framework selection, adversarial pre-Phase-1 critique, Jensen-Shannon era detection, cross-persona disagreement, OLS concept velocity. |
-| v0.53 | **Wide Research** mode — orchestrator-worker fan-out, 6 TaskSpec types (triage / read / rank / compare / survey / screen), HITL Gates 1+2+3, $50 hard ceiling, telemetry/observability, timeout sweep, cycle guard, partial-data warning. **Wide → Deep handoff** via `--seed-from-wide` + migration v8 (`runs.parent_run_id`, `runs.seed_mode`). |
-| v0.54 | Brief richness — hypothesis cards + per-section evidence tables + Socratic discussion questions + RUN-RECOVERY.md (DB-query recipes for full phase-output recovery). |
-| v0.55 | **A5 trio** — `gap-analyzer` (real-vs-artifact, tier, difficulty, adjacent fields), `contribution-mapper` (method/domain/finding decomposition + Jaccard distance + 2D landscape), `venue-match` (15-venue registry + 6-component scoring). |
-| v0.56 | **Self-play debate** — `debate` skill + PRO/CON/JUDGE sub-agents. Sharpens borderline novelty / publishability / red-team verdicts via opposing positions, evidence anchors, and 4-axis judge scoring. |
+| v0.51 | Phase 1 parallel dispatch — cartographer/chronicler/surveyor run concurrently. 30-60min → 15-25min. |
+| v0.52 | Search-strategy depth — PICO/SPIDER, adversarial pre-Phase-1 critique, era detection, concept velocity. |
+| v0.53 | **Wide Research** mode + Wide → Deep handoff. 6 task types, HITL gates, $50 ceiling, telemetry. |
+| v0.54 | Brief richness — hypothesis cards + evidence tables + Socratic questions + RUN-RECOVERY.md. |
+| v0.55 | **A5 trio** — gap-analyzer + contribution-mapper + venue-match. |
+| v0.56 | **Self-play debate** — PRO/CON/JUDGE for borderline novelty/publishability/red-team verdicts. |
+
+### v0.57 → v0.92 — DB persistence, ranker integration, observability foundation
+
+| Version | What landed |
+|---|---|
+| v0.57 | DB persistence + db-notify pattern. |
+| v0.58 | `resolve-citation` skill — incomplete refs → canonical_ids via S2. |
+| v0.59 | `graph-viz` mermaid renderer. |
+| v0.60 | Writing-style venue overlays. |
+| v0.73 → v0.78 | 3 custom MCPs shipped — retraction-mcp, manuscript-mcp, graph-query-mcp. Plugin marketplace. |
+| v0.79 | Tournament integration tests + lib.shortest_path + auto-CHANGELOG. |
+| v0.80 → v0.88 | Plugin polish + checksums + install-check + scripts.py audit + skill index regen tests. |
+| v0.89 → v0.92 | **Observability foundation** — execution traces (migrations v11+v12), agent quality scoring, trace renderer, error-context capture. |
+
+### v0.93 → v0.119 — Instrumentation hookup + smoke-test infra
+
+Wires the v0.89-v0.92 observability framework into every hot path:
+
+| Range | What landed |
+|---|---|
+| v0.93–v0.96 | Phase / harvest / gate / MCP tool-call spans. Auto-quality on phase complete. Cross-run leaderboard. |
+| v0.97–v0.100 | Stale-span detector + auto-close. Tool-call latency aggregator. Smoke-test runbook. |
+| v0.101–v0.105 | Persona schemas (10 personas) + record-phase split (`--quality-artifact` separate from `--output-json`). Dict-aware OG rubrics. |
+| v0.106–v0.110 | `lib.health` one-shot diagnostics + `/health` skill + harvest/gate summaries. Trace pruning. |
+| v0.111–v0.114 | Prune empty DBs. Tool-call error spans (bug fix). Alert thresholds + CI exit codes. Threshold config file. |
+| v0.115–v0.117 | CLAUDE.md observability docs. **OTLP-compliant trace export** (Jaeger/Honeycomb-ingestable). |
+| v0.118–v0.119 | Session digest. Sub-agent spans around Task dispatches. |
+
+### v0.120 → v0.137 — Production polish
+
+Roadmap audit shows Tier A 5/5 + Tier B + Tier C all ✅; observability stack complete + interoperable.
+
+| Range | What landed |
+|---|---|
+| v0.120–v0.123 | ROADMAP audit; open questions resolved; manuscript markdown-first formal lock; tournament wired into deep-research live path. |
+| v0.124 | OTLP collector push (`lib.trace_export`) — POST traces to Jaeger/Honeycomb. |
+| v0.125 | CI uv.lock fix (gitignore correction). |
+| v0.126–v0.127 | Per-project health threshold overlay. Quality drift time-series + alert. |
+| v0.128 | Plugin pre-commit hook auto-regens checksums + indexes + CHANGELOG. |
+| v0.129 | Field-trends per-concept time-series (N-bucket histograms). |
+| v0.130–v0.131 | CI fixes — plugin .mcp.json committed; pandoc-missing path fix; CacheLeakDetector flake. |
+| v0.132–v0.133 | `scripts/test-like-ci.sh` + `scripts/ci-status.sh` for local-before-push CI emulation. |
+| v0.134 | Persona doc static check — JSON examples in `.claude/agents/<name>.md` validated against `lib.persona_schema.SCHEMAS`. |
+
+For full version history with per-version detail see [CHANGELOG.md](./CHANGELOG.md) (auto-generated).
+
+## Observability + diagnostics
+
+Every run emits OpenTelemetry-style spans. One operator command:
+
+```bash
+# Single-shot diagnostics across every run
+uv run python -m lib.health
+# Returns: active runs, stale spans, tool latency (slowest first),
+# quality leaderboard (lowest-mean first), failed-span count,
+# harvest summary, gate decisions, quality drift trend.
+# Exit 0 clean / 1 warns / 2 critical alerts.
+```
+
+Drill in:
+
+```bash
+# Full timeline for one run (mermaid / md / json / otlp)
+uv run python -m lib.trace_render --db <path> --trace-id <rid> --format md
+
+# Tool-call latency (p50/p95/error rate per MCP)
+uv run python -m lib.trace_status --tool-latency
+
+# Find + close hung spans
+uv run python -m lib.trace_status --stale-only --mark-error
+
+# Push to Jaeger/Honeycomb
+uv run python -m lib.trace_export --db <path> --trace-id <rid>
+
+# CI inspection
+scripts/ci-status.sh
+scripts/ci-status.sh --logs       # if failed
+scripts/test-like-ci.sh           # emulate CI before push
+```
+
+See `docs/SMOKE-TEST-RUNBOOK.md` for the full operator walkthrough.
 
 ## MCP servers used
 
