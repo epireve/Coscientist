@@ -789,9 +789,34 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.75
+## Shipped: v0.51 → v0.76
 
 All items in this section are landed. See per-version notes.
+
+### v0.76 — retraction-mcp live integration tests (opt-in) ✅ (2026-04-28)
+
+Existing v0.72 test suite is fully offline (mocked HTTP). v0.76
+adds opt-in live tests that hit real Crossref + PubPeer endpoints.
+
+- `tests/test_retraction_mcp_live.py` — 5 tests, gated by
+  `COSCIENTIST_RUN_LIVE=1` env var. Skipped by default (so CI +
+  default `tests/run_all.py` stay offline).
+- Fixtures:
+  * **Real DOI** (Vaswani 2017 attention paper) — should resolve,
+    not be flagged as retracted.
+  * **Known retraction** (Wakefield 1998 MMR-autism, Lancet) —
+    must surface `is_retracted=True`.
+  * **Nonsense DOI** — must return `found=False`.
+  * **Batch lookup** — round-trip on 3 DOIs.
+  * **PubPeer round-trip** — surface either `found=True` with
+    comment count, or `found=False` if not tracked. Both valid.
+- Run manually:
+  ```bash
+  COSCIENTIST_RUN_LIVE=1 uv run python tests/test_retraction_mcp_live.py
+  ```
+
+Suite total unchanged when offline: 1569 → 1574 passing (+5;
+new live tests are no-ops without env var).
 
 ### v0.75 — MCP_SERVERS.md auto-index + README install docs ✅ (2026-04-28)
 
