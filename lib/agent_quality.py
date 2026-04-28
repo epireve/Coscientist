@@ -115,40 +115,59 @@ def _load_text_path(p: Path) -> str:
 # the most common low-quality output mode for that persona.
 # Add new ones over time.
 
+def _items_from(payload: Any, list_field: str) -> list:
+    """v0.105 — accept either a raw list or a dict with `list_field`.
+
+    Rubrics built for legacy `--quality-artifact` (list-top) now
+    also accept dict-top record-phase output_json by extracting the
+    canonical list field.
+    """
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        v = payload.get(list_field)
+        if isinstance(v, list):
+            return v
+    return []
+
+
 RUBRICS: dict[str, Rubric] = {
     "scout": Rubric(
         agent_name="scout",
-        version="0.1",
+        version="0.2",
         description="Paper-discovery breadth + dedup",
         loader=_load_json_path,
         criteria=(
             Criterion(
                 name="enough_candidates",
                 weight=2.0,
-                check=lambda items: count_at_least(items or [], 30),
+                check=lambda d: count_at_least(
+                    _items_from(d, "shortlist"), 30,
+                ),
                 description=">=30 candidate papers",
             ),
             Criterion(
                 name="canonical_id_present",
                 weight=1.0,
-                check=lambda items: fraction_with_field(
-                    items or [], "canonical_id",
+                check=lambda d: fraction_with_field(
+                    _items_from(d, "shortlist"), "canonical_id",
                 ),
                 description="every paper has canonical_id",
             ),
             Criterion(
                 name="title_present",
                 weight=1.0,
-                check=lambda items: fraction_with_field(
-                    items or [], "title",
+                check=lambda d: fraction_with_field(
+                    _items_from(d, "shortlist"), "title",
                 ),
                 description="every paper has title",
             ),
             Criterion(
                 name="source_diversity",
                 weight=1.0,
-                check=lambda items: unique_kind_count(
-                    items or [], "source", min_unique=3,
+                check=lambda d: unique_kind_count(
+                    _items_from(d, "shortlist"), "source",
+                    min_unique=3,
                 ),
                 description=">=3 distinct sources",
             ),
@@ -156,29 +175,31 @@ RUBRICS: dict[str, Rubric] = {
     ),
     "surveyor": Rubric(
         agent_name="surveyor",
-        version="0.1",
+        version="0.2",
         description="Gap identification specificity",
         loader=_load_json_path,
         criteria=(
             Criterion(
                 name="enough_gaps",
                 weight=2.0,
-                check=lambda items: count_at_least(items or [], 5),
+                check=lambda d: count_at_least(
+                    _items_from(d, "gaps"), 5,
+                ),
                 description=">=5 gaps",
             ),
             Criterion(
                 name="why_present",
                 weight=1.5,
-                check=lambda items: fraction_with_field(
-                    items or [], "why_matters",
+                check=lambda d: fraction_with_field(
+                    _items_from(d, "gaps"), "why_matters",
                 ),
                 description="every gap has why-this-matters",
             ),
             Criterion(
                 name="kind_present",
                 weight=1.0,
-                check=lambda items: fraction_with_field(
-                    items or [], "kind",
+                check=lambda d: fraction_with_field(
+                    _items_from(d, "gaps"), "kind",
                 ),
                 description="every gap has kind label",
             ),
@@ -186,43 +207,55 @@ RUBRICS: dict[str, Rubric] = {
     ),
     "architect": Rubric(
         agent_name="architect",
-        version="0.1",
+        version="0.2",
         description="Candidate-approach completeness",
         loader=_load_json_path,
         criteria=(
             Criterion(
                 name="enough_candidates",
                 weight=2.0,
-                check=lambda items: count_at_least(items or [], 3),
-                description=">=3 candidate approaches",
+                check=lambda d: count_at_least(
+                    _items_from(d, "hypotheses"), 1,
+                ),
+                description=">=1 hypothesis (max 3 per spec)",
             ),
             Criterion(
-                name="all_three_fields",
+                name="all_have_falsifiers",
                 weight=2.0,
-                check=lambda items: every_item_has_fields(
-                    items or [], ["method", "falsifier", "observable"],
+                check=lambda d: fraction_with_field(
+                    _items_from(d, "hypotheses"), "falsifiers",
                 ),
-                description="every approach has method+falsifier+observable",
+                description="every hypothesis has falsifiers",
+            ),
+            Criterion(
+                name="all_have_method_sketch",
+                weight=1.5,
+                check=lambda d: fraction_with_field(
+                    _items_from(d, "hypotheses"), "method_sketch",
+                ),
+                description="every hypothesis has method_sketch",
             ),
         ),
     ),
     "synthesist": Rubric(
         agent_name="synthesist",
-        version="0.1",
+        version="0.2",
         description="Cross-paper implications",
         loader=_load_json_path,
         criteria=(
             Criterion(
                 name="enough_implications",
                 weight=2.0,
-                check=lambda items: count_at_least(items or [], 3),
+                check=lambda d: count_at_least(
+                    _items_from(d, "implications"), 3,
+                ),
                 description=">=3 implications",
             ),
             Criterion(
                 name="all_have_supporting_ids",
                 weight=2.0,
-                check=lambda items: every_item_has_fields(
-                    items or [], ["supporting_ids"],
+                check=lambda d: every_item_has_fields(
+                    _items_from(d, "implications"), ["supporting_ids"],
                 ),
                 description="every implication cites supporting papers",
             ),
@@ -230,25 +263,34 @@ RUBRICS: dict[str, Rubric] = {
     ),
     "weaver": Rubric(
         agent_name="weaver",
-        version="0.1",
-        description="Narrative coherence (text path)",
-        loader=_load_text_path,
+        version="0.2",
+        description="Coherence map (dict JSON per v0.103 spec)",
+        loader=_load_json_path,
         criteria=(
             Criterion(
-                name="length_floor",
-                weight=1.0,
-                check=lambda text: 1.0 if (text or "").strip().split() and
-                                     len((text or "").split()) >= 200 else 0.0,
-                description=">=200 words",
+                name="has_sharpened_question",
+                weight=1.5,
+                check=lambda d: 1.0 if isinstance(d, dict)
+                                  and (d.get("sharpened_question") or "").strip()
+                                  else 0.0,
+                description="non-empty sharpened_question",
             ),
             Criterion(
-                name="cite_density",
+                name="enough_consensus_or_tensions",
+                weight=2.0,
+                check=lambda d: 1.0 if (
+                    len(_items_from(d, "consensus")) +
+                    len(_items_from(d, "tensions"))
+                ) >= 3 else 0.0,
+                description=">=3 consensus or tension entries",
+            ),
+            Criterion(
+                name="consensus_have_supporting_ids",
                 weight=1.0,
-                check=lambda text: min(
-                    1.0,
-                    (text or "").count("[@") / max(1, len((text or "").split()) // 50),
+                check=lambda d: fraction_with_field(
+                    _items_from(d, "consensus"), "supporting_ids",
                 ),
-                description="~1 citation per 50 words",
+                description="every consensus entry cites papers",
             ),
         ),
     ),

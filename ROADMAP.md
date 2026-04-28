@@ -789,7 +789,30 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.104
+## Shipped: v0.51 → v0.105
+
+### v0.105 — dict-aware OG rubrics ✅ (2026-04-28)
+
+The 5 v0.92 rubrics (scout/surveyor/architect/synthesist/weaver)
+expected list-top input. v0.103 corrected schemas to dict-top
+(matches actual persona output specs). Mismatch meant rubrics
+ran against wrong shape unless `--quality-artifact` passed.
+
+`_items_from(payload, list_field)` helper accepts list-top OR
+dict-top (extracts named list field). All 5 OG rubrics use it
+now. Bumped to version 0.2.
+
+Rubric criteria realigned to actual persona specs:
+- **architect**: falsifiers + method_sketch (was method+falsifier+observable)
+- **weaver**: dict shape with sharpened_question + consensus +
+  tensions (was text-loader with cite density). Loader switched
+  json.
+
+Backward-compat: list-top inputs still score correctly.
+
+10 new tests for `_items_from` + dict-top scoring per persona +
+backward-compat. v0.92 tests updated for new architect/weaver
+shapes. 1800 total passing.
 
 ### v0.104 — rubrics for v0.103 personas ✅ (2026-04-28)
 

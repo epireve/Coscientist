@@ -122,17 +122,21 @@ class ScoreAutoTests(TestCase):
     def test_architect_partial_score(self):
         with isolated_cache() as root:
             db = _new_run_db("auto_arch")
+            # v0.105: rubric updated to falsifiers + method_sketch
+            # (matches actual persona spec).
             artifact = _write_json(root / "arch.json", [
-                {"method": "M1", "falsifier": "F1", "observable": "O1"},
-                {"method": "M2"},  # missing falsifier+observable
-                {"method": "M3", "falsifier": "F3", "observable": "O3"},
+                {"hyp_id": "h1", "method_sketch": "M1",
+                 "falsifiers": ["x"]},
+                {"hyp_id": "h2", "method_sketch": "M2"},  # no falsifiers
+                {"hyp_id": "h3", "method_sketch": "M3",
+                 "falsifiers": ["x"]},
             ])
             res = agent_quality.score_auto(
                 db, run_id="auto_arch", span_id=None,
                 agent_name="architect", artifact_path=artifact,
             )
             self.assertTrue(res["ok"])
-            # 3/3 candidates met, but only 2/3 have all fields → ~0.83.
+            # 2/3 have falsifiers, 3/3 have method_sketch → partial.
             self.assertGreater(res["score_total"], 0.7)
             self.assertLess(res["score_total"], 1.0)
 
@@ -155,7 +159,8 @@ class ScoreAutoTests(TestCase):
                 con.close()
             self.assertEqual(row[0], "surveyor")
             self.assertEqual(row[1], "auto-rubric")
-            self.assertEqual(row[2], "0.1")
+            # v0.105 bumped surveyor rubric to 0.2.
+            self.assertEqual(row[2], "0.2")
 
 
 class JudgeProtocolTests(TestCase):
