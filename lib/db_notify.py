@@ -234,9 +234,13 @@ def prune_writes_all_dbs(
     per_db: list[dict] = []
     total_deleted = 0
     total_remaining = 0
+    # v0.88: open via connect_wal so we don't deadlock on parallel
+    # writers. WAL is a per-DB on-disk flag so this only matters for
+    # legacy DBs without WAL — connect_wal is a no-op upgrade there.
+    from lib.cache import connect_wal
     for db_path in sorted(candidates):
         try:
-            con = sqlite3.connect(db_path)
+            con = connect_wal(db_path)
         except sqlite3.Error:
             continue
         try:

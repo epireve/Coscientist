@@ -100,6 +100,7 @@ def purge_archives(
     rows = list_archives(older_than_days=older_than_days)
     deleted = 0
     bytes_freed = 0
+    deleted_paths: list[str] = []
     if confirm:
         for r in rows:
             try:
@@ -107,8 +108,14 @@ def purge_archives(
                 r.path.unlink()
                 deleted += 1
                 bytes_freed += size
+                deleted_paths.append(str(r.path))
             except OSError:
                 continue
+        # v0.88: audit our own deletions to the live audit.log so a
+        # purge is itself traceable. Doesn't recurse — only writes
+        # to audit_log_path() not the sandbox log.
+        if deleted_paths:
+            _log_purge(deleted_paths, bytes_freed, older_than_days)
     return {
         "older_than_days": older_than_days,
         "confirm": confirm,
@@ -125,3 +132,24 @@ def purge_archives(
             for r in rows
         ],
     }
+
+
+def _log_purge(deleted_paths: list[str], bytes_freed: int,
+               older_than_days: int) -> None:
+    """v0.88: append a JSON-line audit entry recording our purge."""
+    import json
+    log = audit_log_path()
+    log.parent.mkdir(parents=True, exist_ok=True)
+    entry = {
+        "kind": "audit-purge",
+        "at": datetime.now(UTC).isoformat(),
+        "older_than_days": older_than_days,
+        "n_deleted": len(deleted_paths),
+        "bytes_freed": bytes_freed,
+        "paths": [str(p) for p in deleted_paths],
+    }
+    try:
+        with log.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry) + "\n")
+    except OSError:
+        pass  # logging failure shouldn't break the purge

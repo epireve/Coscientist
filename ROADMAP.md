@@ -789,9 +789,43 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.87
+## Shipped: v0.51 → v0.88
 
 All items in this section are landed. See per-version notes.
+
+### v0.88 — risk evaluation: WAL sweep + audit-self-log ✅ (2026-04-28)
+
+Three risks identified post-v0.85; evaluated all three.
+
+**Risk #1 — `prune_writes_all_dbs` opens plain sqlite3.connect**:
+**REAL**. Could deadlock on parallel writers on legacy non-WAL
+DBs. Fix: use `lib.cache.connect_wal`. Idempotent on already-WAL
+DBs. Mirror of v0.66 retrofit pattern.
+
+**Risk #2 — `db_check` FK enforcement is forward-only**:
+**FALSE ALARM**. Re-read showed `db_check` calls
+`PRAGMA foreign_key_check`, which is the retroactive validator.
+The `PRAGMA foreign_keys=ON` line is just precautionary; the
+violations check runs regardless. Added a regression test
+(`test_fk_violation_detected_in_existing_data`) to lock the
+behavior in.
+
+**Risk #3 — `purge_archives` doesn't audit deletions**: **REAL**.
+Paradoxical for a tool that exists to manage audit logs. Fix:
+append a JSON-line entry to live audit.log on every successful
+purge:
+```json
+{"kind":"audit-purge","at":"...","older_than_days":30,
+ "n_deleted":3,"bytes_freed":12345,"paths":[...]}
+```
+Dry-run paths don't log (verified by test).
+
+4 new tests in `tests/test_v0_88_risk_fixes.py`:
+- 1 sweep-uses-WAL (journal_mode preserved after cross-DB sweep)
+- 1 FK-retroactive-check (db_check finds existing FK violation)
+- 2 purge-audit-trail (confirm logs entry; dry-run does not)
+
+Suite: 1671 → 1675 passing (+4).
 
 ### v0.87 — backup/restore scripts + cleanups ✅ (2026-04-28)
 
