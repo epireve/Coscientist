@@ -189,6 +189,41 @@ def find_stale_spans(
     return out
 
 
+def mark_stale_error(
+    db_path: Path, *, max_age_minutes: int = 30,
+    reason: str = "stale-span auto-close",
+    now_iso: str | None = None,
+) -> list[dict[str, Any]]:
+    """v0.98 — close stale running spans by setting status='error'.
+
+    Mutates only spans returned by `find_stale_spans`. Sets
+    `error_kind='stale'`, `error_msg=<reason>`, `ended_at=now`.
+    Returns the list of closed spans (same shape as
+    find_stale_spans + `closed_at`).
+    """
+    from datetime import UTC, datetime
+    stale = find_stale_spans(
+        db_path, max_age_minutes=max_age_minutes, now_iso=now_iso,
+    )
+    if not stale:
+        return []
+    now = datetime.now(UTC).isoformat() if now_iso is None else now_iso
+    con = _open(db_path)
+    try:
+        with con:
+            for s in stale:
+                con.execute(
+                    "UPDATE spans SET status='error', "
+                    "error_kind='stale', error_msg=?, ended_at=? "
+                    "WHERE span_id=? AND status='running'",
+                    (reason, now, s["span_id"]),
+                )
+                s["closed_at"] = now
+    finally:
+        con.close()
+    return stale
+
+
 def render_md(summaries: list[dict[str, Any]]) -> str:
     if not summaries:
         return "# Trace status\n\n_No traces found._\n"
@@ -238,22 +273,35 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--max-age", type=int, default=30,
                     help="Stale threshold in minutes (default 30).")
+    p.add_argument(
+        "--mark-error", action="store_true",
+        help="v0.98: mutate stale spans to status=error.",
+    )
+    p.add_argument(
+        "--reason", default="stale-span auto-close",
+        help="error_msg used when --mark-error fires.",
+    )
     args = p.parse_args(argv)
     if args.stale_only:
         from lib.cache import run_db_path, runs_dir
+        op = (
+            (lambda db: mark_stale_error(
+                db, max_age_minutes=args.max_age,
+                reason=args.reason,
+            ))
+            if args.mark_error
+            else (lambda db: find_stale_spans(
+                db, max_age_minutes=args.max_age,
+            ))
+        )
         if args.run_id:
-            stale = find_stale_spans(
-                run_db_path(args.run_id),
-                max_age_minutes=args.max_age,
-            )
+            stale = op(run_db_path(args.run_id))
         else:
             stale = []
             d = runs_dir()
             if d.exists():
                 for db in sorted(d.glob("run-*.db")):
-                    stale.extend(find_stale_spans(
-                        db, max_age_minutes=args.max_age,
-                    ))
+                    stale.extend(op(db))
         if args.format == "json":
             sys.stdout.write(json.dumps(stale, indent=2,
                                          default=str) + "\n")

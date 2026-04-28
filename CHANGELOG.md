@@ -11,6 +11,19 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.98 — stale-span auto-close action (2026-04-28)
+
+`lib.trace_status.mark_stale_error(db, *, max_age_minutes=30,
+reason)` mutates stale running spans to `status='error'` with
+`error_kind='stale'`, `error_msg=<reason>`, `ended_at=now`.
+
+CLI: `uv run python -m lib.trace_status --stale-only
+--mark-error [--reason "..."]`. Pairs with v0.97 detector —
+v0.97 reports, v0.98 acts. Caller decides which to use.
+
+4 new tests (no-stale noop, marks-error-with-reason,
+completed-span-not-touched, CLI). 1748 total passing.
+
 ## v0.97 — stale-span detector (2026-04-28)
 
 `lib.trace_status.find_stale_spans(db, *, max_age_minutes=30)`
