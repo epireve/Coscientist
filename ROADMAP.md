@@ -789,7 +789,27 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.105
+## Shipped: v0.51 → v0.106
+
+### v0.106 — health dump ✅ (2026-04-28)
+
+`lib/health.py` — single-shot diagnostics across the whole
+coscientist stack. One command, one report.
+
+`collect(*, max_age_minutes=30)` walks every `run-*.db` and
+returns: n_runs, active (running traces), stale (running spans
+past threshold, via v0.97), tool_latency (across runs, via
+v0.100), quality (per-agent leaderboard, via v0.96),
+failed_spans_total.
+
+CLI: `uv run python -m lib.health [--format md|json] [--max-age 30]`.
+md output includes top-10 slowest tools, lowest-mean agents,
+active runs, stale spans.
+
+Combines v0.95 + v0.96 + v0.97 + v0.100 into one operator view.
+
+7 new tests (collect logic + md renderer + CLI). 1807 total
+passing.
 
 ### v0.105 — dict-aware OG rubrics ✅ (2026-04-28)
 
