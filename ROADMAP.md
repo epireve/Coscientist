@@ -789,9 +789,37 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.83
+## Shipped: v0.51 → v0.84
 
 All items in this section are landed. See per-version notes.
+
+### v0.84 — CONTRIBUTING.md + db_check + manuscript-mcp .docx fixture ✅ (2026-04-28)
+
+Three closures.
+
+**CONTRIBUTING.md**: Walks through how to add a new skill / agent /
+custom MCP / schema migration. Documents 9 architecture invariants
+each enforced by a specific test class. Pre-merge checklist + the
+auto-generated docs that must stay in sync.
+
+**`lib/db_check.py`**: Walks every coscientist DB
+(`runs/*.db` + `projects/*/project.db`), reports schema-version
+drift, FK violations, orphan graph_edges, missing tables. Read-only.
+Run via `uv run python -m lib.db_check` for a structured JSON
+health report.
+
+**manuscript-mcp .docx fixture test**: `tests/test_v0_84_misc.py`
+includes a real round-trip: pandoc converts markdown → .docx →
+parse_manuscript → assert sections + word count surface. Skipped
+when pandoc isn't on PATH; never crashes.
+
+8 new tests:
+- 2 CONTRIBUTING (presence + section coverage)
+- 4 db_check (returns dict, healthy run/project DBs, detects
+  migration drift)
+- 2 manuscript-mcp docx (real round-trip + graceful no-pandoc)
+
+Suite: 1636 → 1644 passing (+8).
 
 ### v0.83 — PyPI release workflow + install_all.sh ✅ (2026-04-28)
 
