@@ -62,6 +62,11 @@ marketplace once, then install whichever components you want:
 
 Full server inventory + tool reference: [MCP_SERVERS.md](./MCP_SERVERS.md).
 
+Coscientist also consumes several third-party MCPs (Consensus,
+paper-search, semantic-scholar, academic, zotero, playwright,
+browser-use). They're not republished here — see
+[EXTERNAL_MCPS.md](./EXTERNAL_MCPS.md) for setup.
+
 ## Architecture
 
 Each skill is atomic and does one job. Skills compose through a shared **paper artifact** on disk — no skill calls another skill directly, so any piece can be swapped out.

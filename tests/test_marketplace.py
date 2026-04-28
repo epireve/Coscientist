@@ -254,6 +254,35 @@ class GraphQueryMcpPluginTests(TestCase):
             )
 
 
+class DocsPresenceTests(TestCase):
+    """v0.77 — top-level docs that point at marketplace + external MCPs."""
+
+    def test_skills_md_present(self):
+        self.assertTrue((_REPO / "SKILLS.md").exists())
+
+    def test_mcp_servers_md_present(self):
+        self.assertTrue((_REPO / "MCP_SERVERS.md").exists())
+
+    def test_external_mcps_md_present(self):
+        path = _REPO / "EXTERNAL_MCPS.md"
+        self.assertTrue(path.exists())
+        text = path.read_text()
+        # Must mention every external MCP we depend on.
+        for name in ("consensus", "paper-search", "academic",
+                     "semantic-scholar", "playwright", "browser-use",
+                     "zotero"):
+            self.assertIn(name, text,
+                          f"EXTERNAL_MCPS.md missing reference to {name}")
+
+    def test_readme_links_to_install_docs(self):
+        readme = (_REPO / "README.md").read_text()
+        # README must point at the marketplace install path + the
+        # auto-generated indexes.
+        self.assertIn("/plugin marketplace add epireve/coscientist", readme)
+        self.assertIn("MCP_SERVERS.md", readme)
+        self.assertIn("EXTERNAL_MCPS.md", readme)
+
+
 if __name__ == "__main__":
     raise SystemExit(run_tests(
         MarketplaceManifestTests,
@@ -261,4 +290,5 @@ if __name__ == "__main__":
         RetractionMcpPluginTests,
         ManuscriptMcpPluginTests,
         GraphQueryMcpPluginTests,
+        DocsPresenceTests,
     ))

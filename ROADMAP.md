@@ -789,9 +789,33 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.76
+## Shipped: v0.51 → v0.77
 
 All items in this section are landed. See per-version notes.
+
+### v0.77 — EXTERNAL_MCPS.md + docs-presence tests ✅ (2026-04-28)
+
+User question: "do we need to register all MCPs?" Answer: only the
+ones we wrote. Third-party MCPs Coscientist consumes are dependencies,
+not redistributables.
+
+- `EXTERNAL_MCPS.md` — documents the 7 external MCPs: `consensus`,
+  `paper-search`, `academic`, `semantic-scholar`, `playwright`,
+  `browser-use`, `zotero`. Each entry: what it does, install
+  command, API keys required, which Coscientist component uses it,
+  upstream source.
+- `README.md` updated — points at both `MCP_SERVERS.md` (custom)
+  and `EXTERNAL_MCPS.md` (third-party).
+- `tests/test_marketplace.py` extended with `DocsPresenceTests` (4
+  tests): SKILLS.md / MCP_SERVERS.md / EXTERNAL_MCPS.md present,
+  EXTERNAL_MCPS.md mentions every external MCP, README links to
+  marketplace install + both index docs.
+
+Doctrine: redistributing third-party MCPs under
+`epireve/coscientist` would be vendoring without permission. We
+list them with attribution and install instructions, full stop.
+
+Suite: 1574 → 1578 passing (+4).
 
 ### v0.76 — retraction-mcp live integration tests (opt-in) ✅ (2026-04-28)
 
