@@ -1,20 +1,22 @@
 """v0.52.4 — cross-persona disagreement scoring tests."""
 
-from tests import _shim  # noqa: F401
-
 import json
 import sqlite3
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
 
 from lib.disagreement import (  # noqa: E402
-    DisagreementScore, _personas_active, compute_disagreement,
-    persist_to_run_db, render_summary,
+    DisagreementScore,
+    _personas_active,
+    compute_disagreement,
+    persist_to_run_db,
+    render_summary,
 )
 
 

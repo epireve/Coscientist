@@ -2,7 +2,11 @@
 """registered-reports: Stage 1/Stage 2 RR pathway state tracking."""
 from __future__ import annotations
 
-import argparse, hashlib, json, re, sys
+import argparse
+import hashlib
+import json
+import re
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 

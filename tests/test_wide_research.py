@@ -1,20 +1,25 @@
 """v0.53.1 — Wide Research POC tests."""
 
-from tests import _shim  # noqa: F401
-
 import json
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
 
 from lib.wide_research import (  # noqa: E402
-    HARD_DOLLAR_CEILING, TASK_TYPE_DEFAULTS, TaskSpec, WIDE_MAX_ITEMS,
-    WIDE_THRESHOLD_ITEMS, WideRunPlan, _estimate_cost, collect_results,
-    decompose, write_workspace,
+    HARD_DOLLAR_CEILING,
+    TASK_TYPE_DEFAULTS,
+    WIDE_MAX_ITEMS,
+    WIDE_THRESHOLD_ITEMS,
+    TaskSpec,
+    _estimate_cost,
+    collect_results,
+    decompose,
+    write_workspace,
 )
 
 
@@ -869,8 +874,9 @@ class WideToDeepHandoffTests(TestCase):
             deep_id = out.strip()
             self.assertTrue(deep_id)
 
-            from lib.cache import cache_root
             import sqlite3
+
+            from lib.cache import cache_root
             db = cache_root() / "runs" / f"run-{deep_id}.db"
             con = sqlite3.connect(db)
             row = con.execute(
@@ -915,8 +921,9 @@ class WideToDeepHandoffTests(TestCase):
             )
             self.assertEqual(rc, 0, err)
             deep_id = out.strip()
-            from lib.cache import cache_root
             import sqlite3
+
+            from lib.cache import cache_root
             db = cache_root() / "runs" / f"run-{deep_id}.db"
             con = sqlite3.connect(db)
             row = con.execute(
@@ -951,8 +958,9 @@ class WideToDeepHandoffTests(TestCase):
             )
             self.assertEqual(rc, 0, err)
             deep_id = out.strip()
-            from lib.cache import cache_root
             import sqlite3
+
+            from lib.cache import cache_root
             db = cache_root() / "runs" / f"run-{deep_id}.db"
             con = sqlite3.connect(db)
             row = con.execute(
@@ -1217,8 +1225,9 @@ class HandoffEdgeCaseTests(TestCase):
             )
             self.assertEqual(rc, 0, err)
             deep_id = out.strip()
-            from lib.cache import cache_root
             import sqlite3
+
+            from lib.cache import cache_root
             con = sqlite3.connect(
                 cache_root() / "runs" / f"run-{deep_id}.db"
             )
@@ -1332,7 +1341,8 @@ class V537Tests(TestCase):
             ws = Path(plan["sub_specs"][0]["filesystem_workspace"])
             f = ws / "findings" / "partial.txt"
             f.write_text("partial output")
-            import os, time
+            import os
+            import time
             stale = time.time() - 100 * 60
             os.utime(f, (stale, stale))
             os.utime(ws / "task_progress.md", (stale, stale))
@@ -1372,7 +1382,8 @@ class V537Tests(TestCase):
             ws = Path(plan["sub_specs"][0]["filesystem_workspace"])
             f = ws / "findings" / "partial.txt"
             f.write_text("p")
-            import os, time
+            import os
+            import time
             stale = time.time() - 100 * 60
             for path in (f, ws / "task_progress.md",
                           ws / "taskspec.json"):

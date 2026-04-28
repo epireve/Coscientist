@@ -170,7 +170,8 @@ def cmd_run(args: argparse.Namespace) -> None:
     )
 
     # Run sandbox; capture printed JSON via stdout redirect
-    import io, contextlib
+    import contextlib
+    import io
     buf = io.StringIO()
     try:
         with contextlib.redirect_stdout(buf):
@@ -307,7 +308,8 @@ def cmd_reproduce_check(args: argparse.Namespace) -> None:
         timeout_seconds=budget["compute_seconds"],
         audit_id=None,
     )
-    import io, contextlib
+    import contextlib
+    import io
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         sandbox.cmd_run(sandbox_args)

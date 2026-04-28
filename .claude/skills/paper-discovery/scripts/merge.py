@@ -37,7 +37,6 @@ if str(_REPO_ROOT) not in sys.path:
 
 from lib.cache import run_db_path  # noqa: E402
 from lib.paper_artifact import (  # noqa: E402
-    Manifest,
     Metadata,
     PaperArtifact,
     canonical_id,

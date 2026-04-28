@@ -6,14 +6,13 @@ output and write it correctly into a paper artifact — that contract
 is what we pin here.
 """
 
-from tests import _shim  # noqa: F401
-
 import json
 import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -169,7 +168,7 @@ class RunFunctionTests(TestCase):
             )
             try:
                 m = _import_fetch()
-                from lib.paper_artifact import Metadata, PaperArtifact
+                from lib.paper_artifact import PaperArtifact
                 cid = m.run("2401.22222", None, False, False, False, None)
                 # Pre-seed a tldr that arxiv2md doesn't provide
                 art = PaperArtifact(cid)

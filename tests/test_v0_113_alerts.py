@@ -5,13 +5,11 @@ import json
 import sqlite3
 import subprocess
 import sys
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
 from lib import health
 from lib.cache import run_db_path
-
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 

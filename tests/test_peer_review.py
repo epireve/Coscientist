@@ -1,6 +1,8 @@
 """Tests for the peer-review skill."""
 from __future__ import annotations
-import importlib.util as _ilu, json, sys
+
+import importlib.util as _ilu
+import sys
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]

@@ -107,7 +107,9 @@ class DraftInitTests(CoscientistTestCase):
     def test_init_creates_files(self):
         with isolated_cache() as cache:
             mod = _load("draft")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 title="Neuroscience Study", funder="nih", mechanism=None, force=False
             )
@@ -127,7 +129,9 @@ class DraftInitTests(CoscientistTestCase):
     def test_init_manifest_content(self):
         with isolated_cache() as cache:
             mod = _load("draft")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 title="NSF Study", funder="nsf", mechanism="CAREER", force=False
             )
@@ -145,7 +149,9 @@ class DraftInitTests(CoscientistTestCase):
     def test_init_duplicate_raises(self):
         with isolated_cache() as cache:
             mod = _load("draft")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 title="Dup Study", funder="erc", mechanism=None, force=False
             )
@@ -159,7 +165,9 @@ class DraftInitTests(CoscientistTestCase):
     def test_init_force_overwrites(self):
         with isolated_cache() as cache:
             mod = _load("draft")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 title="Force Study", funder="wellcome", mechanism=None, force=False
             )
@@ -188,7 +196,9 @@ class DraftInitTests(CoscientistTestCase):
 class DraftSectionTests(CoscientistTestCase):
     def _make_grant(self, cache, title="Bio Study", funder="nih", mechanism=None):
         mod = _load("draft")
-        import argparse, io, contextlib
+        import argparse
+        import contextlib
+        import io
         args = argparse.Namespace(title=title, funder=funder, mechanism=mechanism, force=False)
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
@@ -199,7 +209,9 @@ class DraftSectionTests(CoscientistTestCase):
         with isolated_cache() as cache:
             gid = self._make_grant(cache)
             mod = _load("draft")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 grant_id=gid, section="specific_aims",
                 content="We propose three aims to study neural plasticity."
@@ -216,7 +228,9 @@ class DraftSectionTests(CoscientistTestCase):
         with isolated_cache() as cache:
             gid = self._make_grant(cache)
             mod = _load("draft")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             content = "Plasticity underlies learning and memory."
             args = argparse.Namespace(grant_id=gid, section="significance", content=content)
             buf = io.StringIO()
@@ -238,7 +252,9 @@ class DraftSectionTests(CoscientistTestCase):
         with isolated_cache() as cache:
             gid = self._make_grant(cache, funder="nsf")
             mod = _load("draft")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             content = " ".join(["word"] * 42)
             args = argparse.Namespace(grant_id=gid, section="project_summary", content=content)
             buf = io.StringIO()
@@ -252,7 +268,9 @@ class DraftStatusTests(CoscientistTestCase):
     def test_status_empty_grant(self):
         with isolated_cache() as cache:
             mod = _load("draft")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             init_args = argparse.Namespace(title="Status Test", funder="erc", mechanism=None, force=False)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -271,7 +289,9 @@ class DraftStatusTests(CoscientistTestCase):
     def test_status_after_section(self):
         with isolated_cache() as cache:
             mod = _load("draft")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
 
             init_args = argparse.Namespace(title="After Section", funder="wellcome", mechanism=None, force=False)
             buf = io.StringIO()
@@ -309,7 +329,9 @@ class FundersListTests(CoscientistTestCase):
     def test_funders_returns_four(self):
         with isolated_cache():
             mod = _load("draft")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace()
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -325,7 +347,9 @@ class FundersListTests(CoscientistTestCase):
     def test_funders_have_mechanisms(self):
         with isolated_cache():
             mod = _load("draft")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace()
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):

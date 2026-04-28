@@ -1,7 +1,5 @@
 """v0.45.4 tests for paper-discovery merge.py."""
 
-from tests import _shim  # noqa: F401
-
 import json
 import sqlite3
 import subprocess
@@ -9,6 +7,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent

@@ -11,6 +11,18 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.138 — lint cleanup batch (2026-04-29)
+
+`ruff check --fix lib/ tests/ .claude/skills/` auto-fixed 722
+warnings (mostly import order). 895 → 138 remaining; all
+non-trivial requiring manual review.
+
+45 files touched. No logic changes. Plugin lib resynced
++ checksums regenerated for `graph-query-mcp` (4 vendored files
++ schema).
+
+1982 tests pass.
+
 ## v0.137 — README rewrite + freshness regression (2026-04-29)
 
 `README.md` was stuck at v0.56 — missed v0.57 → v0.134

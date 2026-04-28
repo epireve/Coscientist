@@ -12,7 +12,6 @@ from unittest.mock import patch
 
 from tests.harness import TestCase, run_tests
 
-
 _REPO = Path(__file__).resolve().parents[1]
 _SERVER = _REPO / "mcp" / "retraction-mcp" / "server.py"
 

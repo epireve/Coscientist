@@ -3,9 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tests.harness import TestCase, run_tests
 from lib.mcp_index import discover_mcps, render_index
-
+from tests.harness import TestCase, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 _PLUGINS_ROOT = _REPO / "plugin"

@@ -789,7 +789,19 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.137
+## Shipped: v0.51 → v0.138
+
+### v0.138 — lint cleanup batch ✅ (2026-04-29)
+
+`ruff check --fix lib/ tests/ .claude/skills/` auto-fixed 722
+warnings (mostly import order). 895 → 138 remaining; all
+non-trivial requiring manual review.
+
+45 files touched. No logic changes. Plugin lib resynced
++ checksums regenerated for `graph-query-mcp` (4 vendored files
++ schema).
+
+1982 tests pass.
 
 ### v0.137 — README rewrite + freshness regression ✅ (2026-04-29)
 

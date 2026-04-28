@@ -12,10 +12,8 @@ import sqlite3
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
 from tests.harness import TestCase, isolated_cache, run_tests
-
 
 _REPO = Path(__file__).resolve().parents[1]
 _SCAN = _REPO / ".claude" / "skills" / "retraction-watch" / "scripts" / "scan.py"

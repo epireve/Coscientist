@@ -1,13 +1,11 @@
 """v0.85 — plugin uninstall cleanup + checksums."""
 from __future__ import annotations
 
-import json
 import sqlite3
 from pathlib import Path
 
+from lib import plugin_checksums, plugin_cleanup, project
 from tests.harness import TestCase, isolated_cache, run_tests
-from lib import plugin_cleanup, plugin_checksums, project
-
 
 _REPO = Path(__file__).resolve().parents[1]
 

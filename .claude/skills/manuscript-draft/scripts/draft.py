@@ -27,10 +27,8 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import re
 import sys
-from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -38,7 +36,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from lib.artifact import ArtifactKind, ManuscriptArtifact  # noqa: E402
+from lib.artifact import ManuscriptArtifact  # noqa: E402
 from lib.cache import cache_root  # noqa: E402
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -56,11 +54,9 @@ from outline import (  # noqa: E402
 from section import (  # noqa: E402
     build_source_md,
     count_words,
-    extract_section,
     find_cite_keys,
     replace_section,
 )
-
 
 # --------------------------------------------------------------------------- #
 # manuscript_id derivation (mirrors manuscript-ingest logic)                  #

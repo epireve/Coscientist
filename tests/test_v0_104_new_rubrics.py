@@ -6,10 +6,9 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
 from lib import agent_quality
 from lib.cache import run_db_path
-
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 
@@ -243,7 +242,8 @@ class AutoQualityHookV0_104Tests(TestCase):
     --quality-artifact (output_json works too since shape matches)."""
 
     def test_cartographer_auto_scored_from_output_json(self):
-        import subprocess, sys
+        import subprocess
+        import sys
         with isolated_cache():
             db_py = (_REPO / ".claude" / "skills" / "deep-research"
                      / "scripts" / "db.py")

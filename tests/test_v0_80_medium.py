@@ -10,11 +10,10 @@ import json
 import sqlite3
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
 from lib import skill_persist
 from lib.cache import run_db_path
 from lib.db_notify import prune_writes_all_dbs
-
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 

@@ -85,7 +85,9 @@ class CheckCommandTests(CoscientistTestCase):
     def test_check_returns_status(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace()
             buf = io.StringIO()
             try:
@@ -314,7 +316,7 @@ class WorkspaceLockTests(CoscientistTestCase):
 
     def test_lock_released_on_normal_exit(self):
         """After cmd_run completes (or errors), lock must be free."""
-        from lib.lockfile import artifact_lock, LockTimeout
+        from lib.lockfile import LockTimeout, artifact_lock
         with isolated_cache() as cache:
             mod = _load()
             mod._docker_available = lambda: False  # forces SystemExit inside
@@ -342,7 +344,9 @@ class AuditTests(CoscientistTestCase):
     def test_audit_empty(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(limit=10, filter=None)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -360,7 +364,9 @@ class AuditTests(CoscientistTestCase):
                 + json.dumps({"audit_id": "a2", "image": "alpine",
                               "exit_code": 1}) + "\n"
             )
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(limit=10, filter=None)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -376,7 +382,9 @@ class AuditTests(CoscientistTestCase):
                 json.dumps({"audit_id": "a1", "image": "python:3.12-slim"}) + "\n"
                 + json.dumps({"audit_id": "a2", "image": "alpine"}) + "\n"
             )
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(limit=10, filter="image=alpine")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -391,7 +399,9 @@ class AuditTests(CoscientistTestCase):
             log = cache / "sandbox_audit.log"
             lines = [json.dumps({"audit_id": f"a{i}"}) for i in range(20)]
             log.write_text("\n".join(lines) + "\n")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(limit=5, filter=None)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):

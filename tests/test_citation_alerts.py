@@ -23,7 +23,9 @@ def _load():
 
 
 def _add(mod, project_id, canonical_id, label=None):
-    import argparse, io, contextlib
+    import argparse
+    import contextlib
+    import io
     args = argparse.Namespace(
         project_id=project_id, canonical_id=canonical_id, label=label
     )
@@ -52,7 +54,9 @@ class AddRemoveTests(CoscientistTestCase):
             mod = _load()
             _add(mod, "p1", "smith_2023_x")
             _add(mod, "p1", "jones_2024_y")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p1", canonical_id="smith_2023_x")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -73,7 +77,9 @@ class ListTrackedTests(CoscientistTestCase):
     def test_list_empty(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p1")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -85,7 +91,9 @@ class ListTrackedTests(CoscientistTestCase):
             mod = _load()
             _add(mod, "p1", "a")
             _add(mod, "p1", "b")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p1")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -99,7 +107,9 @@ class ListCheckTests(CoscientistTestCase):
             mod = _load()
             _add(mod, "p1", "a")
             _add(mod, "p1", "b")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p1", max_age_days=7)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -131,7 +141,9 @@ class PersistTests(CoscientistTestCase):
             input_path = cache / "results.json"
             input_path.write_text(json.dumps(results))
 
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p1", input=str(input_path))
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -152,7 +164,9 @@ class PersistTests(CoscientistTestCase):
             input_path = cache / "results.json"
             input_path.write_text(json.dumps(results))
 
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p1", input=str(input_path))
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -175,7 +189,9 @@ class PersistTests(CoscientistTestCase):
             ]}]
             p1 = cache / "r1.json"
             p1.write_text(json.dumps(results1))
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             mod.cmd_persist(argparse.Namespace(project_id="p1", input=str(p1)))
 
             # Round 2: two citers (one new)
@@ -214,7 +230,9 @@ class DigestTests(CoscientistTestCase):
             ]}]
             p = cache / "r.json"
             p.write_text(json.dumps(results))
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             mod.cmd_persist(argparse.Namespace(project_id="p1", input=str(p)))
 
             # Digest with 30-day window
@@ -232,7 +250,9 @@ class StatusTests(CoscientistTestCase):
     def test_status_empty(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p1")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -251,7 +271,9 @@ class StatusTests(CoscientistTestCase):
             ]}]
             p = cache / "r.json"
             p.write_text(json.dumps(results))
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             mod.cmd_persist(argparse.Namespace(project_id="p1", input=str(p)))
 
             buf = io.StringIO()

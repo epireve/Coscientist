@@ -6,13 +6,12 @@ directly for unit tests.
 No LLM calls, no network. Pure filesystem.
 """
 
-from tests import _shim  # noqa: F401
-
 import json
 import subprocess
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -258,7 +257,6 @@ class DiffTests(TestCase):
             _run_draft("section", "--manuscript-id", mid,
                        "--section", "introduction", "--text", body)
 
-            from lib.cache import cache_root
             r2 = _run_version("snapshot", "--manuscript-id", mid, "--note", "after content")
             self.assertEqual(r2.returncode, 0, r2.stderr)
             v2 = r2.stdout.strip()
@@ -289,7 +287,6 @@ class DiffTests(TestCase):
             _run_draft("section", "--manuscript-id", mid,
                        "--section", "introduction", "--text", short_body)
 
-            from lib.cache import cache_root
             r2 = _run_version("snapshot", "--manuscript-id", mid, "--note", "trimmed")
             self.assertEqual(r2.returncode, 0, r2.stderr)
             v2 = r2.stdout.strip()

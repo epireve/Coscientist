@@ -16,7 +16,6 @@ import json
 import re
 import sys
 from collections import Counter
-from datetime import datetime
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]

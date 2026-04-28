@@ -16,7 +16,6 @@ by both CLI (csv/md writers) and downstream Deep handoff (L1 seed).
 """
 from __future__ import annotations
 
-import json
 from collections import Counter
 from typing import Any
 

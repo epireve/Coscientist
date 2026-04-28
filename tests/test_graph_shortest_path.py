@@ -4,8 +4,8 @@ Promoted from graph-query-mcp v0.74. Same algorithm, lib-level API.
 """
 from __future__ import annotations
 
-from tests.harness import TestCase, isolated_cache, run_tests
 from lib import graph, project
+from tests.harness import TestCase, isolated_cache, run_tests
 
 
 def _seed(pid: str):

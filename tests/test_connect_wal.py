@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from tests.harness import TestCase, isolated_cache, run_tests
 from lib.cache import connect_wal
+from tests.harness import TestCase, isolated_cache, run_tests
 
 
 class ConnectWalTests(TestCase):

@@ -1,12 +1,10 @@
 """v0.81 — marketplace + infra + latent-risk tests."""
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from tests.harness import TestCase, run_tests
 from lib.install_check import run_checks
-
+from tests.harness import TestCase, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 

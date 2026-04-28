@@ -1,20 +1,29 @@
 """v0.56 — self-play debate tests."""
 
-from tests import _shim  # noqa: F401
-
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
 
 from lib.debate import (  # noqa: E402
-    DebateSpec, EvidenceAnchor, JudgeRuling, Position, Scores,
-    decide_verdict, render_brief, render_con_prompt,
-    render_judge_prompt, render_pro_prompt, score_falsifiability,
-    score_groundedness, score_position, score_responsiveness,
+    DebateSpec,
+    EvidenceAnchor,
+    JudgeRuling,
+    Position,
+    Scores,
+    decide_verdict,
+    render_brief,
+    render_con_prompt,
+    render_judge_prompt,
+    render_pro_prompt,
+    score_falsifiability,
+    score_groundedness,
+    score_position,
+    score_responsiveness,
     score_specificity,
 )
 

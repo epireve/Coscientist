@@ -9,16 +9,14 @@ edit per new class.
 Priority classes (gate + integration) run first for fail-fast.
 """
 
-from tests import _shim  # noqa: F401
-
 import importlib
 import inspect
 import pkgutil
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, run_tests
-
 
 # Run these first — fast structural checks that should fail loudly
 # before slower per-skill tests run.

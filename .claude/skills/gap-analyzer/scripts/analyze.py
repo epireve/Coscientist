@@ -29,7 +29,8 @@ for _p in (_REPO_ROOT, _PLUGIN_ROOT):
 
 from lib.cache import cache_root  # noqa: E402
 from lib.gap_analyzer import (  # noqa: E402
-    analyze_gaps, render_brief,
+    analyze_gaps,
+    render_brief,
 )
 
 

@@ -23,7 +23,9 @@ def _load():
 
 
 def _init(mod, name="My Project", **kw):
-    import argparse, io, contextlib
+    import argparse
+    import contextlib
+    import io
     args = argparse.Namespace(name=name, question=kw.get("question"), description=kw.get("description"))
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
@@ -55,7 +57,9 @@ class InitListTests(CoscientistTestCase):
     def test_list_empty(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(include_archived=False)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -69,7 +73,9 @@ class InitListTests(CoscientistTestCase):
             mod = _load()
             _init(mod, name="P1")
             _init(mod, name="P2")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(include_archived=False)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -84,7 +90,9 @@ class ActiveMarkerTests(CoscientistTestCase):
             mod = _load()
             r = _init(mod, name="To Activate")
             pid = r["project_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id=pid)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -103,7 +111,9 @@ class ActiveMarkerTests(CoscientistTestCase):
     def test_current_no_active(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace()
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -115,7 +125,9 @@ class ActiveMarkerTests(CoscientistTestCase):
             mod = _load()
             r = _init(mod, name="Active One")
             pid = r["project_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             mod.cmd_activate(argparse.Namespace(project_id=pid))
             args = argparse.Namespace()
             buf = io.StringIO()
@@ -130,7 +142,9 @@ class ActiveMarkerTests(CoscientistTestCase):
             mod = _load()
             r = _init(mod)
             pid = r["project_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             mod.cmd_activate(argparse.Namespace(project_id=pid))
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -143,7 +157,9 @@ class ActiveMarkerTests(CoscientistTestCase):
     def test_deactivate_when_none_active(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_deactivate(argparse.Namespace())
@@ -158,7 +174,9 @@ class ArchiveTests(CoscientistTestCase):
             mod = _load()
             r1 = _init(mod, name="Active")
             r2 = _init(mod, name="To Archive")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             mod.cmd_archive(argparse.Namespace(project_id=r2["project_id"]))
 
             args = argparse.Namespace(include_archived=False)
@@ -171,7 +189,9 @@ class ArchiveTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             r = _init(mod, name="To Archive")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             mod.cmd_archive(argparse.Namespace(project_id=r["project_id"]))
 
             args = argparse.Namespace(include_archived=True)
@@ -193,7 +213,9 @@ class ArchiveTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             r = _init(mod)
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             mod.cmd_archive(argparse.Namespace(project_id=r["project_id"]))
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -213,7 +235,9 @@ class ArchiveTests(CoscientistTestCase):
             mod = _load()
             r = _init(mod)
             pid = r["project_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             mod.cmd_activate(argparse.Namespace(project_id=pid))
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -236,7 +260,9 @@ class StatusTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             r = _init(mod, name="Status Test", question="Q", description="D")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id=r["project_id"])
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -252,7 +278,9 @@ class StatusTests(CoscientistTestCase):
             mod = _load()
             r = _init(mod)
             pid = r["project_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             mod.cmd_activate(argparse.Namespace(project_id=pid))
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):

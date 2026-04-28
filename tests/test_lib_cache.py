@@ -1,10 +1,9 @@
 """v0.45.2 unit tests for lib.cache helpers."""
 
-from tests import _shim  # noqa: F401
-
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 

@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Audit all figures in a manuscript."""
 from __future__ import annotations
-import argparse, json, re, sys
+
+import argparse
+import json
+import re
+import sys
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]

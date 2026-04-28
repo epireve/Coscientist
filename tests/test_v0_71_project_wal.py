@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from tests.harness import TestCase, isolated_cache, run_tests
 from lib import project
+from tests.harness import TestCase, isolated_cache, run_tests
 
 
 class ProjectDbWalTests(TestCase):

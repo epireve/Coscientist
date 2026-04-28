@@ -27,7 +27,6 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-
 _DEFAULT_ENDPOINT = "http://localhost:4318/v1/traces"
 
 

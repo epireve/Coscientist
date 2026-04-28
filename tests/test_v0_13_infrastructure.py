@@ -6,10 +6,7 @@
 - Journal disk-mirror drift detection
 """
 
-from tests import _shim  # noqa: F401
-
 import json
-import os
 import sqlite3
 import subprocess
 import sys
@@ -17,6 +14,7 @@ import threading
 import time
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -185,7 +183,7 @@ class LockfileTests(TestCase):
 
     def test_timeout_raises(self):
         with isolated_cache() as cache_dir:
-            from lib.lockfile import artifact_lock, LockTimeout
+            from lib.lockfile import LockTimeout, artifact_lock
             art_dir = cache_dir / "art"
             art_dir.mkdir()
 

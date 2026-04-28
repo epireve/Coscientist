@@ -17,7 +17,6 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-
 _REPO = Path(__file__).resolve().parents[1]
 _PLUGINS_ROOT = _REPO / "plugin"
 

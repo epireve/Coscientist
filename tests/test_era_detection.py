@@ -1,17 +1,19 @@
 """v0.52.3 — empirical era inflection detection tests."""
 
-from tests import _shim  # noqa: F401
-
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
 
 from lib.era_detection import (  # noqa: E402
-    Inflection, _js_divergence, _tokenize, detect_inflections,
+    Inflection,
+    _js_divergence,
+    _tokenize,
+    detect_inflections,
     render_summary,
 )
 

@@ -21,7 +21,6 @@ outline can record which keys were used in each section.
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 # Citation patterns shared with manuscript-ingest (kept in sync manually)
 _LATEX_CITE = re.compile(r"\\cite[a-z]*\{([^}]+)\}")
@@ -33,7 +32,7 @@ _AUTHORYEAR_CITE = re.compile(r"\(([A-Z][a-zA-Z]+(?:\s+et\s+al\.?)?,?\s+\d{4}[a-
 _H2 = re.compile(r"^##\s+.+", re.MULTILINE)
 
 
-def _section_bounds(source: str, heading: str) -> Optional[tuple[int, int]]:
+def _section_bounds(source: str, heading: str) -> tuple[int, int] | None:
     """Return (start, end) byte offsets for the section with the given heading.
 
     start is the position of the ## line; end is the start of the next ##
@@ -54,7 +53,7 @@ def _section_bounds(source: str, heading: str) -> Optional[tuple[int, int]]:
     return None
 
 
-def extract_section(source: str, heading: str) -> Optional[str]:
+def extract_section(source: str, heading: str) -> str | None:
     """Return the raw text of a section (including its ## heading line)."""
     bounds = _section_bounds(source, heading)
     if bounds is None:

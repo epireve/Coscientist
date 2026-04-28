@@ -523,7 +523,7 @@ def cmd_prisma(args: argparse.Namespace) -> int:
         "┌─────────────────────────────────────────────┐",
         "│             IDENTIFICATION                   │",
         "├─────────────────────────────────────────────┤",
-        f"│  Records identified via searching            │",
+        "│  Records identified via searching            │",
         f"│  (n = {n_identified}){'':>38}│".replace("│" + " " * 45 + "│", "│" + f"  Records identified via searching            │\n│  (n = {n_identified})"),
         "└──────────────────────┬──────────────────────┘",
         "                       │",
@@ -531,14 +531,14 @@ def cmd_prisma(args: argparse.Namespace) -> int:
         "┌─────────────────────────────────────────────┐",
         "│               SCREENING                      │",
         "├─────────────────────────────────────────────┤",
-        f"│  Records screened (title/abstract)           │",
+        "│  Records screened (title/abstract)           │",
         f"│  (n = {ta_total})                                      │",
         "├─────────────────────────────────────────────┤",
     ]
 
     if ta_exclude > 0:
         lines += [
-            f"│  Records excluded (title/abstract)           │",
+            "│  Records excluded (title/abstract)           │",
             f"│  (n = {ta_exclude})                                      │",
         ]
         for reason, cnt in sorted(ta_reasons.items()):
@@ -554,14 +554,14 @@ def cmd_prisma(args: argparse.Namespace) -> int:
         "┌─────────────────────────────────────────────┐",
         "│              ELIGIBILITY                     │",
         "├─────────────────────────────────────────────┤",
-        f"│  Full-text articles assessed                 │",
+        "│  Full-text articles assessed                 │",
         f"│  (n = {ft_total})                                      │",
         "├─────────────────────────────────────────────┤",
     ]
 
     if ft_exclude > 0:
         lines += [
-            f"│  Full-text articles excluded                 │",
+            "│  Full-text articles excluded                 │",
             f"│  (n = {ft_exclude})                                      │",
         ]
         for reason, cnt in sorted(ft_reasons.items()):
@@ -576,7 +576,7 @@ def cmd_prisma(args: argparse.Namespace) -> int:
         "┌─────────────────────────────────────────────┐",
         "│               INCLUDED                       │",
         "├─────────────────────────────────────────────┤",
-        f"│  Studies included in synthesis               │",
+        "│  Studies included in synthesis               │",
         f"│  (n = {ft_include})                                      │",
         "└─────────────────────────────────────────────┘",
         "```",
@@ -649,7 +649,7 @@ def cmd_status(args: argparse.Namespace) -> int:
            FROM extraction_rows WHERE protocol_id = ?""",
         (args.protocol_id,),
     ).fetchone()
-    print(f"=== Extraction ===")
+    print("=== Extraction ===")
     print(f"  {ext_rows['papers']} papers with extracted data, "
           f"{ext_rows['fields']} distinct fields")
 
@@ -662,7 +662,7 @@ def cmd_status(args: argparse.Namespace) -> int:
            FROM bias_assessments WHERE protocol_id = ?""",
         (args.protocol_id,),
     ).fetchone()
-    print(f"=== Bias Assessments ===")
+    print("=== Bias Assessments ===")
     print(f"  {bias_rows['papers']} papers assessed, "
           f"{bias_rows['domains']} distinct domains covered")
 
@@ -670,7 +670,7 @@ def cmd_status(args: argparse.Namespace) -> int:
 
     # PRISMA status
     prisma_path = _review_dir(args.protocol_id) / "prisma.md"
-    print(f"=== PRISMA Diagram ===")
+    print("=== PRISMA Diagram ===")
     if prisma_path.exists():
         print(f"  Generated: {prisma_path}")
     else:

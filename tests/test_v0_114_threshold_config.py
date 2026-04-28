@@ -7,9 +7,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
 from lib import health
-
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 

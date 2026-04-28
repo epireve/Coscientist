@@ -14,13 +14,12 @@ CliEdgeTests         (4 tests) — missing-arg + --help edge cases
 Total: 17 tests.
 """
 
-from tests import _shim  # noqa: F401
-
 import sqlite3
 import subprocess
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent

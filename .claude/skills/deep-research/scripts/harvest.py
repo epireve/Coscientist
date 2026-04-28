@@ -55,8 +55,13 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from lib.persona_input import (  # noqa: E402
-    PersonaInput, PersonaInputError, exists, input_path, list_for_run,
-    load, save,
+    PersonaInput,
+    PersonaInputError,
+    exists,
+    input_path,
+    list_for_run,
+    load,
+    save,
 )
 
 # Personas allowed to receive harvested input. Adding a new persona

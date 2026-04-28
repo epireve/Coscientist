@@ -5,10 +5,9 @@ import json
 import sqlite3
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
 from lib import trace
 from lib.cache import run_db_path
-
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 

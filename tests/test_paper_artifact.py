@@ -1,7 +1,6 @@
 """Paper artifact regression tests — ensure the refactor didn't break it."""
 
 from tests import _shim  # noqa: F401
-
 from tests.harness import TestCase, isolated_cache, run_tests
 
 
@@ -37,7 +36,7 @@ class PaperArtifactTests(TestCase):
 
     def test_metadata_save_load_round_trip(self):
         with isolated_cache():
-            from lib.paper_artifact import PaperArtifact, Metadata, canonical_id
+            from lib.paper_artifact import Metadata, PaperArtifact, canonical_id
             cid = canonical_id(title="T", year=2020, first_author="S")
             art = PaperArtifact(cid)
             art.save_metadata(Metadata(title="T", authors=["S"], year=2020, abstract="hi"))

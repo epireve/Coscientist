@@ -12,7 +12,6 @@ format_response_stub(comment) -> str       markdown stub for one comment
 from __future__ import annotations
 
 import re
-from typing import Any
 
 # Match "Reviewer N:" or "Reviewer N" at start of a line (N = integer)
 _REVIEWER_HEADER = re.compile(

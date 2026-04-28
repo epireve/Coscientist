@@ -23,7 +23,9 @@ def _load():
 
 
 def _assign(mod, mid, author, roles_csv):
-    import argparse, io, contextlib
+    import argparse
+    import contextlib
+    import io
     args = argparse.Namespace(manuscript_id=mid, author=author, roles=roles_csv)
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
@@ -92,7 +94,9 @@ class UnassignTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             _assign(mod, "ms_un", "Alice", "conceptualization,methodology")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 manuscript_id="ms_un", author="Alice", roles="methodology"
             )
@@ -106,7 +110,9 @@ class UnassignTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             _assign(mod, "ms_all", "Alice", "conceptualization")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 manuscript_id="ms_all", author="Alice", roles=None
             )
@@ -130,7 +136,9 @@ class UnassignTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             _assign(mod, "ms_last", "Alice", "methodology")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 manuscript_id="ms_last", author="Alice", roles="methodology"
             )
@@ -147,7 +155,9 @@ class AuditTests(CoscientistTestCase):
             mod = _load()
             _assign(mod, "ms_pass", "Alice",
                     "conceptualization,methodology,writing-original-draft")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(manuscript_id="ms_pass")
             buf = io.StringIO()
             try:
@@ -164,7 +174,9 @@ class AuditTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             _assign(mod, "ms_fail", "Alice", "conceptualization")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(manuscript_id="ms_fail")
             buf = io.StringIO()
             with self.assertRaises(SystemExit):
@@ -179,7 +191,9 @@ class AuditTests(CoscientistTestCase):
             mod = _load()
             _assign(mod, "ms_rec", "Alice",
                     "conceptualization,methodology,writing-original-draft")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(manuscript_id="ms_rec")
             buf = io.StringIO()
             try:
@@ -195,7 +209,9 @@ class AuditTests(CoscientistTestCase):
             mod = _load()
             _assign(mod, "ms_cov", "Alice", "conceptualization,methodology,writing-original-draft")
             _assign(mod, "ms_cov", "Bob", "methodology,investigation")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(manuscript_id="ms_cov")
             buf = io.StringIO()
             try:
@@ -215,7 +231,9 @@ class StatementTests(CoscientistTestCase):
             mod = _load()
             _assign(mod, "ms_stmt", "Alice",
                     "conceptualization,methodology")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(manuscript_id="ms_stmt", style="narrative")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -230,7 +248,9 @@ class StatementTests(CoscientistTestCase):
             mod = _load()
             _assign(mod, "ms_tbl", "Alice", "conceptualization")
             _assign(mod, "ms_tbl", "Bob", "investigation")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(manuscript_id="ms_tbl", style="table")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -254,7 +274,9 @@ class RolesListTests(CoscientistTestCase):
     def test_roles_returns_14(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace()
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -275,7 +297,9 @@ class ListTests(CoscientistTestCase):
     def test_list_empty(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(manuscript_id="ms_nothing")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -287,7 +311,9 @@ class ListTests(CoscientistTestCase):
             mod = _load()
             _assign(mod, "ms_list", "Alice", "conceptualization")
             _assign(mod, "ms_list", "Bob", "investigation")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(manuscript_id="ms_list")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):

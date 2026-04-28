@@ -1,11 +1,9 @@
 """v0.46 tests for lib.persona_input."""
 
-from tests import _shim  # noqa: F401
-
 import json
 import sys
-from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 
@@ -36,7 +34,7 @@ class RoundTripTests(TestCase):
         """The tmp + rename pattern: no half-written file ever lands at
         the final path."""
         with isolated_cache():
-            from lib.persona_input import PersonaInput, input_path, save
+            from lib.persona_input import PersonaInput, save
             inp = PersonaInput("r2", "grounder", "phase1",
                                 query="q", results=[{"x": 1}])
             path = save(inp)
@@ -76,7 +74,9 @@ class ErrorHandlingTests(TestCase):
     def test_load_corrupt_json_errors(self):
         with isolated_cache():
             from lib.persona_input import (
-                PersonaInputError, input_path, load,
+                PersonaInputError,
+                input_path,
+                load,
             )
             p = input_path("rc", "social", "p0")
             p.write_text("{not valid json")
@@ -90,7 +90,9 @@ class ErrorHandlingTests(TestCase):
     def test_load_schema_version_mismatch_errors(self):
         with isolated_cache():
             from lib.persona_input import (
-                PersonaInputError, input_path, load,
+                PersonaInputError,
+                input_path,
+                load,
             )
             p = input_path("rsv", "social", "p0")
             p.write_text(json.dumps({
@@ -108,7 +110,10 @@ class ErrorHandlingTests(TestCase):
     def test_load_missing_required_field_errors(self):
         with isolated_cache():
             from lib.persona_input import (
-                PersonaInputError, input_path, load, SCHEMA_VERSION,
+                SCHEMA_VERSION,
+                PersonaInputError,
+                input_path,
+                load,
             )
             p = input_path("rmf", "social", "p0")
             p.write_text(json.dumps({
@@ -126,7 +131,10 @@ class ErrorHandlingTests(TestCase):
     def test_load_results_not_list_errors(self):
         with isolated_cache():
             from lib.persona_input import (
-                PersonaInputError, input_path, load, SCHEMA_VERSION,
+                SCHEMA_VERSION,
+                PersonaInputError,
+                input_path,
+                load,
             )
             p = input_path("rl", "social", "p0")
             p.write_text(json.dumps({

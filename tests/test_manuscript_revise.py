@@ -10,13 +10,12 @@ Covers:
 - CliEdgeTests          — CLI error handling
 """
 
-from tests import _shim  # noqa: F401
-
 import json
 import subprocess
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -72,7 +71,7 @@ class ReviewParserTests(TestCase):
 
     def _parser(self):
         """Import the module fresh (works after _shim patches sys.path)."""
-        import importlib, sys as _sys
+        import sys as _sys
         scripts_dir = str(_ROOT / ".claude/skills/manuscript-revise/scripts")
         if scripts_dir not in _sys.path:
             _sys.path.insert(0, scripts_dir)

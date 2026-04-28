@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Power analysis — solve for n, power, or alpha."""
 from __future__ import annotations
-import argparse, json, math, sys
+
+import argparse
+import json
+import math
+import sys
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -9,6 +13,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 import importlib.util as _ilu
+
 _spec = _ilu.spec_from_file_location("_mathutils", Path(__file__).parent / "_mathutils.py")
 _mu = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_mu)

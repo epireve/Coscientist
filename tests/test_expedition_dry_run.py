@@ -16,14 +16,13 @@ run with live MCPs. The remaining Stage 5 work — actually running a
 sub-agent against a real shortlist and getting a real persona output —
 still requires the user.
 """
-from tests import _shim  # noqa: F401
-
 import json
 import sqlite3
 import subprocess
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent

@@ -23,11 +23,12 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from lib.paper_artifact import (  # noqa: E402
-    Manifest, Metadata, PaperArtifact, State,
-    canonical_id, extract_arxiv_id,
+    Metadata,
+    PaperArtifact,
+    canonical_id,
+    extract_arxiv_id,
 )
 from lib.project import project_db_path  # noqa: E402
-
 
 # Strip common LaTeX escapes for plain-text fields (title/abstract).
 _ESCAPES = {

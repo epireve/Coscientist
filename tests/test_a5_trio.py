@@ -1,28 +1,39 @@
 """v0.55 A5 Tier A — gap-analyzer + contribution-mapper + venue-match."""
 
-from tests import _shim  # noqa: F401
-
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
 
-from lib.gap_analyzer import (  # noqa: E402
-    analyze_gap, analyze_gaps, render_brief as render_gap_brief,
-)
 from lib.contribution_mapper import (  # noqa: E402
-    Anchor, Contribution, closest_anchor, contribution_distance,
-    decompose_contribution, jaccard, project_2d,
+    Anchor,
+    closest_anchor,
+    contribution_distance,
+    decompose_contribution,
+    jaccard,
+    project_2d,
     render_landscape,
 )
+from lib.gap_analyzer import (  # noqa: E402
+    analyze_gap,
+    analyze_gaps,
+)
+from lib.gap_analyzer import (
+    render_brief as render_gap_brief,
+)
 from lib.venue_match import (  # noqa: E402
-    ManuscriptChars, list_venues, recommend, render_brief as render_venue_brief,
+    ManuscriptChars,
+    list_venues,
+    recommend,
     score_venue,
 )
-
+from lib.venue_match import (
+    render_brief as render_venue_brief,
+)
 
 # =================================================================
 # Gap analyzer

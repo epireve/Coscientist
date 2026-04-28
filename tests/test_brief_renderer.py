@@ -1,10 +1,9 @@
 """v0.54 — brief renderer tests."""
 
-from tests import _shim  # noqa: F401
-
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent

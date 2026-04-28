@@ -114,7 +114,7 @@ def _bfs_path(project_id: str, src: str, dst: str,
 
 def cmd_concept_path(args: argparse.Namespace) -> dict:
     _ensure_project(args.project_id)
-    src = graph.node_id("paper", getattr(args, "from_"))
+    src = graph.node_id("paper", args.from_)
     dst = graph.node_id("paper", args.to)
     path = _bfs_path(args.project_id, src, dst, args.max_hops)
     return {

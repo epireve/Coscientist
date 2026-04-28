@@ -39,7 +39,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-
 WideTaskType = Literal[
     "triage", "read", "rank", "compare", "survey", "screen",
 ]
@@ -91,7 +90,7 @@ class TaskSpec:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "TaskSpec":
+    def from_dict(cls, d: dict) -> TaskSpec:
         return cls(
             sub_agent_id=d["sub_agent_id"],
             task_type=d["task_type"],
@@ -423,8 +422,8 @@ def _default_objective(task_type: WideTaskType, item: dict) -> str:
         )
     if task_type == "rank":
         return (
-            f"Compare item_a vs item_b on the user's ranking criterion. "
-            f"Pick winner; record reasoning. Updates Elo via tournament."
+            "Compare item_a vs item_b on the user's ranking criterion. "
+            "Pick winner; record reasoning. Updates Elo via tournament."
         )
     if task_type == "compare":
         return (

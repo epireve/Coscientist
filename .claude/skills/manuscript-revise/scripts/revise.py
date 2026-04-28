@@ -34,8 +34,9 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from lib.artifact import ManuscriptArtifact  # noqa: E402
 from review_parser import count_comments, format_response_stub, parse_review  # noqa: E402
+
+from lib.artifact import ManuscriptArtifact  # noqa: E402
 
 _PLACEHOLDER = "[YOUR RESPONSE HERE]"
 
@@ -222,7 +223,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
                         f"- **[R{c['reviewer']}C{c['comment_num']}]** "
                         f"(Reviewer {c['reviewer']}, Comment {c['comment_num']}): "
                         f"{c['text'][:120]}{'...' if len(c['text']) > 120 else ''}",
-                        f"  - *Action*: [DESCRIBE REVISION HERE]",
+                        "  - *Action*: [DESCRIBE REVISION HERE]",
                         "",
                     ]
             else:
@@ -238,7 +239,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
                     f"- **[R{c['reviewer']}C{c['comment_num']}]** "
                     f"(Reviewer {c['reviewer']}, Comment {c['comment_num']}): "
                     f"{c['text'][:120]}{'...' if len(c['text']) > 120 else ''}",
-                    f"  - *Action*: [DESCRIBE REVISION HERE]",
+                    "  - *Action*: [DESCRIBE REVISION HERE]",
                     "",
                 ]
     else:
@@ -317,7 +318,7 @@ def cmd_respond(args: argparse.Namespace) -> int:
 
     n_stubs = letter_text.count(_PLACEHOLDER)
     print(f"response_letter.md written ({len(comments)} comment(s), {n_stubs} stubs)")
-    print(f"manuscript state: revised")
+    print("manuscript state: revised")
     return 0
 
 

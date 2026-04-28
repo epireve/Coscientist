@@ -10,7 +10,6 @@ import re
 import sqlite3
 from pathlib import Path
 
-
 # audit-rotate stamps archives as <name>.<8-digit-date>T<6-digit-time>Z
 # (with optional `_<size>` suffix on rare same-second collisions).
 _ARCHIVE_STAMP_RE = re.compile(r"^(.+)\.\d{8}T\d{6}Z(_\d+)?$")

@@ -22,7 +22,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 # v0.113 — alert thresholds. Tunable via env, kwargs, or v0.114
 # config file at ~/.cache/coscientist/health_thresholds.json.
 DEFAULT_THRESHOLDS = {
@@ -208,8 +207,8 @@ def evaluate_alerts(
 
 def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
     """Walk every run-*.db and aggregate health signals."""
+    from lib import agent_quality, trace_status
     from lib.cache import runs_dir
-    from lib import trace_status, agent_quality
 
     root = runs_dir()
     if not root.exists():

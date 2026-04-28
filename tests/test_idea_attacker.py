@@ -232,7 +232,9 @@ class GateCliTests(CoscientistTestCase):
     def test_cli_valid_report_exits_zero(self):
         with isolated_cache() as cache:
             mod = _load_gate()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             report = _valid_report()
             with tempfile.TemporaryDirectory() as td:
                 p = self._write_report(Path(td), report)

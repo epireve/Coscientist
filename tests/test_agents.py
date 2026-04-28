@@ -3,11 +3,10 @@
 No YAML dependency — parses the frontmatter by hand.
 """
 
-from tests import _shim  # noqa: F401
-
 import re
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, run_tests
 
 AGENT_DIR = Path(__file__).resolve().parent.parent / ".claude" / "agents"

@@ -13,13 +13,12 @@ Drives review.py subcommands via subprocess and verifies:
 No LLM calls, no network. Pure filesystem + SQLite.
 """
 
-from tests import _shim  # noqa: F401
-
 import json
 import subprocess
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -90,7 +89,8 @@ class ProtocolInitTests(TestCase):
             self.assertEqual(data["question"], _QUESTION)
 
     def test_correct_protocol_id_derivation(self):
-        import hashlib, re
+        import hashlib
+        import re
         with isolated_cache():
             r = _init_protocol()
             pid = r.stdout.strip()

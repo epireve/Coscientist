@@ -7,7 +7,6 @@ from pathlib import Path
 
 from tests.harness import TestCase, isolated_cache, run_tests
 
-
 _REPO = Path(__file__).resolve().parents[1]
 _SERVER = _REPO / "mcp" / "graph-query-mcp" / "server.py"
 

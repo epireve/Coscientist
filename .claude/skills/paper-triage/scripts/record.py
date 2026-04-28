@@ -27,7 +27,6 @@ if str(_REPO_ROOT) not in sys.path:
 from lib.lockfile import artifact_lock  # noqa: E402  v0.14
 from lib.paper_artifact import PaperArtifact, State  # noqa: E402
 
-
 _DOWNSTREAM_STATES = {
     State.acquired, State.extracted, State.read, State.cited,
 }

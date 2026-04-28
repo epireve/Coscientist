@@ -16,16 +16,14 @@ Coverage:
   the run-DB write rolls back too.
 """
 
-from tests import _shim  # noqa: F401
-
 import json
 import sqlite3
 import subprocess
 import sys
 import threading
-import time
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -156,6 +154,7 @@ class RetryAdoptionTests(TestCase):
     def test_aretry_retries_and_succeeds(self):
         """Smoke-test the async retry primitive itself for institutional usage."""
         import asyncio
+
         from lib.retry import aretry_with_backoff
 
         calls = [0]
@@ -174,6 +173,7 @@ class RetryAdoptionTests(TestCase):
 
     def test_aretry_gives_up_after_max_attempts(self):
         import asyncio
+
         from lib.retry import aretry_with_backoff
 
         calls = [0]

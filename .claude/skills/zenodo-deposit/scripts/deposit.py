@@ -2,7 +2,10 @@
 """zenodo-deposit: bridge dataset-agent → Zenodo REST API."""
 from __future__ import annotations
 
-import argparse, json, os, sys
+import argparse
+import json
+import os
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urljoin
@@ -94,8 +97,8 @@ def cmd_upload(args: argparse.Namespace) -> None:
     base = ZENODO_SANDBOX if args.sandbox else ZENODO_PROD
 
     # Real API calls. Import at use-time so the prepare command works without urllib edge-cases
-    import urllib.request as _ur
     import urllib.error as _ue
+    import urllib.request as _ur
 
     metadata = _build_metadata(record)
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}

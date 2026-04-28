@@ -37,9 +37,9 @@ Final verdict = side with higher mean score, OR 'draw' if delta <
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable, Literal
-
+from typing import Literal
 
 Topic = Literal["novelty", "publishability", "red-team"]
 Side = Literal["pro", "con"]
@@ -90,7 +90,7 @@ class Position:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "Position":
+    def from_dict(cls, d: dict) -> Position:
         return cls(
             side=d["side"],
             statement=d.get("statement", ""),

@@ -26,7 +26,6 @@ import json
 from dataclasses import dataclass, field
 from typing import Literal
 
-
 FrameworkKind = Literal["pico", "spider", "decomposition", "hybrid"]
 
 
@@ -77,7 +76,7 @@ class SubArea:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "SubArea":
+    def from_dict(cls, d: dict) -> SubArea:
         return cls(
             component=d["component"],
             label=d["label"],
@@ -107,7 +106,7 @@ class SearchStrategy:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "SearchStrategy":
+    def from_dict(cls, d: dict) -> SearchStrategy:
         return cls(
             framework=d["framework"],
             rationale=d.get("rationale", ""),

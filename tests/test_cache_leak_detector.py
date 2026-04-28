@@ -23,7 +23,6 @@ from pathlib import Path
 
 from tests.harness import TestCase, run_tests
 
-
 _REAL_CACHE = Path.home() / ".cache" / "coscientist"
 _SANDBOXED_AT_IMPORT = "COSCIENTIST_CACHE_DIR" in os.environ
 

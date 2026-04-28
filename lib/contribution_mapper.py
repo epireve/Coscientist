@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass, field
-from typing import Iterable
+from collections.abc import Iterable
+from dataclasses import dataclass
 
 
 @dataclass
@@ -51,7 +51,7 @@ class Anchor:
     finding: frozenset[str]
 
     @classmethod
-    def from_dict(cls, d: dict) -> "Anchor":
+    def from_dict(cls, d: dict) -> Anchor:
         return cls(
             canonical_id=d["canonical_id"],
             method=frozenset(d.get("method", []) or []),

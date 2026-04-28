@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Check colorblind safety of an image or color list."""
 from __future__ import annotations
-import argparse, json, math, sys
+
+import argparse
+import json
+import math
+import sys
 from pathlib import Path
-from typing import Sequence
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(_REPO_ROOT) not in sys.path:

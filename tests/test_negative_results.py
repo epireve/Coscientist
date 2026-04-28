@@ -41,7 +41,8 @@ class InitTests(CoscientistTestCase):
     def test_init_creates_files(self):
         with isolated_cache() as cache:
             mod = _load()
-            import io, contextlib
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(_make_init_args())
@@ -55,7 +56,8 @@ class InitTests(CoscientistTestCase):
     def test_init_record_content(self):
         with isolated_cache() as cache:
             mod = _load()
-            import io, contextlib
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(_make_init_args())
@@ -81,7 +83,8 @@ class InitTests(CoscientistTestCase):
     def test_init_duplicate_raises(self):
         with isolated_cache():
             mod = _load()
-            import io, contextlib
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(_make_init_args())
@@ -91,7 +94,8 @@ class InitTests(CoscientistTestCase):
     def test_init_force_overwrites(self):
         with isolated_cache():
             mod = _load()
-            import io, contextlib
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(_make_init_args())
@@ -109,7 +113,8 @@ class InitTests(CoscientistTestCase):
 
 class AnalyzeTests(CoscientistTestCase):
     def _make(self, mod, **overrides):
-        import io, contextlib
+        import contextlib
+        import io
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             mod.cmd_init(_make_init_args(**overrides))
@@ -119,7 +124,9 @@ class AnalyzeTests(CoscientistTestCase):
         with isolated_cache() as cache:
             mod = _load()
             rid = self._make(mod)
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 result_id=rid,
                 root_cause="AMPT may not deplete enough at the dose used.",
@@ -153,7 +160,9 @@ class AnalyzeTests(CoscientistTestCase):
 
 class ShareTests(CoscientistTestCase):
     def _make_analyzed(self, mod):
-        import argparse, io, contextlib
+        import argparse
+        import contextlib
+        import io
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             mod.cmd_init(_make_init_args())
@@ -170,7 +179,9 @@ class ShareTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             rid = self._make_analyzed(mod)
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 result_id=rid, shared_via="preprint",
                 url="https://example.org/preprint/abc",
@@ -192,7 +203,9 @@ class ShareTests(CoscientistTestCase):
     def test_share_before_analyze_raises(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(_make_init_args())
@@ -206,7 +219,9 @@ class StatusListTests(CoscientistTestCase):
     def test_status_returns_record(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(_make_init_args())
@@ -223,7 +238,9 @@ class StatusListTests(CoscientistTestCase):
     def test_list_empty(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id=None, state=None)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -233,7 +250,9 @@ class StatusListTests(CoscientistTestCase):
     def test_list_after_two(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(_make_init_args(title="First Failure"))
@@ -248,7 +267,9 @@ class StatusListTests(CoscientistTestCase):
     def test_list_filter_by_state(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(_make_init_args(title="Logged Only"))
@@ -263,7 +284,9 @@ class IntegrationTests(CoscientistTestCase):
     def test_full_lifecycle(self):
         with isolated_cache() as cache:
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
 
             # Init
             buf = io.StringIO()

@@ -26,7 +26,10 @@ for _p in (_REPO_ROOT, _PLUGIN_ROOT):
         sys.path.insert(0, str(_p))
 
 from lib.citation_resolver import (  # noqa: E402
-    ACCEPT_THRESHOLD, parse_partial, pick_best, score_match,
+    ACCEPT_THRESHOLD,
+    parse_partial,
+    pick_best,
+    score_match,
 )
 from lib.paper_artifact import canonical_id  # noqa: E402
 

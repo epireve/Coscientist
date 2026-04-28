@@ -31,7 +31,6 @@ Engineering principles:
 """
 from __future__ import annotations
 
-
 # Each group: a set of phase names that may run concurrently.
 # A phase NOT in any group runs alone (sequential).
 PHASE_GROUPS: list[frozenset[str]] = [

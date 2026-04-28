@@ -5,13 +5,12 @@ Each gate has two flavors of test:
 - reject each specific violation (exit 2 with message)
 """
 
-from tests import _shim  # noqa: F401
-
 import json
 import subprocess
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent

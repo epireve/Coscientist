@@ -20,7 +20,6 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any
 
 
 def _safe_id(s: str) -> str:
@@ -94,13 +93,13 @@ def render_mermaid(payload: dict) -> str:
 
     if classes_failed:
         lines.append(
-            f"    classDef failed fill:#fee,stroke:#c00,stroke-width:2px"
+            "    classDef failed fill:#fee,stroke:#c00,stroke-width:2px"
         )
         for nid in classes_failed:
             lines.append(f"    class {nid} failed")
     if classes_slow:
         lines.append(
-            f"    classDef slow fill:#ffc,stroke:#a80,stroke-width:1px"
+            "    classDef slow fill:#ffc,stroke:#a80,stroke-width:1px"
         )
         for nid in classes_slow:
             lines.append(f"    class {nid} slow")

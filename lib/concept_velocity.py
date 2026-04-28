@@ -22,11 +22,9 @@ trends invisible to manual review.
 """
 from __future__ import annotations
 
-import math
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-
 
 _TOKEN_RE = re.compile(r"[a-z][a-z0-9'-]+")
 _STOPWORDS = frozenset({

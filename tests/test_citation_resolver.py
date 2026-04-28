@@ -7,14 +7,13 @@ import sys
 import tempfile
 from pathlib import Path
 
-from tests.harness import TestCase
-
 from lib.citation_resolver import (
     PartialCitation,
     parse_partial,
     pick_best,
     score_match,
 )
+from tests.harness import TestCase
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _RESOLVE_PY = (

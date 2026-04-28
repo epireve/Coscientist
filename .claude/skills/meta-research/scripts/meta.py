@@ -254,7 +254,8 @@ def _render_summary_md(data: dict) -> str:
 
 def cmd_summary(args: argparse.Namespace) -> None:
     """Combined trajectory + concepts + productivity."""
-    import io, contextlib
+    import contextlib
+    import io
     # Trajectory
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):

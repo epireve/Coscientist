@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """preprint-alerts: filter papers and write digest."""
 from __future__ import annotations
-import argparse, json, sys
-from datetime import UTC, datetime, date
+
+import argparse
+import json
+import sys
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]

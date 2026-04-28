@@ -1,20 +1,22 @@
 """v0.57 persistence + db-notify tests."""
 
-from tests import _shim  # noqa: F401
-
 import json
 import sqlite3
 import sys
 import tempfile
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
 
 from lib.db_notify import (  # noqa: E402
-    format_notification, per_table_counts, record_write, summarize_writes,
+    format_notification,
+    per_table_counts,
+    record_write,
+    summarize_writes,
 )
 from lib.migrations import ensure_current  # noqa: E402
 
@@ -168,7 +170,8 @@ class SkillPersistTests(TestCase):
 
     def test_persist_contribution_landscape(self):
         from lib.contribution_mapper import (
-            Anchor, decompose_contribution,
+            Anchor,
+            decompose_contribution,
         )
         from lib.skill_persist import persist_contribution_landscape
         db = _fresh_db()
@@ -209,7 +212,8 @@ class SkillPersistTests(TestCase):
 
     def test_db_writes_audit_accumulates(self):
         from lib.skill_persist import (
-            persist_debate, persist_mode_selection,
+            persist_debate,
+            persist_mode_selection,
         )
         db = _fresh_db()
         persist_debate(

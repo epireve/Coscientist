@@ -11,7 +11,6 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-
 # ---- helpers --------------------------------------------------------------- #
 
 def _versions_dir(manuscript_dir: Path) -> Path:

@@ -29,13 +29,12 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 
-
 _TOKEN_RE = re.compile(r"[a-z][a-z0-9'-]+")
 _STOPWORDS = frozenset({
     "the", "a", "an", "and", "or", "but", "of", "in", "to", "for",
     "with", "on", "at", "by", "from", "as", "is", "are", "was", "were",
     "be", "been", "being", "this", "that", "these", "those", "it", "its",
-    "we", "our", "this", "such", "have", "has", "had", "can", "may",
+    "we", "our", "such", "have", "has", "had", "can", "may",
     "will", "would", "should", "could", "use", "using", "used", "study",
     "studies", "paper", "papers", "research", "results", "method",
     "methods", "however", "thus", "therefore", "also", "more", "most",

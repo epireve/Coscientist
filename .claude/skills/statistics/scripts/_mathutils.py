@@ -1,5 +1,6 @@
 """Internal math helpers for statistics skill. Pure stdlib — no scipy/numpy."""
 from __future__ import annotations
+
 import math
 
 

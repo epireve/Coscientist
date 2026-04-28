@@ -8,9 +8,8 @@ import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
 from lib.cache import cache_root
-
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 _TRENDS = (_REPO / ".claude" / "skills" / "field-trends-analyzer"

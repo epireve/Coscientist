@@ -7,12 +7,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
-
 from lib import skill_persist
-from lib.cache import cache_root, run_db_path
+from lib.cache import run_db_path
 from lib.migrations import ensure_current
-
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 _RESOLVE_CLI = _REPO / ".claude" / "skills" / "resolve-citation" / "scripts" / "resolve.py"

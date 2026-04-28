@@ -7,9 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
 from lib.cache import run_db_path
-
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 _DB_PY = (_REPO / ".claude" / "skills" / "deep-research"

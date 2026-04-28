@@ -5,13 +5,14 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
+from lib import graph, project
 from lib.audit_retention import (
-    list_archives, purge_archives, _archive_age_days,
+    _archive_age_days,
+    list_archives,
+    purge_archives,
 )
 from lib.cache import audit_log_path
-from lib import graph, project
-
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 

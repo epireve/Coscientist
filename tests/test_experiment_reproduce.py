@@ -34,7 +34,9 @@ def _load_design():
 
 def _setup_preregistered(cache: Path, design_mod, title="Test Exp"):
     """Build a preregistered experiment + return its eid."""
-    import argparse, io, contextlib
+    import argparse
+    import contextlib
+    import io
     # init
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
@@ -186,7 +188,9 @@ class RunStateTransitionTests(CoscientistTestCase):
             sandbox_mod.cmd_run = _stub_sandbox_run(str(ws), metric_value=0.92)
             mod._load_sandbox = lambda: sandbox_mod
 
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 experiment_id=eid, workspace=str(ws),
                 entry_command=None, image="python:3.12-slim", cpus=2.0,
@@ -205,7 +209,9 @@ class RunStateTransitionTests(CoscientistTestCase):
             design = _load_design()
             mod = _load_reproduce()
             # Init only — state=designed, not preregistered
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 design.cmd_init(argparse.Namespace(
@@ -249,7 +255,9 @@ class RunStateTransitionTests(CoscientistTestCase):
             sandbox_mod.cmd_run = _stub_sandbox_run(str(ws), exit_code=1)
             mod._load_sandbox = lambda: sandbox_mod
 
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 experiment_id=eid, workspace=str(ws),
                 entry_command=None, image="python:3.12-slim", cpus=2.0,
@@ -298,7 +306,9 @@ class AnalyzeTests(CoscientistTestCase):
             sandbox_mod.cmd_run = _stub_sandbox_run(str(ws), metric_value=0.92)
             mod._load_sandbox = lambda: sandbox_mod
 
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             with contextlib.redirect_stdout(io.StringIO()):
                 mod.cmd_run(argparse.Namespace(
                     experiment_id=eid, workspace=str(ws),
@@ -325,7 +335,9 @@ class AnalyzeTests(CoscientistTestCase):
             sandbox_mod.cmd_run = _stub_sandbox_run(str(ws), metric_value=0.50)
             mod._load_sandbox = lambda: sandbox_mod
 
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             with contextlib.redirect_stdout(io.StringIO()):
                 mod.cmd_run(argparse.Namespace(
                     experiment_id=eid, workspace=str(ws),
@@ -357,7 +369,9 @@ class ReproduceCheckTests(CoscientistTestCase):
         sandbox_mod.cmd_run = _stub_sandbox_run(str(ws), metric_value=first_value)
         mod._load_sandbox = lambda: sandbox_mod
 
-        import argparse, io, contextlib
+        import argparse
+        import contextlib
+        import io
         with contextlib.redirect_stdout(io.StringIO()):
             mod.cmd_run(argparse.Namespace(
                 experiment_id=eid, workspace=str(ws),
@@ -376,7 +390,9 @@ class ReproduceCheckTests(CoscientistTestCase):
             # Second run: 0.93 (within 5% of 0.92)
             sandbox_mod.cmd_run = _stub_sandbox_run(str(ws), metric_value=0.93)
 
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_reproduce_check(argparse.Namespace(
@@ -398,7 +414,9 @@ class ReproduceCheckTests(CoscientistTestCase):
             # Second run: 0.50 (very different)
             sandbox_mod.cmd_run = _stub_sandbox_run(str(ws), metric_value=0.50)
 
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_reproduce_check(argparse.Namespace(
@@ -420,7 +438,9 @@ class StatusTests(CoscientistTestCase):
             design = _load_design()
             mod = _load_reproduce()
             eid = _setup_preregistered(cache, design)
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_status(argparse.Namespace(experiment_id=eid))

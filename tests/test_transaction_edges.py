@@ -7,12 +7,11 @@ non-default isolation level, and connection-close survival when an
 exception is raised.
 """
 
-from tests import _shim  # noqa: F401
-
 import sqlite3
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 

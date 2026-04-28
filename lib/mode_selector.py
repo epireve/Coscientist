@@ -36,7 +36,6 @@ from typing import Literal
 
 from lib.wide_research import WIDE_MAX_ITEMS, WIDE_THRESHOLD_ITEMS
 
-
 Mode = Literal["quick", "deep", "wide", "systematic-review"]
 TaskShape = Literal["per-item", "one-question"]
 

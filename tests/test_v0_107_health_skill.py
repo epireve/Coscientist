@@ -7,7 +7,6 @@ from pathlib import Path
 
 from tests.harness import TestCase, run_tests
 
-
 _REPO = Path(__file__).resolve().parents[1]
 _SKILL = _REPO / ".claude" / "skills" / "health" / "SKILL.md"
 _SCRIPT = _REPO / ".claude" / "skills" / "health" / "scripts" / "health.py"

@@ -21,7 +21,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 _REPO = Path(__file__).resolve().parent.parent
 _AGENTS = _REPO / ".claude" / "agents"
 _JSON_BLOCK = re.compile(

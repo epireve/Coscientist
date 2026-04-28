@@ -39,7 +39,6 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from lib.artifact import ManuscriptArtifact  # noqa: E402
 from pandoc_utils import (  # noqa: E402
     KNOWN_OUTPUT_FORMATS,
     KNOWN_VENUES,
@@ -47,6 +46,8 @@ from pandoc_utils import (  # noqa: E402
     pandoc_available,
     strip_placeholders,
 )
+
+from lib.artifact import ManuscriptArtifact  # noqa: E402
 
 _PANDOC_ERROR = (
     "pandoc not installed — install via https://pandoc.org/installing.html"

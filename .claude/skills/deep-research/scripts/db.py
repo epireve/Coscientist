@@ -21,18 +21,29 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from lib.cache import run_db_path, run_inputs_dir  # noqa: E402
-from lib.search_framework import (  # noqa: E402
-    SearchStrategy, suggest_framework, template_for,
+from lib.concept_velocity import (  # noqa: E402
+    compute_velocities,
 )
-from lib.era_detection import detect_inflections, render_summary as _era_render  # noqa: E402
+from lib.concept_velocity import (
+    render_summary as _velocity_render,
+)
 from lib.disagreement import (  # noqa: E402
-    compute_disagreement, persist_to_run_db as _disagreement_persist,
+    compute_disagreement,
+)
+from lib.disagreement import (
+    persist_to_run_db as _disagreement_persist,
+)
+from lib.disagreement import (
     render_summary as _disagreement_render,
 )
-from lib.concept_velocity import (  # noqa: E402
-    compute_velocities, render_summary as _velocity_render,
-)
+from lib.era_detection import detect_inflections  # noqa: E402
+from lib.era_detection import render_summary as _era_render
 from lib.phase_groups import batchable as _phase_batchable  # noqa: E402
+from lib.search_framework import (  # noqa: E402
+    SearchStrategy,
+    suggest_framework,
+    template_for,
+)
 
 SCHEMA_PATH = _REPO_ROOT / "lib" / "sqlite_schema.sql"
 
@@ -255,8 +266,8 @@ def _check_no_cycle(parent_run_id: str, current_run_id: str) -> None:
                 next_parent = None
         cur = next_parent
     raise SystemExit(
-        f"handoff lineage too deep (>16 hops); aborting to avoid "
-        f"runaway walk"
+        "handoff lineage too deep (>16 hops); aborting to avoid "
+        "runaway walk"
     )
 
 
@@ -404,7 +415,8 @@ def _emit_phase_span(run_id: str, phase: str, *,
         # init_trace is idempotent — safe to call repeatedly.
         trace.init_trace(db, trace_id=run_id, run_id=run_id)
         op = "start" if start else ("complete" if complete else "error")
-        from datetime import UTC, datetime as _dt
+        from datetime import UTC
+        from datetime import datetime as _dt
         # Use a manual span entry (not the context-manager API) since
         # the work has already happened.
         span_id = trace.make_span_id()
@@ -417,7 +429,6 @@ def _emit_phase_span(run_id: str, phase: str, *,
             "error" if error else
             "running"
         )
-        import sqlite3 as _sq
         con = trace._connect(db)
         try:
             with con:
@@ -857,9 +868,11 @@ def cmd_record_subagent(args: argparse.Namespace) -> None:
     Keyed by `persona` so multiple personas can be in flight.
     """
     import json as _j
-    from datetime import UTC, datetime as _dt
-    from lib.cache import run_db_path
+    from datetime import UTC
+    from datetime import datetime as _dt
+
     from lib import trace
+    from lib.cache import run_db_path
     db = run_db_path(args.run_id)
     sidecar = (run_db_path(args.run_id).parent /
                 f"run-{args.run_id}-subagent-state.json")

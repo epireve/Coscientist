@@ -19,8 +19,17 @@ from __future__ import annotations
 from urllib.parse import urlparse
 
 from . import (
-    acm, acs, elsevier, emerald, generic, ieee, jstor,
-    nature, sage, springer, wiley,
+    acm,
+    acs,
+    elsevier,
+    emerald,
+    generic,
+    ieee,
+    jstor,
+    nature,
+    sage,
+    springer,
+    wiley,
 )
 from ._common import SessionExpired
 

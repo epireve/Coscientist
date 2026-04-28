@@ -98,7 +98,9 @@ class TrajectoryTests(CoscientistTestCase):
     def test_trajectory_empty(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(years=5)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -113,7 +115,9 @@ class TrajectoryTests(CoscientistTestCase):
             _add_artifact(cache, "p1", "manuscript", "submitted")
             _add_artifact(cache, "p1", "manuscript", "published")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(years=5)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -127,7 +131,9 @@ class TrajectoryTests(CoscientistTestCase):
             old = (datetime.now(UTC) - timedelta(days=365 * 10)).isoformat()
             _add_artifact(cache, "p1", "manuscript", "published", created_at=old)
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(years=5)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -143,7 +149,9 @@ class ConceptsTests(CoscientistTestCase):
             _add_concept(cache, "p1", "concept-A")
             _add_concept(cache, "p2", "concept-B")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(min_projects=2)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -160,7 +168,9 @@ class ConceptsTests(CoscientistTestCase):
             _add_concept(cache, "p3", "shared")
             _add_concept(cache, "p1", "p1-only")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(min_projects=2)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -177,7 +187,9 @@ class ConceptsTests(CoscientistTestCase):
             _add_concept(cache, "p1", "two-projects")
             _add_concept(cache, "p2", "two-projects")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(min_projects=3)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -192,7 +204,9 @@ class ProductivityTests(CoscientistTestCase):
             _add_artifact(cache, "p1", "paper", "read")
             _add_artifact(cache, "p1", "manuscript", "drafted")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(include_archived=False)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -206,7 +220,9 @@ class ProductivityTests(CoscientistTestCase):
             _make_project(cache, "p1", archived=datetime.now(UTC).isoformat())
             _make_project(cache, "p2")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(include_archived=False)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -219,7 +235,9 @@ class ProductivityTests(CoscientistTestCase):
             _make_project(cache, "p1", archived=datetime.now(UTC).isoformat())
             _make_project(cache, "p2")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(include_archived=True)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -235,7 +253,9 @@ class SummaryTests(CoscientistTestCase):
             _add_artifact(cache, "p1", "manuscript", "submitted")
             _add_concept(cache, "p1", "topic")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(years=5, format="json")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -251,7 +271,9 @@ class SummaryTests(CoscientistTestCase):
             _make_project(cache, "p1", name="MD Test")
             _add_artifact(cache, "p1", "manuscript", "published")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(years=5, format="md")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -268,7 +290,9 @@ class ReadOnlyContractTests(CoscientistTestCase):
             _add_artifact(cache, "p1", "manuscript", "drafted")
             mtime_before = db.stat().st_mtime
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(years=5)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):

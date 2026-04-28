@@ -9,10 +9,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
-from lib import db_check, project, skill_persist
+from lib import db_check, project
 from lib.cache import run_db_path
-
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 _PANDOC = shutil.which("pandoc")

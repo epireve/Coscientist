@@ -1,23 +1,20 @@
 """Tests for v0.60 — writing-style venue overlays."""
 
-from tests import _shim  # noqa: F401
-
 import json
 import sqlite3
 import subprocess
 import sys
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
-
 from lib.venue_style_overlay import (
     OVERLAYS,
-    VenueStyleOverlay,
     audit_text_against_overlay,
     get_overlay,
     list_overlays,
     render_audit_brief,
 )
+from tests import _shim  # noqa: F401
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
 AUDIT = _ROOT / ".claude/skills/writing-style/scripts/audit.py"

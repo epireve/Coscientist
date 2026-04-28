@@ -1,12 +1,10 @@
 """v0.83 — release workflow + install shell script tests."""
 from __future__ import annotations
 
-import os
 import stat
 from pathlib import Path
 
 from tests.harness import TestCase, run_tests
-
 
 _REPO = Path(__file__).resolve().parents[1]
 

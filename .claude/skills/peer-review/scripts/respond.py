@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """peer-review: record author response to reviewer comments."""
 from __future__ import annotations
-import argparse, json, sys
+
+import argparse
+import json
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 

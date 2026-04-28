@@ -1,18 +1,20 @@
 """v0.52.1 — search-strategy framework selection tests."""
 
-from tests import _shim  # noqa: F401
-
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
 
 from lib.search_framework import (  # noqa: E402
-    SearchStrategy, SubArea, suggest_framework, template_for,
     FRAMEWORK_TEMPLATES,
+    SearchStrategy,
+    SubArea,
+    suggest_framework,
+    template_for,
 )
 
 

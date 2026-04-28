@@ -1,14 +1,16 @@
 """Tests for the figure-agent skill."""
 from __future__ import annotations
-import json, math, sys
+
+import sys
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPO_ROOT))
 
+import importlib.util as _ilu
+
 from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests  # noqa
-import importlib.util as _ilu
 
 
 def _load(name):

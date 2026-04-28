@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Register a figure with a manuscript."""
 from __future__ import annotations
-import argparse, json, sys
+
+import argparse
+import json
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 

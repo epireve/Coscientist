@@ -1,7 +1,6 @@
 """Structural-refactor tests: project + polymorphic artifact + graph."""
 
 from tests import _shim  # noqa: F401
-
 from tests.harness import TestCase, isolated_cache, run_tests
 
 
@@ -33,8 +32,8 @@ class ProjectTests(TestCase):
 
     def test_register_artifact(self):
         with isolated_cache():
-            from lib.project import create, register_artifact
             from lib.artifact import ManuscriptArtifact
+            from lib.project import create, register_artifact
             pid = create("Proj X")
             m = ManuscriptArtifact("test_ms")
             register_artifact(pid, "test_ms", "manuscript", "drafted", m.root)

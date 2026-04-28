@@ -3,9 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from lib.changelog import _version_key, parse_roadmap, render_changelog
 from tests.harness import TestCase, run_tests
-from lib.changelog import parse_roadmap, render_changelog, _version_key
-
 
 _REPO = Path(__file__).resolve().parents[1]
 _ROADMAP = _REPO / "ROADMAP.md"

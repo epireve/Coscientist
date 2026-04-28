@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Effect size computation from summary statistics."""
 from __future__ import annotations
-import argparse, json, math, sys
+
+import argparse
+import json
+import math
+import sys
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]

@@ -20,9 +20,16 @@ for _p in (_REPO_ROOT, _PLUGIN_ROOT):
 
 from lib.cache import cache_root  # noqa: E402
 from lib.debate import (  # noqa: E402
-    DebateSpec, JudgeRuling, Position, Scores,
-    decide_verdict, render_brief, render_con_prompt,
-    render_judge_prompt, render_pro_prompt, score_position,
+    DebateSpec,
+    JudgeRuling,
+    Position,
+    Scores,
+    decide_verdict,
+    render_brief,
+    render_con_prompt,
+    render_judge_prompt,
+    render_pro_prompt,
+    score_position,
 )
 
 

@@ -11,10 +11,9 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
-from lib import audit_retention, db_notify, db_check, project, skill_persist
+from lib import audit_retention, db_check, db_notify, project, skill_persist
 from lib.cache import audit_log_path, run_db_path
-
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 

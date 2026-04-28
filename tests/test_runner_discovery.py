@@ -9,7 +9,6 @@ from __future__ import annotations
 from tests.harness import TestCase, run_tests
 from tests.run_all import _discover_test_classes
 
-
 # Ratchet: discovery must surface at least this many classes. Bump
 # when adding a new test class is intentional. Drift below this
 # means a class went missing.

@@ -16,7 +16,6 @@ from pathlib import Path
 
 from tests.harness import TestCase, run_tests
 
-
 _REPO = Path(__file__).resolve().parents[1]
 _MARKETPLACE = _REPO / ".claude-plugin" / "marketplace.json"
 

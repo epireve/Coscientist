@@ -19,7 +19,6 @@ from pathlib import Path
 
 from tests.harness import TestCase, run_tests
 
-
 _REPO = Path(__file__).resolve().parents[1]
 _AGENTS_DIR = _REPO / ".claude" / "agents"
 _DB_PY = _REPO / ".claude" / "skills" / "deep-research" / "scripts" / "db.py"

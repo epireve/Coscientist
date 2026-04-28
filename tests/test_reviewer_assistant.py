@@ -23,7 +23,9 @@ def _load():
 
 
 def _init_review(mod, **overrides):
-    import argparse, io, contextlib
+    import argparse
+    import contextlib
+    import io
     base = dict(
         target_title="A Novel Approach to X",
         venue="generic",
@@ -97,7 +99,9 @@ class AddCommentTests(CoscientistTestCase):
             mod = _load()
             r = _init_review(mod)
             rid = r["review_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 review_id=rid, section="strengths",
                 comment="Clear motivation; well-written abstract."
@@ -112,7 +116,9 @@ class AddCommentTests(CoscientistTestCase):
             mod = _load()
             r = _init_review(mod)
             rid = r["review_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             for i in range(3):
                 args = argparse.Namespace(
                     review_id=rid, section="weaknesses",
@@ -128,7 +134,9 @@ class AddCommentTests(CoscientistTestCase):
             mod = _load()
             r = _init_review(mod)
             rid = r["review_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             for txt in ("First summary.", "Replacement summary."):
                 args = argparse.Namespace(
                     review_id=rid, section="summary", comment=txt
@@ -180,7 +188,9 @@ class RecommendationTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             rid = self._make(mod)
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 review_id=rid, decision="weak-accept", confidence=4
             )
@@ -220,7 +230,9 @@ class ExportTests(CoscientistTestCase):
             mod = _load()
             r = _init_review(mod)
             rid = r["review_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             # Add a strength
             mod.cmd_add_comment(argparse.Namespace(
                 review_id=rid, section="strengths",
@@ -251,7 +263,9 @@ class ExportTests(CoscientistTestCase):
             mod = _load()
             r = _init_review(mod)
             rid = r["review_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(review_id=rid, format="json")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -266,7 +280,9 @@ class StatusTests(CoscientistTestCase):
             mod = _load()
             r = _init_review(mod)
             rid = r["review_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(review_id=rid)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -294,7 +310,8 @@ class StatusTests(CoscientistTestCase):
             mod.cmd_set_recommendation(argparse.Namespace(
                 review_id=rid, decision="accept", confidence=4
             ))
-            import io, contextlib
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_status(argparse.Namespace(review_id=rid))

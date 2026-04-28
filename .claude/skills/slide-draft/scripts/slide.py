@@ -175,7 +175,7 @@ def cmd_outline(args: argparse.Namespace) -> None:
 
     out_path = _outline_path(args.manuscript_id)
     if out_path.exists() and not args.force:
-        raise SystemExit(f"outline already exists. Use --force.")
+        raise SystemExit("outline already exists. Use --force.")
 
     template = STYLE_TEMPLATES[args.style]
     slides = []
@@ -266,7 +266,7 @@ def cmd_render(args: argparse.Namespace) -> None:
 
     out_path = _outline_path(args.manuscript_id)
     if not out_path.exists():
-        raise SystemExit(f"no outline found. Run `outline` first.")
+        raise SystemExit("no outline found. Run `outline` first.")
     src_path = _source_path(args.manuscript_id)
     if not src_path.exists():
         raise SystemExit(f"manuscript source missing: {src_path}")

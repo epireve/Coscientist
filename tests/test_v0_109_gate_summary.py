@@ -1,14 +1,12 @@
 """v0.109 — gate-decision summary tests."""
 from __future__ import annotations
 
-import json
 import sqlite3
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
-from lib import trace, trace_status, health
+from lib import health, trace, trace_status
 from lib.cache import run_db_path
-
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 

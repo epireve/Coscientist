@@ -23,7 +23,9 @@ def _load():
 
 
 def _init(mod, **overrides):
-    import argparse, io, contextlib
+    import argparse
+    import contextlib
+    import io
     base = dict(
         title="Test X on Y",
         hypothesis="X improves Y by 10%",
@@ -98,7 +100,9 @@ class VariableTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             eid = _init(mod)["experiment_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 experiment_id=eid, kind="independent",
                 name="method", description="X vs baseline"
@@ -112,7 +116,9 @@ class VariableTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             eid = _init(mod)["experiment_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             for kind in ("independent", "dependent", "control"):
                 args = argparse.Namespace(
                     experiment_id=eid, kind=kind,
@@ -130,7 +136,9 @@ class VariableTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             eid = _init(mod)["experiment_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 experiment_id=eid, kind="independent",
                 name="x", description=""
@@ -159,7 +167,9 @@ class MetricTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             eid = _init(mod)["experiment_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 experiment_id=eid, name="accuracy",
                 type="scalar", target=0.85, comparison=">="
@@ -176,7 +186,9 @@ class MetricTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             eid = _init(mod)["experiment_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             for name, target in [("acc", 0.8), ("f1", 0.9)]:
                 args = argparse.Namespace(
                     experiment_id=eid, name=name,
@@ -203,7 +215,9 @@ class MetricTests(CoscientistTestCase):
 
 class PreregisterTests(CoscientistTestCase):
     def _full_setup(self, mod):
-        import argparse, io, contextlib
+        import argparse
+        import contextlib
+        import io
         eid = _init(mod)["experiment_id"]
         for kind, name in [("independent", "method"), ("dependent", "accuracy")]:
             args = argparse.Namespace(
@@ -225,7 +239,9 @@ class PreregisterTests(CoscientistTestCase):
         with isolated_cache() as cache:
             mod = _load()
             eid = self._full_setup(mod)
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 experiment_id=eid, rr_id=None,
                 budget_seconds=3600, memory_mb=4096, force=False
@@ -244,7 +260,9 @@ class PreregisterTests(CoscientistTestCase):
             mod = _load()
             eid = _init(mod)["experiment_id"]
             # Add vars but no metric
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             for kind, name in [("independent", "x"), ("dependent", "y")]:
                 args = argparse.Namespace(
                     experiment_id=eid, kind=kind, name=name, description=""
@@ -263,7 +281,9 @@ class PreregisterTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             eid = _init(mod)["experiment_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             # Only dependent + metric
             args = argparse.Namespace(
                 experiment_id=eid, kind="dependent", name="y", description=""
@@ -300,7 +320,9 @@ class PreregisterTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             eid = self._full_setup(mod)
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 experiment_id=eid, rr_id=None,
                 budget_seconds=3600, memory_mb=4096, force=False
@@ -329,7 +351,9 @@ class PreregisterTests(CoscientistTestCase):
                 "rr_id": "fake_rr_xyz", "title": "Linked RR",
                 "state": "stage-1-drafted", "created_at": "2026-04-27T10:00:00+00:00"
             }))
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 experiment_id=eid, rr_id="fake_rr_xyz",
                 budget_seconds=3600, memory_mb=4096, force=False
@@ -358,7 +382,9 @@ class StatusListTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             eid = _init(mod)["experiment_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(experiment_id=eid)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -373,7 +399,9 @@ class StatusListTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             eid = _init(mod)["experiment_id"]
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             for kind, name in [("independent", "m"), ("dependent", "y")]:
                 args = argparse.Namespace(
                     experiment_id=eid, kind=kind, name=name, description=""
@@ -397,7 +425,9 @@ class StatusListTests(CoscientistTestCase):
     def test_list_empty(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id=None, state=None)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -409,7 +439,9 @@ class StatusListTests(CoscientistTestCase):
             mod = _load()
             _init(mod, title="A")
             _init(mod, title="B")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id=None, state=None)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -420,7 +452,9 @@ class StatusListTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             _init(mod, title="A")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id=None, state="preregistered")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):

@@ -18,7 +18,6 @@ against the DB. This module is the filesystem + init side only.
 from __future__ import annotations
 
 import hashlib
-import json
 import re
 import sqlite3
 from datetime import UTC, datetime

@@ -7,7 +7,6 @@ from pathlib import Path
 
 from tests.harness import TestCase, run_tests
 
-
 _REPO = Path(__file__).resolve().parents[1]
 _CI_STATUS = _REPO / "scripts" / "ci-status.sh"
 _TEST_LIKE_CI = _REPO / "scripts" / "test-like-ci.sh"

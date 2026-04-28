@@ -1,6 +1,8 @@
 """Tests for the statistics skill."""
 from __future__ import annotations
-import json, math, sys, tempfile
+
+import math
+import sys
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]

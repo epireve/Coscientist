@@ -24,9 +24,9 @@ Pure stdlib; consumed by `gap-analyzer` skill.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable, Literal
-
+from typing import Literal
 
 GapKind = Literal["evidential", "measurement", "conceptual"]
 Tier = Literal["A", "B", "C", "none"]

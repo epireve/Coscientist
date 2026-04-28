@@ -215,7 +215,7 @@ def start_span(
 
 def capture_error_context(
     db_path: Path,
-    span: "_SpanHandle",
+    span: _SpanHandle,
     exc: BaseException,
     *,
     stdout_tail: str | None = None,

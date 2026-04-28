@@ -47,7 +47,9 @@ class DmpGeneratorTests(CoscientistTestCase):
     def test_init_creates_files(self):
         with isolated_cache() as cache:
             mod = _load("dmp-generator", "dmp")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 title="My DMP", funder="nih", mechanism=None, force=False
             )
@@ -63,7 +65,9 @@ class DmpGeneratorTests(CoscientistTestCase):
     def test_section_updates(self):
         with isolated_cache() as cache:
             mod = _load("dmp-generator", "dmp")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(argparse.Namespace(
@@ -83,7 +87,9 @@ class DmpGeneratorTests(CoscientistTestCase):
     def test_status_after_section(self):
         with isolated_cache():
             mod = _load("dmp-generator", "dmp")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(argparse.Namespace(
@@ -108,7 +114,9 @@ class EthicsIrbTests(CoscientistTestCase):
     def test_irb_init_exempt(self):
         with isolated_cache():
             mod = _load("ethics-irb", "ethics")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 title="Survey Study", review_level="exempt",
                 has_vulnerable_pop=False, force=False
@@ -123,7 +131,9 @@ class EthicsIrbTests(CoscientistTestCase):
     def test_irb_init_full_board_more_sections(self):
         with isolated_cache():
             mod = _load("ethics-irb", "ethics")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_irb_init(argparse.Namespace(
@@ -136,7 +146,9 @@ class EthicsIrbTests(CoscientistTestCase):
     def test_irb_section(self):
         with isolated_cache():
             mod = _load("ethics-irb", "ethics")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_irb_init(argparse.Namespace(
@@ -155,7 +167,9 @@ class EthicsIrbTests(CoscientistTestCase):
     def test_coi_add_and_list(self):
         with isolated_cache():
             mod = _load("ethics-irb", "ethics")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             for entity, type_ in [("Acme Pharma", "consulting"), ("Beta Corp", "stock")]:
                 buf = io.StringIO()
                 with contextlib.redirect_stdout(buf):
@@ -180,7 +194,9 @@ class EthicsIrbTests(CoscientistTestCase):
     def test_coi_remove(self):
         with isolated_cache():
             mod = _load("ethics-irb", "ethics")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_coi_add(argparse.Namespace(
@@ -201,7 +217,9 @@ class RegisteredReportsTests(CoscientistTestCase):
     def test_init_creates(self):
         with isolated_cache() as cache:
             mod = _load("registered-reports", "rr")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(argparse.Namespace(
@@ -214,7 +232,9 @@ class RegisteredReportsTests(CoscientistTestCase):
     def test_advance_forward(self):
         with isolated_cache():
             mod = _load("registered-reports", "rr")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(argparse.Namespace(title="RR1", journal=None, force=False))
@@ -231,7 +251,9 @@ class RegisteredReportsTests(CoscientistTestCase):
     def test_advance_backward_blocked(self):
         with isolated_cache():
             mod = _load("registered-reports", "rr")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(argparse.Namespace(title="RR2", journal=None, force=False))
@@ -247,7 +269,9 @@ class RegisteredReportsTests(CoscientistTestCase):
     def test_advance_invalid_state_raises(self):
         with isolated_cache():
             mod = _load("registered-reports", "rr")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(argparse.Namespace(title="RR3", journal=None, force=False))
@@ -260,7 +284,9 @@ class RegisteredReportsTests(CoscientistTestCase):
     def test_history_recorded(self):
         with isolated_cache():
             mod = _load("registered-reports", "rr")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_init(argparse.Namespace(title="RR4", journal=None, force=False))
@@ -279,7 +305,9 @@ class RegisteredReportsTests(CoscientistTestCase):
 
 class ZenodoPrepareTests(CoscientistTestCase):
     def _setup_dataset(self, cache, mod_ds):
-        import argparse, io, contextlib
+        import argparse
+        import contextlib
+        import io
         with tempfile.TemporaryDirectory() as td:
             f = Path(td) / "data.csv"
             f.write_text("col1,col2\n1,2\n")
@@ -304,7 +332,9 @@ class ZenodoPrepareTests(CoscientistTestCase):
             mod_ds = _load("dataset-agent", "register")
             mod_zen = _load("zenodo-deposit", "deposit")
             did = self._setup_dataset(cache, mod_ds)
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod_zen.cmd_prepare(argparse.Namespace(dataset_id=did))
@@ -318,7 +348,9 @@ class ZenodoPrepareTests(CoscientistTestCase):
         with isolated_cache() as cache:
             mod_ds = _load("dataset-agent", "register")
             mod_zen = _load("zenodo-deposit", "deposit")
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod_ds.cmd_register(argparse.Namespace(
@@ -354,7 +386,9 @@ class ZenodoPrepareTests(CoscientistTestCase):
             mod_ds = _load("dataset-agent", "register")
             mod_zen = _load("zenodo-deposit", "deposit")
             did = self._setup_dataset(cache, mod_ds)
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod_zen.cmd_status(argparse.Namespace(dataset_id=did))

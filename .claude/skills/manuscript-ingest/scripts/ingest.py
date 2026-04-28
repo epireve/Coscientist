@@ -28,7 +28,6 @@ if str(_REPO_ROOT) not in sys.path:
 from lib.artifact import ArtifactKind, ManuscriptArtifact  # noqa: E402
 from lib.cache import cache_root  # noqa: E402
 
-
 # Inline citation patterns in academic markdown/LaTeX drafts
 # Captures the *key* (group 1) for pandoc/bibtex-style, or the full match for fallback
 CITATION_PATTERNS = [

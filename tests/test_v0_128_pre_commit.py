@@ -8,7 +8,6 @@ from pathlib import Path
 
 from tests.harness import TestCase, run_tests
 
-
 _REPO = Path(__file__).resolve().parents[1]
 _HOOK = _REPO / "scripts" / "pre-commit"
 _INSTALLER = _REPO / "scripts" / "install_hooks.sh"

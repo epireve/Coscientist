@@ -67,7 +67,9 @@ class VelocityTests(CoscientistTestCase):
     def test_velocity_empty(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id=None, days=28)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -89,7 +91,9 @@ class VelocityTests(CoscientistTestCase):
                  "updated_at": _iso(now - timedelta(days=15))},
             ])
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p1", days=28)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -106,7 +110,9 @@ class VelocityTests(CoscientistTestCase):
                  "updated_at": _iso(now - timedelta(days=100))},
             ])
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p2", days=28)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -122,7 +128,9 @@ class VelocityTests(CoscientistTestCase):
                  "updated_at": _iso(now - timedelta(days=1))},
             ])
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p3", days=28)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -138,7 +146,9 @@ class VelocityTests(CoscientistTestCase):
             _seed(cache, "pa", [{"canonical_id": "x", "state": "read", "updated_at": recent}])
             _seed(cache, "pb", [{"canonical_id": "y", "state": "read", "updated_at": recent}])
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id=None, days=28)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -158,7 +168,9 @@ class BacklogTests(CoscientistTestCase):
                 {"canonical_id": "d", "state": "read", "updated_at": _iso(now)},
             ])
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="b1")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -179,7 +191,9 @@ class BacklogTests(CoscientistTestCase):
                  "updated_at": _iso(now - timedelta(days=5))},
             ])
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="b2")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -201,7 +215,9 @@ class TrendTests(CoscientistTestCase):
                 {"canonical_id": "w3", "state": "read", "updated_at": _iso(now - timedelta(days=24))},
             ])
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="t1", weeks=12)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -214,7 +230,9 @@ class TrendTests(CoscientistTestCase):
     def test_trend_rolling_avg_length_matches(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id=None, weeks=8)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -228,7 +246,9 @@ class SummaryTests(CoscientistTestCase):
     def test_summary_empty(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id=None)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -249,7 +269,9 @@ class SummaryTests(CoscientistTestCase):
                  "updated_at": _iso(now - timedelta(days=200))},
             ])
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="s1")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -271,7 +293,9 @@ class ReadOnlyContractTests(CoscientistTestCase):
             mtime_before = db.stat().st_mtime
 
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="ro", days=28)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -289,7 +313,9 @@ class ReadOnlyContractTests(CoscientistTestCase):
             con.execute("CREATE TABLE artifact_index (id TEXT)")
             con.close()
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="no_table", days=28)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):

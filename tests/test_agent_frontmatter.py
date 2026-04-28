@@ -8,13 +8,12 @@ description must be non-trivial. Catches drift like "I added an agent
 but forgot tools" or "I renamed the file but not the name field".
 """
 
-from tests import _shim  # noqa: F401
-
 import json
 import re
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent

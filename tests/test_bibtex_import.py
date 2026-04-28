@@ -1,13 +1,12 @@
 """v0.48 tests for manuscript-bibtex-import."""
 
-from tests import _shim  # noqa: F401
-
 import json
 import sqlite3
 import subprocess
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -143,8 +142,8 @@ class ImportTests(TestCase):
 
     def test_doi_persisted_to_manifest(self):
         with isolated_cache() as cache_dir:
-            from lib.project import create
             from lib.paper_artifact import PaperArtifact
+            from lib.project import create
             pid = create("p_doi", question="test")
             bib = cache_dir / "refs.bib"
             bib.write_text(SIMPLE_BIB)
@@ -157,8 +156,8 @@ class ImportTests(TestCase):
 
     def test_arxiv_extracted_from_url(self):
         with isolated_cache() as cache_dir:
-            from lib.project import create
             from lib.paper_artifact import PaperArtifact
+            from lib.project import create
             pid = create("p_arxiv", question="test")
             bib = cache_dir / "refs.bib"
             bib.write_text(SIMPLE_BIB)

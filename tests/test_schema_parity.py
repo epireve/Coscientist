@@ -17,11 +17,11 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
 from lib.migrations import (
-    ALL_VERSIONS, _read_migration_sql, ensure_current,
+    _read_migration_sql,
+    ensure_current,
 )
-
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 _SCHEMA = _REPO / "lib" / "sqlite_schema.sql"

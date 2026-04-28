@@ -18,7 +18,9 @@ for _p in (_REPO_ROOT, _PLUGIN_ROOT):
         sys.path.insert(0, str(_p))
 
 from lib.venue_match import (  # noqa: E402
-    ManuscriptChars, recommend, render_brief,
+    ManuscriptChars,
+    recommend,
+    render_brief,
 )
 
 

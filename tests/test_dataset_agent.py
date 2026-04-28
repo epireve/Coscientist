@@ -43,7 +43,8 @@ class RegisterTests(CoscientistTestCase):
     def test_register_creates_files(self):
         with isolated_cache() as cache:
             mod = _load()
-            import io, contextlib
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_register(_make_register_args())
@@ -57,7 +58,8 @@ class RegisterTests(CoscientistTestCase):
     def test_register_known_license_no_warning(self):
         with isolated_cache():
             mod = _load()
-            import io, contextlib
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_register(_make_register_args(license="MIT"))
@@ -66,7 +68,8 @@ class RegisterTests(CoscientistTestCase):
     def test_register_unknown_license_warns(self):
         with isolated_cache():
             mod = _load()
-            import io, contextlib
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_register(_make_register_args(license="MyCustomLicense"))
@@ -76,7 +79,8 @@ class RegisterTests(CoscientistTestCase):
     def test_register_duplicate_raises(self):
         with isolated_cache():
             mod = _load()
-            import io, contextlib
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_register(_make_register_args())
@@ -86,7 +90,8 @@ class RegisterTests(CoscientistTestCase):
     def test_register_force_overwrites(self):
         with isolated_cache():
             mod = _load()
-            import io, contextlib
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_register(_make_register_args())
@@ -111,7 +116,9 @@ class HashTests(CoscientistTestCase):
                 f.write_text("col1,col2\n1,2\n3,4\n")
 
                 mod = _load()
-                import io, contextlib, argparse
+                import argparse
+                import contextlib
+                import io
                 buf = io.StringIO()
                 with contextlib.redirect_stdout(buf):
                     mod.cmd_register(_make_register_args(paths=[str(f)]))
@@ -136,7 +143,9 @@ class HashTests(CoscientistTestCase):
                 (sub / "b.txt").write_text("beta")
 
                 mod = _load()
-                import io, contextlib, argparse
+                import argparse
+                import contextlib
+                import io
                 buf = io.StringIO()
                 with contextlib.redirect_stdout(buf):
                     mod.cmd_register(_make_register_args(paths=[str(base)]))
@@ -156,7 +165,9 @@ class HashTests(CoscientistTestCase):
                 f = Path(td) / "x.txt"
                 f.write_text("hello")
                 mod = _load()
-                import io, contextlib, argparse
+                import argparse
+                import contextlib
+                import io
                 buf = io.StringIO()
                 with contextlib.redirect_stdout(buf):
                     mod.cmd_register(_make_register_args(paths=[str(f)]))
@@ -176,7 +187,9 @@ class HashTests(CoscientistTestCase):
                 f = Path(td) / "a.txt"
                 f.write_text("identical")
                 mod = _load()
-                import io, contextlib, argparse
+                import argparse
+                import contextlib
+                import io
                 buf = io.StringIO()
                 with contextlib.redirect_stdout(buf):
                     mod.cmd_register(_make_register_args(paths=[str(f)]))
@@ -204,7 +217,9 @@ class HashTests(CoscientistTestCase):
                 f = Path(td) / "a.txt"
                 f.write_text("first")
                 mod = _load()
-                import io, contextlib, argparse
+                import argparse
+                import contextlib
+                import io
                 buf = io.StringIO()
                 with contextlib.redirect_stdout(buf):
                     mod.cmd_register(_make_register_args(paths=[str(f)]))
@@ -229,7 +244,9 @@ class HashTests(CoscientistTestCase):
     def test_hash_missing_path_recorded(self):
         with isolated_cache():
             mod = _load()
-            import io, contextlib, argparse
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_register(_make_register_args(paths=["/nonexistent/path/xxx"]))
@@ -246,7 +263,8 @@ class HashTests(CoscientistTestCase):
 
 class VersionTests(CoscientistTestCase):
     def _make(self, mod):
-        import io, contextlib
+        import contextlib
+        import io
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             mod.cmd_register(_make_register_args())
@@ -256,7 +274,9 @@ class VersionTests(CoscientistTestCase):
         with isolated_cache() as cache:
             mod = _load()
             did = self._make(mod)
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 dataset_id=did, label="v1", notes="initial release"
             )
@@ -271,7 +291,9 @@ class VersionTests(CoscientistTestCase):
         with isolated_cache():
             mod = _load()
             did = self._make(mod)
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(dataset_id=did, label="v1", notes=None)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -285,7 +307,9 @@ class VersionTests(CoscientistTestCase):
                 f = Path(td) / "a.txt"
                 f.write_text("data")
                 mod = _load()
-                import io, contextlib, argparse
+                import argparse
+                import contextlib
+                import io
                 buf = io.StringIO()
                 with contextlib.redirect_stdout(buf):
                     mod.cmd_register(_make_register_args(paths=[str(f)]))
@@ -311,7 +335,9 @@ class ListStatusTests(CoscientistTestCase):
     def test_list_empty(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_list(argparse.Namespace(project_id=None, state=None))
@@ -320,7 +346,9 @@ class ListStatusTests(CoscientistTestCase):
     def test_list_after_register(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_register(_make_register_args(title="Set A"))
@@ -333,7 +361,9 @@ class ListStatusTests(CoscientistTestCase):
     def test_status_basic(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_register(_make_register_args(doi="10.5281/zenodo.fake"))

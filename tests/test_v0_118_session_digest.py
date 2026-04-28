@@ -5,7 +5,6 @@ from pathlib import Path
 
 from tests.harness import TestCase, run_tests
 
-
 _REPO = Path(__file__).resolve().parents[1]
 _DIGEST = _REPO / "docs" / "SESSION-DIGEST-v0.97-v0.117.md"
 

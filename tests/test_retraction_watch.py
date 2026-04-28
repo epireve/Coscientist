@@ -5,7 +5,6 @@ import importlib.util as _ilu
 import json
 import sqlite3
 import sys
-import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -169,7 +168,8 @@ class ScanTests(CoscientistTestCase):
             import argparse
             args = argparse.Namespace(project_id="proj4", input=str(input_path))
             # Redirect stdout
-            import io, contextlib
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_persist(args)
@@ -200,7 +200,9 @@ class ScanTests(CoscientistTestCase):
             input_path = cache / "results2.json"
             input_path.write_text(json.dumps(items))
 
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="proj5", input=str(input_path))
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -214,7 +216,9 @@ class ScanTests(CoscientistTestCase):
             _seed_papers(cache, "proj6", ["paper_a", "paper_b", "paper_c"])
             mod = _load("scan")
 
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 project_id="proj6", canonical_id=None,
                 max_age_days=7, dry_run=True, input=None
@@ -235,7 +239,9 @@ class ScanTests(CoscientistTestCase):
             ])
             mod = _load("scan")
 
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 project_id="proj7", canonical_id=None,
                 max_age_days=7, dry_run=True, input=None

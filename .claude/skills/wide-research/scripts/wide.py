@@ -46,8 +46,14 @@ from lib.cache import cache_root  # noqa: E402
 from lib.db_notify import format_notification, record_write  # noqa: E402
 from lib.migrations import ensure_current  # noqa: E402
 from lib.wide_research import (  # noqa: E402
-    DEFAULT_CONCURRENCY_CAP, HARD_DOLLAR_CEILING, TASK_TYPE_DEFAULTS,
-    TaskSpec, WideRunPlan, collect_results, decompose, write_workspace,
+    DEFAULT_CONCURRENCY_CAP,
+    HARD_DOLLAR_CEILING,
+    TASK_TYPE_DEFAULTS,
+    TaskSpec,
+    WideRunPlan,
+    collect_results,
+    decompose,
+    write_workspace,
 )
 from lib.wide_synthesis import render_brief, synthesize  # noqa: E402
 
@@ -674,8 +680,8 @@ def cmd_gate2(args: argparse.Namespace) -> dict:
                 r for r in results if r["status"] == "complete"
             ][:args.preview_limit],
             "next_step": (
-                f"Review preview. Then call gate2 --verdict "
-                f"approve_continue|adjust_remaining|abort."
+                "Review preview. Then call gate2 --verdict "
+                "approve_continue|adjust_remaining|abort."
             ),
         }
 

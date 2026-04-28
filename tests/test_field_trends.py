@@ -81,7 +81,9 @@ class ConceptsTests(CoscientistTestCase):
         with isolated_cache() as cache:
             _make_graph(cache, "p1")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p1", top=20)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -100,7 +102,9 @@ class ConceptsTests(CoscientistTestCase):
             _add_edge(cache, "p1", "paper:b", "concept:transformers", "about")
             _add_edge(cache, "p1", "paper:c", "concept:rl", "about")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p1", top=10)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -120,7 +124,9 @@ class PapersTests(CoscientistTestCase):
             _add_edge(cache, "p1", "paper:a", "paper:cited", "cites")
             _add_edge(cache, "p1", "paper:b", "paper:cited", "cites")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p1", top=10)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -141,7 +147,9 @@ class AuthorsTests(CoscientistTestCase):
             _add_edge(cache, "p1", "paper:a", "author:smith", "authored-by")
             _add_edge(cache, "p1", "paper:b", "author:smith", "authored-by")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p1", top=10)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -168,7 +176,9 @@ class MomentumTests(CoscientistTestCase):
             _add_edge(cache, "p1", "paper:r3", "concept:c1", "about")
             _add_edge(cache, "p1", "paper:p1", "concept:c1", "about")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 project_id="p1", window_recent=90, window_past=365, top=10
             )
@@ -186,7 +196,9 @@ class MomentumTests(CoscientistTestCase):
         with isolated_cache() as cache:
             _make_graph(cache, "p1")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 project_id="p1", window_recent=90, window_past=365, top=10
             )
@@ -206,7 +218,9 @@ class SummaryTests(CoscientistTestCase):
             _add_node(cache, "p1", "author:s", "author", "Smith")
             _add_edge(cache, "p1", "paper:a", "paper:b", "cites")
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p1")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -233,7 +247,9 @@ class ReadOnlyTests(CoscientistTestCase):
             _add_node(cache, "p1", "concept:x", "concept", "X")
             mtime_before = db.stat().st_mtime
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(project_id="p1", top=20)
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):

@@ -1,11 +1,10 @@
 """v0.45.6 unit tests for lib.rate_limit."""
 
-from tests import _shim  # noqa: F401
-
 import os
 import sys
 import time
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 

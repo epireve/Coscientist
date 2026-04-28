@@ -65,7 +65,9 @@ class OutlineTests(CoscientistTestCase):
         with isolated_cache() as cache:
             _make_manuscript(cache)
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 manuscript_id="ms_test", style="standard", force=False
             )
@@ -85,7 +87,9 @@ class OutlineTests(CoscientistTestCase):
                 outline_p = cache / "manuscripts" / "ms_test" / "slides" / "outline.json"
                 if outline_p.exists():
                     outline_p.unlink()
-                import argparse, io, contextlib
+                import argparse
+                import contextlib
+                import io
                 args = argparse.Namespace(
                     manuscript_id="ms_test", style=style, force=False
                 )
@@ -120,7 +124,9 @@ class OutlineTests(CoscientistTestCase):
         with isolated_cache() as cache:
             _make_manuscript(cache)
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 manuscript_id="ms_test", style="standard", force=False
             )
@@ -134,7 +140,9 @@ class OutlineTests(CoscientistTestCase):
         with isolated_cache() as cache:
             _make_manuscript(cache)
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(
                 manuscript_id="ms_test", style="standard", force=False
             )
@@ -194,7 +202,9 @@ class RenderTests(CoscientistTestCase):
         with isolated_cache() as cache:
             _make_manuscript(cache)
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_outline(argparse.Namespace(
@@ -229,7 +239,9 @@ class RenderTests(CoscientistTestCase):
         with isolated_cache() as cache:
             _make_manuscript(cache)
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_outline(argparse.Namespace(
@@ -248,7 +260,9 @@ class RenderTests(CoscientistTestCase):
         with isolated_cache() as cache:
             _make_manuscript(cache)
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_outline(argparse.Namespace(
@@ -266,7 +280,9 @@ class ListCleanTests(CoscientistTestCase):
         with isolated_cache() as cache:
             _make_manuscript(cache)
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             args = argparse.Namespace(manuscript_id="ms_test")
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -279,7 +295,9 @@ class ListCleanTests(CoscientistTestCase):
         with isolated_cache() as cache:
             _make_manuscript(cache)
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_outline(argparse.Namespace(
@@ -300,7 +318,9 @@ class ListCleanTests(CoscientistTestCase):
         with isolated_cache() as cache:
             _make_manuscript(cache)
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_outline(argparse.Namespace(
@@ -321,7 +341,9 @@ class FormatsListTests(CoscientistTestCase):
     def test_formats_lists_all(self):
         with isolated_cache():
             mod = _load()
-            import argparse, io, contextlib
+            import argparse
+            import contextlib
+            import io
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 mod.cmd_formats(argparse.Namespace())

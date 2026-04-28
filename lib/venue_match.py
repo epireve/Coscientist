@@ -15,7 +15,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-
 # Venue tier classification
 Tier = Literal["A", "B", "C"]
 # Submission characteristics

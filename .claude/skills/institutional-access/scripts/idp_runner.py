@@ -213,7 +213,6 @@ async def _login_flow(slug: str, publisher: str, interactive: bool,
     # for fresh-profile signals (no history, no extensions, no prior
     # cookies). Persistent dir builds up legitimate browsing state over
     # successive runs and dodges the captcha after the first warm-up.
-    import shutil
     profile_dir = STATE_DIR / "chrome_profile"
     profile_dir.mkdir(parents=True, exist_ok=True)
     # Clear stale Singleton* locks from prior crashed Chrome processes

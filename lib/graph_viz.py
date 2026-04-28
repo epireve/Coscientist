@@ -28,7 +28,6 @@ import hashlib
 import re
 from collections import defaultdict
 
-
 # ----- ID sanitization ------------------------------------------------------
 
 _SAFE_ID = re.compile(r"[^A-Za-z0-9_]")

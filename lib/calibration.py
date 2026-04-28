@@ -22,11 +22,10 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import UTC, datetime
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
-
 
 Bucket = Literal["accepted", "rejected", "borderline"]
 _VALID_BUCKETS = ("accepted", "rejected", "borderline")
@@ -68,7 +67,7 @@ class CalibrationCase:
         return {k: v for k, v in d.items() if v not in (None, "")}
 
     @classmethod
-    def from_dict(cls, d: dict, bucket: Bucket) -> "CalibrationCase":
+    def from_dict(cls, d: dict, bucket: Bucket) -> CalibrationCase:
         reasons: list[str] = []
         if bucket == "accepted":
             reasons = d.get("reasons_for_accept", []) or []
@@ -105,7 +104,7 @@ class CalibrationSet:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "CalibrationSet":
+    def from_dict(cls, d: dict) -> CalibrationSet:
         return cls(
             venue=d.get("venue", ""),
             accepted=[

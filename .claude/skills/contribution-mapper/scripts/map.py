@@ -18,8 +18,11 @@ for _p in (_REPO_ROOT, _PLUGIN_ROOT):
         sys.path.insert(0, str(_p))
 
 from lib.contribution_mapper import (  # noqa: E402
-    Anchor, closest_anchor, decompose_contribution,
-    project_2d, render_landscape,
+    Anchor,
+    closest_anchor,
+    decompose_contribution,
+    project_2d,
+    render_landscape,
 )
 
 

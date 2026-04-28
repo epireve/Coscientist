@@ -11,12 +11,11 @@ CliEdgeTests        — CLI error handling (missing args, bad values, --help)
 No LLM calls. No network. Pure filesystem + subprocess.
 """
 
-from tests import _shim  # noqa: F401
-
 import subprocess
 import sys
 from pathlib import Path
 
+from tests import _shim  # noqa: F401
 from tests.harness import TestCase, isolated_cache, run_tests
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -44,6 +43,7 @@ def _run_draft(*args: str) -> subprocess.CompletedProcess:
 # ---------------------------------------------------------------------------
 
 import importlib.util as _ilu
+
 
 def _load_pandoc_utils():
     spec = _ilu.spec_from_file_location("pandoc_utils", str(_PANDOC_UTILS))

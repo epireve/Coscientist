@@ -1,7 +1,8 @@
 """Grant outline data model and funder templates."""
 from __future__ import annotations
-import hashlib, json, re
-from pathlib import Path
+
+import hashlib
+import re
 
 FUNDERS = {
     "nih": {
@@ -124,11 +125,11 @@ def build_outline(title: str, funder: str, mechanism: str | None = None) -> dict
 
 def build_source_md(outline: dict) -> str:
     lines = [
-        f"---",
+        "---",
         f"title: \"{outline['title']}\"",
         f"funder: {outline['funder']}",
         f"mechanism: {outline['mechanism']}",
-        f"---",
+        "---",
         "",
     ]
     for s in outline["sections"]:

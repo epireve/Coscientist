@@ -25,11 +25,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
-
+from typing import Any
 
 # ---------- rubric model ----------
 
@@ -515,7 +515,7 @@ def score_auto(
     for c in rubric.criteria:
         try:
             per_criterion[c.name] = float(c.check(artifact))
-        except Exception as e:  # noqa: BLE001 — record + zero
+        except Exception:  # noqa: BLE001 — record + zero
             per_criterion[c.name] = 0.0
             per_criterion[f"{c.name}__error"] = -1.0  # signal
     score_total = _normalize_total(rubric.criteria, per_criterion)

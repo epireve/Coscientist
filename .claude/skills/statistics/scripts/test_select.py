@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Recommend statistical test based on study design."""
 from __future__ import annotations
-import argparse, json, sys
+
+import argparse
+import json
+import sys
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]

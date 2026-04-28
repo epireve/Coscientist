@@ -4,12 +4,10 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
-from tests.harness import TestCase, run_tests
 from lib import persona_doc_check, persona_schema
-
+from tests.harness import TestCase, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 

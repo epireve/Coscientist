@@ -6,10 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tests.harness import TestCase, isolated_cache, run_tests
-
 from lib import calibration as cal
-
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 _CLI = _REPO / ".claude" / "skills" / "calibration" / "scripts" / "manage.py"
