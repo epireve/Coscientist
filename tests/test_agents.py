@@ -47,6 +47,9 @@ EXPECTED_AGENTS = {
     # Phase I — Quality judging (v0.92). One sub-agent that scores
     # another persona's output against its rubric.
     "quality-judge",
+    # Phase J — Idea-tree generation (v0.153). Builds rooted hypothesis
+    # trees the tournament's tree-aware ranker (v0.154/v0.155) consumes.
+    "idea-tree-generator",
 }
 
 

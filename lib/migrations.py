@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS schema_versions (
 # v9..v10 add tables via `_ensure_vN_tables`). Kept as a single list
 # so the monotonicity test can assert no version is silently skipped
 # between the SQL-based MIGRATIONS list and the in-code migrations.
-ALL_VERSIONS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
+ALL_VERSIONS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
 
 
 def _table_exists(con: sqlite3.Connection, name: str) -> bool:
@@ -270,6 +270,21 @@ def ensure_current(db_path: Path,
                     (13, "v0.148_graph_institutions_funders", now),
                 )
             newly_applied.append(13)
+
+        # v0.153 — idea-tree columns on hypotheses (tree_id, depth,
+        # branch_index) + composite index. Run-DB only: gates on
+        # `hypotheses` table existence, so project DBs and unrelated
+        # test DBs are unaffected.
+        if 14 not in applied and _table_exists(con, "hypotheses"):
+            _ensure_v14_columns(con)
+            _ensure_v14_indexes(con)
+            with con:
+                con.execute(
+                    "INSERT INTO schema_versions (version, name, applied_at) "
+                    "VALUES (?, ?, ?)",
+                    (14, "v0.153_hypotheses_idea_tree", now),
+                )
+            newly_applied.append(14)
     finally:
         con.close()
     return newly_applied
@@ -346,6 +361,40 @@ def _ensure_v13_indexes(con: sqlite3.Connection) -> None:
     """
     with con:
         con.executescript(_read_migration_sql(13))
+
+
+def _ensure_v14_columns(con: sqlite3.Connection) -> None:
+    """v0.153 — idea-tree columns on hypotheses.
+
+    Adds tree_id (root grouping), depth (root=0, children=1, ...),
+    and branch_index (sibling order within parent). Idempotent.
+    """
+    if not _table_exists(con, "hypotheses"):
+        return
+    cols = {row[1] for row in con.execute("PRAGMA table_info(hypotheses)")}
+    with con:
+        if "tree_id" not in cols:
+            con.execute(
+                "ALTER TABLE hypotheses ADD COLUMN tree_id TEXT"
+            )
+        if "depth" not in cols:
+            con.execute(
+                "ALTER TABLE hypotheses ADD COLUMN "
+                "depth INTEGER NOT NULL DEFAULT 0"
+            )
+        if "branch_index" not in cols:
+            con.execute(
+                "ALTER TABLE hypotheses ADD COLUMN "
+                "branch_index INTEGER NOT NULL DEFAULT 0"
+            )
+
+
+def _ensure_v14_indexes(con: sqlite3.Connection) -> None:
+    """v0.153 — idx_hypotheses_tree_depth composite index. DDL in
+    migrations_sql/v14.sql.
+    """
+    with con:
+        con.executescript(_read_migration_sql(14))
 
 
 def _ensure_v8_columns(con: sqlite3.Connection) -> None:

@@ -180,6 +180,13 @@ CREATE TABLE IF NOT EXISTS hypotheses (
     n_matches           INTEGER DEFAULT 0,
     n_wins              INTEGER DEFAULT 0,
     n_losses            INTEGER DEFAULT 0,
+    -- v0.153 — idea-tree columns. tree_id groups all nodes in a
+    -- rooted hypothesis tree (root.tree_id == root.hyp_id). depth
+    -- is BFS depth from root (root=0). branch_index orders siblings
+    -- within their parent (0-based).
+    tree_id             TEXT,
+    depth               INTEGER NOT NULL DEFAULT 0,
+    branch_index        INTEGER NOT NULL DEFAULT 0,
     created_at          TEXT NOT NULL
 );
 
@@ -198,6 +205,9 @@ CREATE INDEX IF NOT EXISTS idx_publish_ms       ON publishability_verdicts(manus
 CREATE INDEX IF NOT EXISTS idx_attack_target    ON attack_findings(target_canonical_id);
 CREATE INDEX IF NOT EXISTS idx_hyp_run          ON hypotheses(run_id);
 CREATE INDEX IF NOT EXISTS idx_hyp_elo          ON hypotheses(elo DESC);
+-- v0.153 — composite index for fast subtree/BFS walks
+CREATE INDEX IF NOT EXISTS idx_hypotheses_tree_depth
+    ON hypotheses(tree_id, depth);
 
 -- v0.38: tournament evolve-loop round ledger
 CREATE TABLE IF NOT EXISTS evolution_rounds (
