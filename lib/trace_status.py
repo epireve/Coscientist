@@ -550,6 +550,82 @@ def mark_stale_error(
     return stale
 
 
+def prune_old_traces(
+    db_path: Path, *, max_age_days: int = 30,
+    dry_run: bool = False, now_iso: str | None = None,
+) -> dict[str, Any]:
+    """v0.110 — delete trace data older than `max_age_days`.
+
+    Only deletes traces with status != 'running' AND completed_at
+    older than cutoff (or started_at if completed_at is null and
+    status is 'error'/'ok'). Active runs are never pruned.
+
+    Cascade: spans (by trace_id) + span_events (by span_id).
+
+    Returns counts: {n_traces, n_spans, n_events, dry_run}.
+    """
+    from datetime import UTC, datetime, timedelta
+    if now_iso is None:
+        now = datetime.now(UTC)
+    else:
+        now = datetime.fromisoformat(now_iso.replace("Z", "+00:00"))
+    cutoff = (now - timedelta(days=max_age_days)).isoformat()
+    if not db_path.exists():
+        return {"n_traces": 0, "n_spans": 0, "n_events": 0,
+                "dry_run": dry_run}
+    con = _open(db_path)
+    try:
+        try:
+            stale = list(con.execute(
+                "SELECT trace_id FROM traces "
+                "WHERE status != 'running' "
+                "AND COALESCE(completed_at, started_at) < ?",
+                (cutoff,),
+            ))
+        except sqlite3.OperationalError:
+            return {"n_traces": 0, "n_spans": 0, "n_events": 0,
+                    "dry_run": dry_run}
+        trace_ids = [r["trace_id"] for r in stale]
+        if not trace_ids:
+            return {"n_traces": 0, "n_spans": 0, "n_events": 0,
+                    "dry_run": dry_run}
+        # Count what would be deleted (always, for both modes)
+        placeholders = ",".join("?" * len(trace_ids))
+        n_spans = con.execute(
+            f"SELECT COUNT(*) FROM spans "
+            f"WHERE trace_id IN ({placeholders})",
+            trace_ids,
+        ).fetchone()[0]
+        n_events = con.execute(
+            f"SELECT COUNT(*) FROM span_events "
+            f"WHERE span_id IN (SELECT span_id FROM spans "
+            f"WHERE trace_id IN ({placeholders}))",
+            trace_ids,
+        ).fetchone()[0]
+        if not dry_run:
+            with con:
+                con.execute(
+                    f"DELETE FROM span_events "
+                    f"WHERE span_id IN (SELECT span_id FROM spans "
+                    f"WHERE trace_id IN ({placeholders}))",
+                    trace_ids,
+                )
+                con.execute(
+                    f"DELETE FROM spans "
+                    f"WHERE trace_id IN ({placeholders})",
+                    trace_ids,
+                )
+                con.execute(
+                    f"DELETE FROM traces "
+                    f"WHERE trace_id IN ({placeholders})",
+                    trace_ids,
+                )
+        return {"n_traces": len(trace_ids), "n_spans": int(n_spans),
+                "n_events": int(n_events), "dry_run": dry_run}
+    finally:
+        con.close()
+
+
 def render_md(summaries: list[dict[str, Any]]) -> str:
     if not summaries:
         return "# Trace status\n\n_No traces found._\n"
@@ -611,7 +687,52 @@ def main(argv: list[str] | None = None) -> int:
         "--tool-latency", action="store_true",
         help="v0.100: aggregate tool-call span durations by name.",
     )
+    p.add_argument(
+        "--prune", action="store_true",
+        help="v0.110: delete trace data older than --prune-days.",
+    )
+    p.add_argument("--prune-days", type=int, default=30,
+                    help="Age threshold for --prune (default 30).")
+    p.add_argument("--dry-run", action="store_true",
+                    help="With --prune, show counts without deleting.")
     args = p.parse_args(argv)
+    if args.prune:
+        from lib.cache import run_db_path, runs_dir
+        results: list[dict] = []
+        if args.run_id:
+            r = prune_old_traces(
+                run_db_path(args.run_id),
+                max_age_days=args.prune_days,
+                dry_run=args.dry_run,
+            )
+            r["db_path"] = str(run_db_path(args.run_id))
+            results.append(r)
+        else:
+            d = runs_dir()
+            if d.exists():
+                for db in sorted(d.glob("run-*.db")):
+                    r = prune_old_traces(
+                        db,
+                        max_age_days=args.prune_days,
+                        dry_run=args.dry_run,
+                    )
+                    r["db_path"] = str(db)
+                    results.append(r)
+        if args.format == "json":
+            sys.stdout.write(
+                json.dumps(results, indent=2, default=str) + "\n",
+            )
+        else:
+            tot_t = sum(r["n_traces"] for r in results)
+            tot_s = sum(r["n_spans"] for r in results)
+            tot_e = sum(r["n_events"] for r in results)
+            label = "Would delete" if args.dry_run else "Deleted"
+            sys.stdout.write(
+                f"# Prune ({args.prune_days} days)\n\n"
+                f"_{label} {tot_t} trace(s), {tot_s} span(s), "
+                f"{tot_e} event(s) across {len(results)} DB(s)._\n",
+            )
+        return 0
     if args.tool_latency:
         from lib.cache import run_db_path
         if args.run_id:

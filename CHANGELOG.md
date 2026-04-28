@@ -11,6 +11,29 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.110 — trace pruning (2026-04-28)
+
+`lib.trace_status.prune_old_traces(db, *, max_age_days=30,
+dry_run=False)` deletes traces with `status != 'running'` and
+`completed_at < cutoff`. Cascade: span_events → spans → traces.
+
+**Active runs never pruned** — `status='running'` exempt
+regardless of age.
+
+CLI: `uv run python -m lib.trace_status --prune
+[--prune-days 30] [--dry-run] [--run-id <rid>] [--format md|json]`.
+Without `--run-id` walks every run DB.
+
+`--dry-run` returns counts without mutating; useful for "how much
+would I free" check.
+
+Returns: `{n_traces, n_spans, n_events, dry_run, db_path}` per
+DB processed.
+
+6 new tests (no-db, dry-run no-delete, actual delete with
+recent-trace preservation, active-trace exemption, CLI dry-run +
+CLI actual-prune). 1831 total passing.
+
 ## v0.109 — gate-decision summary in health (2026-04-28)
 
 v0.93b emits gate-kind spans (publishability, novelty, future
