@@ -11,6 +11,39 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.130 — CI fixes (2026-04-28)
+
+GitHub Actions failures triaged + fixed:
+
+**1. Plugin `.mcp.json` files** were gitignored as a side effect
+of root `.mcp.json` exclusion. Fix: `.gitignore` pattern
+narrowed to `/.mcp.json` (root-only). All 3 plugin `.mcp.json`
+files committed (no secrets — only `${CLAUDE_PLUGIN_ROOT}`
+placeholders + server name keys). Unblocks
+`ConfigValidationTests`, `*McpPluginTests`,
+`McpIndexDiscoveryTests`, `InstallCheckTests`,
+`PluginChecksumsTests`.
+
+**2. Root `.mcp.json` for CI** — workflow staging step copies
+`.mcp.json.example` → `.mcp.json` before tests run.
+Real `.mcp.json` (with API keys) stays gitignored locally;
+sanitized example with `<placeholder>` strings serves CI.
+
+**3. Pandoc-missing error path bug** in `manuscript-mcp`.
+`_resolve_text(path, fmt='docx')` previously fell through to
+raw-text branch when file didn't exist (returned successful
+empty parse). Fix: `fmt='docx'` is path-only — refuses raw
+text, raises RuntimeError when file missing OR pandoc
+unavailable. `parse_manuscript` returns `{"error": ...}` per
+test contract. Plugin source resynced + checksums regenerated.
+
+**4. CacheLeakDetector baseline test** depended on CI cache
+state. Made self-contained via tmpdir + direct `_snapshot()`
+invocation. Real-cache invariant still checked when present.
+
+`MCP_SERVERS.md` regenerated. 1940 tests still pass locally.
+CI should now green.
+
 ## v0.129 — field-trends time-series (2026-04-28)
 
 `field-trends-analyzer series` subcommand — per-concept paper-

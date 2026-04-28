@@ -29,6 +29,12 @@ jobs:
         run: |
           uv sync --extra dev --extra mcp
 
+      - name: Stage .mcp.json from example (CI has no real keys)
+        run: |
+          if [ ! -f .mcp.json ] && [ -f .mcp.json.example ]; then
+            cp .mcp.json.example .mcp.json
+          fi
+
       - name: Run full test suite
         run: |
           uv run python tests/run_all.py

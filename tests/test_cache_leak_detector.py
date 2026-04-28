@@ -91,8 +91,19 @@ class CacheLeakDetectorTests(TestCase):
         )
 
     def test_baseline_captured_when_cache_exists(self):
-        # Documents the contract: if real cache exists and we're not
-        # already sandboxed, _BASELINE must be populated.
+        # v0.130: self-contained. Doesn't depend on CI cache state
+        # or whether ~/.cache/coscientist exists. Tests _snapshot
+        # contract directly via tmp dir.
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "fake-cache"
+            root.mkdir()
+            (root / "marker.txt").write_text("hi")
+            snap = _snapshot(root)
+            self.assertIsNotNone(snap)
+            self.assertIn("marker.txt", snap)
+        # Real-cache invariant — only check when cache present
+        # in this session (skip if sandboxed or absent).
         if _SANDBOXED_AT_IMPORT or not _REAL_CACHE.exists():
             return
         self.assertIsNotNone(_BASELINE)

@@ -58,8 +58,20 @@ def detect_format_from_path(path: str) -> str:
 def _resolve_text(path_or_text: str, fmt: str) -> tuple[str, str]:
     """Returns (text, resolved_fmt). If path_or_text is a real file
     path, reads it and (when fmt='auto') sniffs format from extension.
-    Otherwise treats input as raw text."""
+    Otherwise treats input as raw text.
+
+    docx is path-only — refuses raw text fallback. If file missing
+    OR pandoc missing, raises RuntimeError with actionable message.
+    """
     p = Path(path_or_text)
+    # v0.130: docx requires both file + pandoc. Never treat as raw text.
+    if fmt == "docx":
+        if not p.exists() or not p.is_file():
+            raise RuntimeError(
+                f"docx fmt requires existing file path; "
+                f"got {path_or_text!r} (not a file)"
+            )
+        return _docx_to_markdown(p), "markdown"
     is_path = (
         len(path_or_text) < 4096
         and "\n" not in path_or_text

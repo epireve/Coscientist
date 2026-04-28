@@ -49,14 +49,13 @@ tests/_tmp_input.json
 tests/_tmp_phase_*.json
 tests/_tmp_dogfood_input.json
 
-.mcp.json
+# Root .mcp.json holds API keys — kept local; .mcp.json.example is tracked.
+# Plugin .mcp.json files are checked in (no secrets — placeholder paths).
+/.mcp.json
 
 # Local cache + locks (per-machine state)
 .arxiv2md_cache/
 .claude/scheduled_tasks.lock
-
-# .mcp.json holds API keys — keep local only; .mcp.json.example is the tracked template
-.mcp.json
 
 # Persistent Chrome profile for institutional-access (cookies, history)
 .claude/skills/institutional-access/state/chrome_profile/
