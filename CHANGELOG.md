@@ -11,6 +11,29 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.118 — session digest v0.97-v0.117 (2026-04-28)
+
+`docs/SESSION-DIGEST-v0.97-v0.117.md` — AFK auto-pilot session
+debrief for the user. 21 versions shipped this session.
+
+Documents:
+- What state existed at session start (v0.93 instrumentation
+  hookup landed; gaps remained)
+- Per-version table grouped by sub-range (smoke-test infra /
+  schemas + rubrics / health / polish + bugs / docs + interop)
+- Operator surface — 8 CLI invocations covering inspect / clean /
+  alert paths
+- What was deliberately NOT done (sub-agent spans, persona spec
+  static check, OTLP collector push) with reasoning
+- Test count history (1744 → 1888, +144)
+- 4 candidate next-session moves (live smoke test, OTLP collector
+  push, per-project calibration, sub-agent spans)
+
+4 regression tests pin: digest exists, all 21 versions listed,
+operator surface coverage, next-steps section.
+
+1892 total passing. Auto-pilot session formally closed.
+
 ## v0.117 — OTLP hex ID compliance (2026-04-28)
 
 v0.116 emitted coscientist's prefixed string IDs (`trace-abc123`,
