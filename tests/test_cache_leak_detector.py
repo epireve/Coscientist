@@ -102,9 +102,11 @@ class CacheLeakDetectorTests(TestCase):
             snap = _snapshot(root)
             self.assertIsNotNone(snap)
             self.assertIn("marker.txt", snap)
-        # Real-cache invariant — only check when cache present
-        # in this session (skip if sandboxed or absent).
-        if _SANDBOXED_AT_IMPORT or not _REAL_CACHE.exists():
+        # Real-cache invariant — only check when _BASELINE was
+        # captured at import time. Cache dir can appear *after*
+        # import (lib init, other tests, etc.); _BASELINE is an
+        # import-time snapshot so don't key off current exists().
+        if _SANDBOXED_AT_IMPORT or _BASELINE is None:
             return
         self.assertIsNotNone(_BASELINE)
 
