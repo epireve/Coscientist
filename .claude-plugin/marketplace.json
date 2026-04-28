@@ -12,6 +12,14 @@
       "version": "0.50.2",
       "category": "research",
       "tags": ["research", "academic", "literature-review", "consensus", "semantic-scholar"]
+    },
+    {
+      "name": "coscientist-retraction-mcp",
+      "source": "./plugin/coscientist-retraction-mcp",
+      "description": "Stdio MCP server for retraction status + PubPeer comments. Wraps Crossref update-to / updated-by fields and PubPeer's public publication API. Pure-stdlib networking; no API keys required.",
+      "version": "0.1.0",
+      "category": "mcp",
+      "tags": ["retraction", "retraction-watch", "pubpeer", "crossref", "mcp", "research-integrity"]
     }
   ]
 }

@@ -1,0 +1,19 @@
+{
+  "name": "coscientist-retraction-mcp",
+  "version": "0.1.0",
+  "description": "Stdio MCP server for retraction status + PubPeer comments. Wraps Crossref's update-to / updated-by fields and PubPeer's public publication API. Pure-stdlib networking; no API keys required.",
+  "author": "epireve",
+  "homepage": "https://github.com/epireve/coscientist",
+  "license": "MIT",
+  "keywords": [
+    "retraction",
+    "retraction-watch",
+    "pubpeer",
+    "crossref",
+    "mcp",
+    "research-integrity"
+  ],
+  "requires": {
+    "claude_code": ">=2.0.0"
+  }
+}

@@ -789,9 +789,61 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.71
+## Shipped: v0.51 → v0.72
 
 All items in this section are landed. See per-version notes.
+
+### v0.72 — retraction-mcp + marketplace plugin ✅ (2026-04-28)
+
+First custom MCP server. Wraps Crossref's `update-to` /
+`updated-by` retraction notices and PubPeer's public publication
+API. Pure-stdlib networking — no extra deps beyond the `mcp`
+package itself. Also published as a Claude Code plugin via
+`.claude-plugin/marketplace.json`.
+
+**Source layout:**
+- `mcp/retraction-mcp/server.py` — FastMCP stdio server.
+  3 tools: `lookup_doi`, `batch_lookup`, `pubpeer_comments`.
+- `mcp/retraction-mcp/README.md` — usage + tool reference.
+- `tests/test_retraction_mcp.py` — 20 unit tests covering DOI
+  normalization, Crossref message parsing (retraction vs correction
+  vs EoC), HTTP error paths, batch ordering, PubPeer field-name
+  variants. All offline (mocked HTTP).
+
+**Plugin layout:**
+- `plugin/coscientist-retraction-mcp/.claude-plugin/plugin.json`
+  — versioned 0.1.0, MIT, requires Claude Code >= 2.0.0.
+- `plugin/coscientist-retraction-mcp/server/server.py` — bundled
+  copy of the source server. A test asserts byte-equality so the
+  plugin can never ship stale code.
+- `plugin/coscientist-retraction-mcp/.mcp.json` — declares the
+  stdio server via `${CLAUDE_PLUGIN_ROOT}` so the plugin works
+  after `/plugin install` regardless of clone path.
+- `.claude-plugin/marketplace.json` — entry added alongside
+  `coscientist-deep-research`.
+
+**Marketplace + parity tests** (new, 12 tests, 1489 → 1501):
+- marketplace.json parses + has owner + plugins fields.
+- Every plugin entry has required fields (name/source/description/version).
+- Every plugin source path exists; every plugin has a plugin.json.
+- name + version match between marketplace.json and plugin.json.
+- retraction-mcp plugin: server.py declares all 3 tools, .mcp.json
+  declares stdio + uses `CLAUDE_PLUGIN_ROOT`, README present.
+- Bundled server.py byte-matches `mcp/retraction-mcp/server.py`.
+
+**Install path:**
+
+```bash
+/plugin marketplace add epireve/coscientist
+/plugin install coscientist-retraction-mcp@coscientist
+```
+
+The MCP server then auto-registers and exposes the three tools.
+
+**Remaining custom-MCP work (deferred):**
+- v0.73 — manuscript-mcp (.docx / .tex / .md → AST).
+- v0.74 — graph-query-mcp (SQLite-adjacency primitives; Kuzu still
+  parked).
 
 ### v0.71 — connect_wal retrofit on project DBs ✅ (2026-04-27)
 
