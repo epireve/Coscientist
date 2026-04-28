@@ -164,6 +164,22 @@ When you (the calling Claude agent) run this skill:
 
    The span lands as `kind=sub-agent` in the trace. Duration + status visible in `lib.health` and `lib.trace_render`. Multiple personas in flight concurrently are independent (sidecar state file keyed by persona).
 4. **After each agent completes**, call `db.py record-phase` with the agent's structured output.
+4a. **After Architect completes** (and again after Visionary completes), run the **tournament ranker** before the next phase. Architect + Visionary register hypotheses in the `hypotheses` table; without ranking, downstream personas (Inquisitor, Steward) see them unsorted with default Elo 1200. v0.123 wires this:
+
+   ```bash
+   # Generate pairwise matchups (top-K-vs-rest cheapest)
+   uv run python .claude/skills/tournament/scripts/pairwise.py \
+     --run-id <rid> --strategy top-k-vs-rest --top-k 3 \
+     > /tmp/pairs.json
+
+   # If pairs is non-empty, dispatch the ranker sub-agent once per
+   # pair (or batch them). Ranker calls record_match.py per pair to
+   # update Elo. After the loop, leaderboard is canonical.
+   uv run python .claude/skills/tournament/scripts/leaderboard.py \
+     --run-id <rid> --top 10
+   ```
+
+   Skip this step when fewer than 2 hypotheses exist (no point ranking 1).
 5. **At break points**, stop the pipeline. Use `AskUserQuestion` to prompt the user. Record their input via `db.py record-break`. Do not proceed until resolved.
 6. **If any agent errors or returns low-confidence output**, record the error and prompt the user — do not silently skip a phase.
 7. **On completion**, the final Scribe phase produces the artifacts; the orchestrator runs `/research-eval` automatically before marking the run complete.

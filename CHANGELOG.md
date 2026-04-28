@@ -11,6 +11,41 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.123 — wire tournament into deep-research live path (2026-04-28)
+
+**Gap found**: Architect + Visionary register hypotheses in
+the `hypotheses` table (default Elo 1200) but `/deep-research`
+SKILL.md never invoked `ranker`. Tournament infra existed since
+v0.12 + tested v0.79; never fired in main pipeline.
+
+**Fix (no schema change, no new phase)**:
+
+- **SKILL.md step 4a** added: orchestrator runs
+  `tournament/scripts/pairwise.py` after Architect (and again
+  after Visionary), dispatches `ranker` sub-agent per pair to
+  call `record_match.py`, then logs leaderboard. Skipped when
+  <2 hypotheses.
+- **inquisitor.md** updated: reads leaderboard first; uses Elo
+  as calibration prior (more steelman effort on high-Elo,
+  tighter killer experiments on low-Elo). Doesn't override
+  order — Elo as signal, not gate.
+- **steward.md** updated: orders brief sections by Elo
+  descending; cites Elo + match count inline; drops hypotheses
+  with `n_matches=0` (uncalibrated).
+
+No new phase. Ranker stays transient between Architect →
+Inquisitor and between Visionary → Steward, like harvest
+helpers. Avoids breaking in-flight runs (PHASES_IN_ORDER
+unchanged).
+
+Closes one of the v0.118 digest's "deliberately NOT done"
+items. Tournament Elo now flows end-to-end through the
+pipeline.
+
+No code changes (existing `tournament/scripts/*` already
+expose pairwise + record_match + leaderboard CLIs). Pure
+orchestration wiring via persona docs.
+
 ## v0.122 — graph backend + manuscript format formal locks (2026-04-28)
 
 Two follow-ups to v0.121 open-questions audit:

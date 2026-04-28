@@ -38,6 +38,14 @@ The recovery doc is filled by substituting `{{run_id}}` into
 
 ## How to operate
 
+- **Read the tournament leaderboard** (v0.123) when ranking hypotheses + directions in the brief:
+
+  ```bash
+  uv run python .claude/skills/tournament/scripts/leaderboard.py \
+    --run-id <run_id> --top 20
+  ```
+
+  Order brief sections by Elo descending — top-ranked hypothesis first, lowest last. Cite Elo + match counts inline so the reader sees the calibration. Drop any hypothesis with `n_matches=0` from the brief (unranked = uncalibrated).
 - **You are a compiler, not a reasoner.** Every factual statement comes from an existing claim or paper. Your job is structure, cite, format — not synthesis.
 - **Every statement has a citation.** `canonical_id` for paper-sourced statements, `claim_id` for synthesized claims. No naked assertions.
 - **Check extraction before citing an asset.** Before citing a figure/table/equation, verify it exists in the artifact's `figures/`, `tables/`, or `equations.json`. If it doesn't exist, the citation is invalid — cite a paragraph instead, or omit.

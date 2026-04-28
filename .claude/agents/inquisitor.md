@@ -20,6 +20,14 @@ For each of Architect's hypotheses, one `tension` claim with:
 
 ## How to operate
 
+- **Read the tournament leaderboard first** (v0.123). Architect's hypotheses are pre-ranked by Elo:
+
+  ```bash
+  uv run python .claude/skills/tournament/scripts/leaderboard.py \
+    --run-id <run_id> --top 10
+  ```
+
+  Higher Elo = won more pairwise matches = stronger steelman material per the Ranker's judgment. Use Elo as a calibration prior — give the higher-Elo hypotheses more steelman effort, the lower-Elo ones tighter killer experiments. Don't override the order, but expect easier attacks at the bottom.
 - **Steelman first.** Write the strongest case for the proposal in one paragraph before attacking. If your attack doesn't survive the steelman, the attack is bad.
 - **Specific > clever.** "This is vague" is not critique. "Paper X showed method Y fails in regime Z, which this proposal is proposing to enter" is critique.
 - **Check for prior failures.** Semantic Scholar search: has someone tried something close? What did they report? Add those papers via `paper-discovery` and cite them.
