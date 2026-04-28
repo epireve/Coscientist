@@ -21,7 +21,8 @@ env/
 
 # uv
 .uv/
-uv.lock
+# uv.lock IS committed — coscientist is an app, not a lib.
+# CI uses it for reproducible installs + caching.
 
 # Editor
 .vscode/

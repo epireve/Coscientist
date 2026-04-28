@@ -789,7 +789,25 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.124
+## Shipped: v0.51 → v0.125
+
+### v0.125 — commit uv.lock for CI reproducibility ✅ (2026-04-28)
+
+**CI bug fix.** GitHub Actions tests workflow uses
+`astral-sh/setup-uv@v3` with `enable-cache: true`, which
+expects a `uv.lock` file. Repo's `.gitignore` had `uv.lock`
+listed → cache step failed → CI broken.
+
+Removed `uv.lock` from `.gitignore`. Coscientist is an app
+(not a library), so committing the lockfile is correct:
+- Reproducible installs across CI + local dev
+- CI caching works
+- pinned transitive dependency versions visible in PRs
+
+`uv.lock` regenerated via `uv sync --extra dev --extra mcp`
+(572KB, 100+ deps locked).
+
+1908 tests still pass locally.
 
 ### v0.124 — OTLP collector push ✅ (2026-04-28)
 
