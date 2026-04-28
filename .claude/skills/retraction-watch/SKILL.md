@@ -13,6 +13,7 @@ Scans every project DB for papers in `retraction_flags` or cited in `manuscript_
 | Script | CLI | Purpose |
 |---|---|---|
 | `scan.py` | `--project-id P [--canonical-id C] [--dry-run]` | Check retraction status for all cited papers in a project; updates `retraction_flags` |
+| `scan.py --mcp-lookup` | `--project-id P [--auto-persist] [--output FILE]` | v0.78: drive `retraction-mcp` directly + persist (one-shot pipeline) |
 | `alert.py` | `--project-id P [--output PATH]` | Write `retraction_alerts.json` + research-journal entry for papers with `retracted=1` |
 | `status.py` | `--project-id P [--format json\|table]` | Show current retraction flag status across all papers in the project |
 
@@ -29,6 +30,20 @@ alert.py --project-id <pid>
   └── writes retraction_alerts.json to project dir
   └── appends research-journal entry with paper list
 ```
+
+### v0.78 — one-shot via retraction-mcp
+
+```
+scan.py --mcp-lookup --project-id <pid> --auto-persist
+  └── builds the to-check list (same as cmd_list)
+  └── reads each paper's manifest.json for the DOI
+  └── calls retraction-mcp's lookup_doi (Python import; no JSON-RPC)
+  └── shapes results for cmd_persist
+  └── writes retraction_flags in one round-trip
+```
+
+Skips papers without a known DOI (reported in output as `skipped_no_doi`).
+Errors per-paper are isolated; one failure doesn't block the rest.
 
 ## Guardrails
 

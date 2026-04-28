@@ -789,9 +789,49 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.77
+## Shipped: v0.51 → v0.78
 
 All items in this section are landed. See per-version notes.
+
+### v0.78 — feature loop closure: retraction wiring + version sync + mcp dep ✅ (2026-04-28)
+
+Three small, low-risk closures bundled.
+
+**v0.78a — retraction-watch ↔ retraction-mcp wiring**
+
+Closes the loop opened by v0.72. `retraction-watch/scan.py` gained
+a `--mcp-lookup` subcommand that drives the `retraction-mcp`
+`lookup_doi` function directly (Python import, not JSON-RPC), then
+shapes the result for `cmd_persist`. Pair with `--auto-persist`
+to write to `retraction_flags` in one shot.
+
+- New `_doi_for_canonical(cid)` reads `~/.cache/coscientist/papers/<cid>/manifest.json`
+  for the DOI.
+- Papers without a known DOI are reported in `skipped_no_doi`,
+  not silently dropped.
+- Per-paper errors isolated.
+- 5 new tests (`tests/test_v0_78_retraction_wiring.py`): unit tests
+  for `_doi_for_canonical` (3 paths) + CLI smoke tests (skip-no-doi,
+  empty project).
+- SKILL.md updated with the new subcommand row + workflow block.
+
+**v0.78b — deep-research plugin version sync**
+
+`coscientist-deep-research` plugin was at 0.50.2 while the parent
+project shipped past v0.77. Bumped both `plugin/coscientist-deep-research/.claude-plugin/plugin.json`
+and the matching marketplace entry to **0.78.0**. Test
+`test_plugin_json_version_matches` already enforces parity, so
+either both move or neither.
+
+**v0.78c — pin `mcp` dep**
+
+Added `mcp>=1.0` to the `mcp` optional-dep group in
+`pyproject.toml`. Source-tree devs can now run `uv sync --extra mcp`
+to install the dep up front rather than relying on
+`uv run --with mcp ...` per call. Plugin users still get it
+transitively via `.mcp.json` invocations.
+
+Suite: 1578 → 1583 passing (+5).
 
 ### v0.77 — EXTERNAL_MCPS.md + docs-presence tests ✅ (2026-04-28)
 

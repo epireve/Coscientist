@@ -29,6 +29,14 @@ dev = [
     "ruff>=0.6",
     "pytest>=8.0",
 ]
+# v0.78c — `mcp` package required to run the custom MCP servers
+# under `mcp/` (retraction-mcp, manuscript-mcp, graph-query-mcp).
+# Source-tree devs: `uv sync --extra mcp`. Plugin users get this
+# transitively via `uv run --with mcp ...` declared in each
+# plugin's .mcp.json.
+mcp = [
+    "mcp>=1.0",
+]
 
 [build-system]
 requires = ["hatchling"]

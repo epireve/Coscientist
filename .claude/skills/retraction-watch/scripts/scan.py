@@ -177,6 +177,139 @@ def cmd_persist(args: argparse.Namespace) -> None:
     }, indent=2))
 
 
+def _doi_for_canonical(cid: str) -> str | None:
+    """Look up a paper's DOI via its on-disk manifest, if present."""
+    manifest = cache_root() / "papers" / cid / "manifest.json"
+    if not manifest.exists():
+        return None
+    try:
+        data = json.loads(manifest.read_text())
+    except json.JSONDecodeError:
+        return None
+    return data.get("doi")
+
+
+def cmd_mcp_lookup(args: argparse.Namespace) -> None:
+    """v0.78 — drive retraction lookups via the retraction-mcp Python
+    surface, then persist results.
+
+    Pipeline:
+      1. Build the to-check list (same as cmd_list).
+      2. For each canonical_id, read manifest.json for the DOI.
+      3. Call retraction-mcp's `lookup_doi` directly (it's an
+         ordinary Python function decorated with @mcp.tool()).
+      4. Write a result file in the shape `cmd_persist` expects, then
+         optionally call cmd_persist if --auto-persist is set.
+
+    Skips papers without a known DOI — reports them in the output.
+    """
+    # Lazy import: module is expensive to load (sets up FastMCP), and
+    # we only need it on this code path.
+    sys.path.insert(0, str(_REPO_ROOT / "mcp" / "retraction-mcp"))
+    # The FastMCP import inside server.py raises SystemExit if the
+    # `mcp` package is missing; handle gracefully.
+    import importlib.util
+
+    server_path = _REPO_ROOT / "mcp" / "retraction-mcp" / "server.py"
+    spec = importlib.util.spec_from_file_location(
+        "retraction_mcp_server_cli", server_path,
+    )
+    mod = importlib.util.module_from_spec(spec)
+    try:
+        # If `mcp` package isn't present, install a stub so the server
+        # module can import. We're only calling its plain functions
+        # (lookup_doi, batch_lookup, pubpeer_comments).
+        if "mcp" not in sys.modules:
+            import types
+            mcp_pkg = types.ModuleType("mcp")
+            mcp_server = types.ModuleType("mcp.server")
+            mcp_fastmcp = types.ModuleType("mcp.server.fastmcp")
+
+            class _StubMCP:
+                def __init__(self, name): self.name = name
+                def tool(self):
+                    def deco(fn): return fn
+                    return deco
+                def run(self): pass
+
+            mcp_fastmcp.FastMCP = _StubMCP
+            sys.modules["mcp"] = mcp_pkg
+            sys.modules["mcp.server"] = mcp_server
+            sys.modules["mcp.server.fastmcp"] = mcp_fastmcp
+        spec.loader.exec_module(mod)
+    except Exception as e:
+        raise SystemExit(f"failed to load retraction-mcp server: {e}")
+
+    con = _open(args.project_id)
+    all_ids = _all_cited_papers(con)
+    if args.canonical_id:
+        all_ids = [c for c in all_ids if c == args.canonical_id]
+    flags = _existing_flags(con)
+    to_check = [
+        cid for cid in all_ids
+        if _needs_check(flags.get(cid), args.max_age_days)
+    ]
+    con.close()
+
+    results: list[dict] = []
+    skipped_no_doi: list[str] = []
+    errors: list[dict] = []
+
+    for cid in to_check:
+        doi = _doi_for_canonical(cid)
+        if not doi:
+            skipped_no_doi.append(cid)
+            continue
+        try:
+            r = mod.lookup_doi(doi)
+        except Exception as e:
+            errors.append({"canonical_id": cid, "error": str(e)})
+            continue
+        if not r.get("found"):
+            errors.append({"canonical_id": cid,
+                           "error": r.get("error", "not found")})
+            continue
+        results.append({
+            "canonical_id": cid,
+            "retracted": bool(r.get("is_retracted")),
+            "source": "retraction-mcp",
+            "detail": json.dumps({
+                "has_correction_or_eoc": r.get("has_correction_or_eoc"),
+                "notices": r.get("notices") or [],
+                "title": r.get("title"),
+            }),
+        })
+
+    output = {
+        "project_id": args.project_id,
+        "checked": len(results),
+        "skipped_no_doi": skipped_no_doi,
+        "errors": errors,
+        "results": results,
+    }
+
+    if args.output:
+        Path(args.output).write_text(json.dumps(output, indent=2))
+
+    if args.auto_persist and results:
+        # Reuse the persist code path by writing a temp file.
+        import tempfile
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False,
+        ) as f:
+            json.dump(results, f)
+            tmp_path = f.name
+        try:
+            persist_args = argparse.Namespace(
+                project_id=args.project_id, input=tmp_path,
+            )
+            cmd_persist(persist_args)
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
+        # cmd_persist already prints a JSON summary; we follow with our own.
+    print(json.dumps(output, indent=2))
+
+
 def main() -> None:
     p = argparse.ArgumentParser(
         description="Scan project papers for retraction status."
@@ -190,9 +323,21 @@ def main() -> None:
                    help="Print what would be checked; do not modify DB")
     p.add_argument("--input", default=None,
                    help="JSON results file to persist (from MCP lookup)")
+    p.add_argument("--mcp-lookup", action="store_true", default=False,
+                   help="v0.78: drive retraction-mcp directly + emit "
+                        "results JSON. Pair with --auto-persist to "
+                        "write straight back to retraction_flags.")
+    p.add_argument("--auto-persist", action="store_true", default=False,
+                   help="With --mcp-lookup, also persist results to "
+                        "retraction_flags in one shot.")
+    p.add_argument("--output", default=None,
+                   help="With --mcp-lookup, write the results JSON to "
+                        "this path (in addition to stdout).")
     args = p.parse_args()
 
-    if args.input:
+    if args.mcp_lookup:
+        cmd_mcp_lookup(args)
+    elif args.input:
         cmd_persist(args)
     else:
         cmd_list(args)
