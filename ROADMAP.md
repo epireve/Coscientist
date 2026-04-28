@@ -789,7 +789,33 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.103
+## Shipped: v0.51 → v0.104
+
+### v0.104 — rubrics for v0.103 personas ✅ (2026-04-28)
+
+Five new rubrics in `lib.agent_quality.RUBRICS`: cartographer,
+chronicler, inquisitor, visionary, steward. Total: 10 personas
+with auto-quality scoring.
+
+These score the record-phase output_json directly (dict-top with
+phase + items[]) — no separate `--quality-artifact` needed.
+
+Rubric criteria pulled from each persona's exit-test in
+`.claude/agents/<name>.md`:
+
+- **cartographer** (3 criteria): non-empty summary, ≥3 seminals,
+  every seminal has `why_seminal`.
+- **chronicler** (3): non-empty summary, ≥3 timeline events,
+  every entry has `event`.
+- **inquisitor** (4): ≥1 evaluation, every eval has steelman +
+  killer_experiment + survival score.
+- **visionary** (3): ≥2 directions, every direction has
+  first_step + why_underexplored.
+- **steward** (4): eval_passed=true, hedge_word_hits=0,
+  ≥5 claims_cited, ≥10 papers_cited.
+
+11 new tests covering registration + per-rubric scoring (high
+and low) + integration via record-phase. 1790 total passing.
 
 ### v0.103 — full persona schemas + record-phase split ✅ (2026-04-28)
 

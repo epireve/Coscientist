@@ -252,6 +252,187 @@ RUBRICS: dict[str, Rubric] = {
             ),
         ),
     ),
+    # v0.104 — rubrics for the v0.103-added personas. These score
+    # the record-phase output_json directly (dict-top with phase +
+    # items) so callers don't need to pass --quality-artifact.
+    "cartographer": Rubric(
+        agent_name="cartographer",
+        version="0.1",
+        description="Seminal-paper coverage",
+        loader=_load_json_path,
+        criteria=(
+            Criterion(
+                name="has_summary",
+                weight=1.0,
+                check=lambda d: 1.0 if isinstance(d, dict)
+                                  and (d.get("summary") or "").strip()
+                                  else 0.0,
+                description="non-empty summary",
+            ),
+            Criterion(
+                name="enough_seminals",
+                weight=2.0,
+                check=lambda d: count_at_least(
+                    (d or {}).get("seminals") or [], 3,
+                ),
+                description=">=3 seminal papers",
+            ),
+            Criterion(
+                name="seminals_have_why",
+                weight=1.5,
+                check=lambda d: fraction_with_field(
+                    (d or {}).get("seminals") or [], "why_seminal",
+                ),
+                description="every seminal has why_seminal",
+            ),
+        ),
+    ),
+    "chronicler": Rubric(
+        agent_name="chronicler",
+        version="0.1",
+        description="Timeline coverage + dead-end tracking",
+        loader=_load_json_path,
+        criteria=(
+            Criterion(
+                name="has_summary",
+                weight=1.0,
+                check=lambda d: 1.0 if isinstance(d, dict)
+                                  and (d.get("summary") or "").strip()
+                                  else 0.0,
+                description="non-empty summary",
+            ),
+            Criterion(
+                name="enough_timeline",
+                weight=2.0,
+                check=lambda d: count_at_least(
+                    (d or {}).get("timeline") or [], 3,
+                ),
+                description=">=3 timeline events",
+            ),
+            Criterion(
+                name="timeline_event_present",
+                weight=1.0,
+                check=lambda d: fraction_with_field(
+                    (d or {}).get("timeline") or [], "event",
+                ),
+                description="every timeline entry has event",
+            ),
+        ),
+    ),
+    "inquisitor": Rubric(
+        agent_name="inquisitor",
+        version="0.1",
+        description="Per-hypothesis adversarial coverage",
+        loader=_load_json_path,
+        criteria=(
+            Criterion(
+                name="enough_evaluations",
+                weight=2.0,
+                check=lambda d: count_at_least(
+                    (d or {}).get("evaluations") or [], 1,
+                ),
+                description=">=1 evaluation per architect hypothesis",
+            ),
+            Criterion(
+                name="all_have_steelman",
+                weight=2.0,
+                check=lambda d: fraction_with_field(
+                    (d or {}).get("evaluations") or [], "steelman",
+                ),
+                description="every evaluation has steelman",
+            ),
+            Criterion(
+                name="all_have_killer",
+                weight=2.0,
+                check=lambda d: fraction_with_field(
+                    (d or {}).get("evaluations") or [],
+                    "killer_experiment",
+                ),
+                description="every evaluation has killer_experiment",
+            ),
+            Criterion(
+                name="all_have_survival",
+                weight=1.5,
+                check=lambda d: fraction_with_field(
+                    (d or {}).get("evaluations") or [], "survival",
+                ),
+                description="every evaluation has survival score",
+            ),
+        ),
+    ),
+    "visionary": Rubric(
+        agent_name="visionary",
+        version="0.1",
+        description="New-direction depth",
+        loader=_load_json_path,
+        criteria=(
+            Criterion(
+                name="enough_directions",
+                weight=2.0,
+                check=lambda d: count_at_least(
+                    (d or {}).get("directions") or [], 2,
+                ),
+                description=">=2 directions",
+            ),
+            Criterion(
+                name="all_have_first_step",
+                weight=1.5,
+                check=lambda d: fraction_with_field(
+                    (d or {}).get("directions") or [], "first_step",
+                ),
+                description="every direction has first_step",
+            ),
+            Criterion(
+                name="all_have_why_underexplored",
+                weight=1.5,
+                check=lambda d: fraction_with_field(
+                    (d or {}).get("directions") or [],
+                    "why_underexplored",
+                ),
+                description="every direction has why_underexplored",
+            ),
+        ),
+    ),
+    "steward": Rubric(
+        agent_name="steward",
+        version="0.1",
+        description="Final-artifact integrity check",
+        loader=_load_json_path,
+        criteria=(
+            Criterion(
+                name="eval_passed",
+                weight=2.0,
+                check=lambda d: 1.0 if isinstance(d, dict)
+                                  and d.get("eval_passed") is True
+                                  else 0.0,
+                description="research-eval passed",
+            ),
+            Criterion(
+                name="zero_hedge_words",
+                weight=1.5,
+                check=lambda d: 1.0 if isinstance(d, dict)
+                                  and d.get("hedge_word_hits", -1) == 0
+                                  else 0.0,
+                description="hedge_word_hits == 0",
+            ),
+            Criterion(
+                name="claims_cited",
+                weight=1.0,
+                check=lambda d: 1.0 if isinstance(d, dict)
+                                  and (d.get("claims_cited") or 0) >= 5
+                                  else 0.0,
+                description=">=5 claims cited",
+            ),
+            Criterion(
+                name="papers_cited",
+                weight=1.0,
+                check=lambda d: 1.0 if isinstance(d, dict)
+                                  and (d.get("papers_cited") or 0) >= 10
+                                  else 0.0,
+                description=">=10 papers cited",
+            ),
+        ),
+    ),
 }
 
 
