@@ -789,7 +789,23 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.100
+## Shipped: v0.51 → v0.101
+
+### v0.101 — smoke-test runbook ✅ (2026-04-28)
+
+`docs/SMOKE-TEST-RUNBOOK.md` consolidates the v0.93–v0.100
+instrumentation stack into one walkthrough. 8-step procedure:
+start run → watch traces → render timeline → find stale spans
+→ tool-call latency → quality scores → LLM-judge → resume.
+
+Includes "common failure patterns" troubleshooting table and
+"what's NOT instrumented yet" honest-about-gaps section.
+
+4 regression tests pin runbook existence + required sections +
+key module references + CLI flag mentions. 1759 total passing.
+
+This is the operator-facing companion to v0.93+ instrumentation.
+First live `/deep-research` smoke run will follow this runbook.
 
 ### v0.100 — tool-call latency aggregator ✅ (2026-04-28)
 

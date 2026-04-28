@@ -11,6 +11,22 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.101 — smoke-test runbook (2026-04-28)
+
+`docs/SMOKE-TEST-RUNBOOK.md` consolidates the v0.93–v0.100
+instrumentation stack into one walkthrough. 8-step procedure:
+start run → watch traces → render timeline → find stale spans
+→ tool-call latency → quality scores → LLM-judge → resume.
+
+Includes "common failure patterns" troubleshooting table and
+"what's NOT instrumented yet" honest-about-gaps section.
+
+4 regression tests pin runbook existence + required sections +
+key module references + CLI flag mentions. 1759 total passing.
+
+This is the operator-facing companion to v0.93+ instrumentation.
+First live `/deep-research` smoke run will follow this runbook.
+
 ## v0.100 — tool-call latency aggregator (2026-04-28)
 
 First three-digit minor in the 0.x line. v0.93c started recording
