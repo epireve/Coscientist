@@ -789,7 +789,24 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.95
+## Shipped: v0.51 → v0.96
+
+### v0.96 — cross-run agent quality leaderboard ✅ (2026-04-28)
+
+`lib.agent_quality.leaderboard(roots=None)` walks every
+`run-*.db` under `~/.cache/coscientist/runs/` and aggregates
+`agent_quality` rows. Same shape as `summary()`, plus
+per-agent `n_runs` (distinct run_ids) and global `n_dbs`.
+
+CLI: `uv run python -m lib.agent_quality leaderboard
+[--root <path>]`. Pre-v12 DBs (no `agent_quality` table)
+gracefully skipped.
+
+Pairs with v0.94 auto-quality hook: scores written
+automatically on phase complete; leaderboard surfaces
+"scout consistently 0.4 — investigate" patterns across runs.
+
+4 new tests. 1739 total passing.
 
 ### v0.95 — trace-status quick view ✅ (2026-04-28)
 

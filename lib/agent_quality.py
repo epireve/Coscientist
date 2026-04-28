@@ -500,6 +500,60 @@ def summary(db_path: Path, *, run_id: str | None = None) -> dict:
         con.close()
 
 
+def leaderboard(roots: list[Path] | None = None) -> dict:
+    """v0.96 — per-agent quality summary across every run DB.
+
+    Walks `~/.cache/coscientist/runs/run-*.db` (or supplied roots[0])
+    and aggregates `agent_quality` rows. Same shape as `summary`,
+    plus `n_runs` (distinct run_ids per agent) and `n_dbs` scanned.
+    """
+    from lib.cache import runs_dir
+    root = roots[0] if roots else runs_dir()
+    by_agent: dict[str, dict] = {}
+    n_dbs = 0
+    if not root.exists():
+        return {"n_rows": 0, "n_dbs": 0, "by_agent": {}}
+    for db in sorted(root.glob("run-*.db")):
+        try:
+            con = sqlite3.connect(db)
+            con.row_factory = sqlite3.Row
+            try:
+                rows = con.execute(
+                    "SELECT agent_name, score_total, at, run_id "
+                    "FROM agent_quality"
+                ).fetchall()
+            except sqlite3.OperationalError:
+                con.close()
+                continue
+            con.close()
+            n_dbs += 1
+            for r in rows:
+                d = by_agent.setdefault(
+                    r["agent_name"],
+                    {"n": 0, "scores": [], "run_ids": set(),
+                     "latest_at": None, "latest_score": None},
+                )
+                d["n"] += 1
+                d["scores"].append(float(r["score_total"]))
+                if r["run_id"]:
+                    d["run_ids"].add(r["run_id"])
+                if d["latest_at"] is None or r["at"] > d["latest_at"]:
+                    d["latest_at"] = r["at"]
+                    d["latest_score"] = float(r["score_total"])
+        except Exception:
+            continue
+    n_rows = 0
+    for agent_name, d in by_agent.items():
+        scores = d.pop("scores")
+        run_ids = d.pop("run_ids")
+        d["n_runs"] = len(run_ids)
+        d["mean"] = sum(scores) / len(scores) if scores else 0.0
+        d["min"] = min(scores) if scores else 0.0
+        d["max"] = max(scores) if scores else 0.0
+        n_rows += d["n"]
+    return {"n_rows": n_rows, "n_dbs": n_dbs, "by_agent": by_agent}
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI: `summary` reports per-agent quality."""
     import argparse
@@ -511,8 +565,18 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("summary", help="Per-agent quality summary")
     s.add_argument("--db", required=True)
     s.add_argument("--run-id", default=None)
+    lb = sub.add_parser(
+        "leaderboard",
+        help="Cross-run leaderboard (scans all run DBs)",
+    )
+    lb.add_argument("--root", default=None,
+                     help="Override runs root (default ~/.cache/coscientist/runs)")
     args = p.parse_args(argv)
-    out = summary(Path(args.db), run_id=args.run_id)
+    if args.cmd == "summary":
+        out = summary(Path(args.db), run_id=args.run_id)
+    else:
+        roots = [Path(args.root)] if args.root else None
+        out = leaderboard(roots=roots)
     print(json.dumps(out, indent=2))
     return 0
 

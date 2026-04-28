@@ -11,6 +11,23 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.96 — cross-run agent quality leaderboard (2026-04-28)
+
+`lib.agent_quality.leaderboard(roots=None)` walks every
+`run-*.db` under `~/.cache/coscientist/runs/` and aggregates
+`agent_quality` rows. Same shape as `summary()`, plus
+per-agent `n_runs` (distinct run_ids) and global `n_dbs`.
+
+CLI: `uv run python -m lib.agent_quality leaderboard
+[--root <path>]`. Pre-v12 DBs (no `agent_quality` table)
+gracefully skipped.
+
+Pairs with v0.94 auto-quality hook: scores written
+automatically on phase complete; leaderboard surfaces
+"scout consistently 0.4 — investigate" patterns across runs.
+
+4 new tests. 1739 total passing.
+
 ## v0.95 — trace-status quick view (2026-04-28)
 
 `lib/trace_status.py` — compact "is run X alive, what phase, any
