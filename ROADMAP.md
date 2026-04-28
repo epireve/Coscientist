@@ -789,9 +789,36 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.74
+## Shipped: v0.51 → v0.75
 
 All items in this section are landed. See per-version notes.
+
+### v0.75 — MCP_SERVERS.md auto-index + README install docs ✅ (2026-04-28)
+
+Mirrors v0.67 (SKILLS.md) for custom MCPs. Now there are 3 MCP
+plugins, drift between code + docs becomes a real risk.
+
+- `lib/mcp_index.py` — pure-stdlib generator. Walks
+  `plugin/coscientist-*-mcp/.claude-plugin/plugin.json` + companion
+  `.mcp.json` + `server/server.py`. Extracts plugin manifest fields
+  (name, version, description, keywords) + the MCP server name +
+  every `@mcp.tool()`-decorated function. Emits sorted markdown
+  table + per-server detail blocks.
+- `MCP_SERVERS.md` — generated index, 3 entries.
+- `tests/test_mcp_index.py` — 11 tests:
+  * discovery floor (≥3 MCPs)
+  * every entry has name, version, description, server_name, tools
+  * no duplicate names
+  * known plugins all surface (retraction, manuscript, graph-query)
+  * tool counts match per-server expectation (3, 4, 6)
+  * `MCP_SERVERS.md` exists
+  * byte-matches generator output (drift detector)
+- `README.md` — new "Install" section. Documents the four
+  `/plugin install` commands (deep-research + 3 MCPs) with one-line
+  descriptions per plugin. Links to MCP_SERVERS.md for full tool
+  reference.
+
+Suite: 1558 → 1569 passing (+11).
 
 ### v0.74 — graph-query-mcp + marketplace plugin ✅ (2026-04-28)
 

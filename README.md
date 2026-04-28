@@ -36,6 +36,32 @@ uv run python .claude/skills/deep-research/scripts/db.py init \
   --question "..." --seed-from-wide <wide-id> --seed-mode abstract
 ```
 
+## Install
+
+Coscientist ships as a Claude Code plugin marketplace. Add the
+marketplace once, then install whichever components you want:
+
+```bash
+/plugin marketplace add epireve/coscientist
+
+# Full deep-research pipeline (10-agent Expedition + skills + agents)
+/plugin install coscientist-deep-research@coscientist
+
+# Custom MCP servers (each installable independently)
+/plugin install coscientist-retraction-mcp@coscientist
+/plugin install coscientist-manuscript-mcp@coscientist
+/plugin install coscientist-graph-query-mcp@coscientist
+```
+
+| Plugin | What it adds |
+|---|---|
+| `coscientist-deep-research` | 11 skills + 10 agents + `/deep-research` slash command |
+| `coscientist-retraction-mcp` | MCP server for retraction status (Crossref + PubPeer). 3 tools. |
+| `coscientist-manuscript-mcp` | MCP server: .docx / .tex / .md → AST. 4 tools. |
+| `coscientist-graph-query-mcp` | Read-only MCP over the per-project citation graph. 6 tools. |
+
+Full server inventory + tool reference: [MCP_SERVERS.md](./MCP_SERVERS.md).
+
 ## Architecture
 
 Each skill is atomic and does one job. Skills compose through a shared **paper artifact** on disk — no skill calls another skill directly, so any piece can be swapped out.
