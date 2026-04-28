@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS schema_versions (
 # v9..v10 add tables via `_ensure_vN_tables`). Kept as a single list
 # so the monotonicity test can assert no version is silently skipped
 # between the SQL-based MIGRATIONS list and the in-code migrations.
-ALL_VERSIONS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
+ALL_VERSIONS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
 
 
 def _table_exists(con: sqlite3.Connection, name: str) -> bool:
@@ -285,6 +285,28 @@ def ensure_current(db_path: Path,
                     (14, "v0.153_hypotheses_idea_tree", now),
                 )
             newly_applied.append(14)
+
+        # v0.154 — thinking_log_json column on the four verdict-producing
+        # tables (hypotheses, attack_findings, novelty_assessments,
+        # publishability_verdicts) + partial index on hypotheses. Gates
+        # on any of those tables existing so project DBs and unrelated
+        # test DBs aren't touched.
+        v15_gate = (
+            _table_exists(con, "hypotheses")
+            or _table_exists(con, "attack_findings")
+            or _table_exists(con, "novelty_assessments")
+            or _table_exists(con, "publishability_verdicts")
+        )
+        if 15 not in applied and v15_gate:
+            _ensure_v15_columns(con)
+            _ensure_v15_indexes(con)
+            with con:
+                con.execute(
+                    "INSERT INTO schema_versions (version, name, applied_at) "
+                    "VALUES (?, ?, ?)",
+                    (15, "v0.154_thinking_log_json", now),
+                )
+            newly_applied.append(15)
     finally:
         con.close()
     return newly_applied
@@ -395,6 +417,42 @@ def _ensure_v14_indexes(con: sqlite3.Connection) -> None:
     """
     with con:
         con.executescript(_read_migration_sql(14))
+
+
+_V15_TABLES: tuple[str, ...] = (
+    "hypotheses",
+    "attack_findings",
+    "novelty_assessments",
+    "publishability_verdicts",
+)
+
+
+def _ensure_v15_columns(con: sqlite3.Connection) -> None:
+    """v0.154 — add `thinking_log_json TEXT` to the four verdict-
+    producing tables. Idempotent: each ALTER guarded by a
+    PRAGMA table_info check, and a missing target table is a no-op.
+    """
+    for tbl in _V15_TABLES:
+        if not _table_exists(con, tbl):
+            continue
+        cols = {row[1] for row in con.execute(f"PRAGMA table_info({tbl})")}
+        if "thinking_log_json" not in cols:
+            with con:
+                con.execute(
+                    f"ALTER TABLE {tbl} ADD COLUMN thinking_log_json TEXT"
+                )
+
+
+def _ensure_v15_indexes(con: sqlite3.Connection) -> None:
+    """v0.154 — partial index on hypotheses(hyp_id) WHERE
+    thinking_log_json IS NOT NULL. Skips silently when the
+    `hypotheses` table is absent so the index DDL doesn't error
+    on partial DBs.
+    """
+    if not _table_exists(con, "hypotheses"):
+        return
+    with con:
+        con.executescript(_read_migration_sql(15))
 
 
 def _ensure_v8_columns(con: sqlite3.Connection) -> None:

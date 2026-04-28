@@ -363,7 +363,8 @@ def _iso_to_nano(iso: str | None) -> int:
 
 
 def render(payload: dict, fmt: str,
-           db_path: Path | None = None) -> str:
+           db_path: Path | None = None,
+           with_thinking: bool = False) -> str:
     if fmt == "mermaid":
         return render_mermaid(payload)
     elif fmt == "md":
@@ -372,6 +373,16 @@ def render(payload: dict, fmt: str,
         if payload and db_path is not None:
             run_id = payload.get("trace", {}).get("run_id")
             out += render_agent_quality_section(db_path, run_id)
+            # v0.154 — opt-in deliberation traces. Default off so
+            # existing renders stay byte-identical.
+            if with_thinking:
+                try:
+                    from lib.thinking_trace import (
+                        render_thinking_section,
+                    )
+                    out += render_thinking_section(db_path, run_id)
+                except Exception:
+                    pass
         return out
     elif fmt == "json":
         return json.dumps(payload, indent=2, default=str) + "\n"
@@ -394,11 +405,19 @@ def main(argv: list[str] | None = None) -> int:
         "--format", choices=("mermaid", "md", "json", "otlp"),
         default="md",
     )
+    p.add_argument(
+        "--with-thinking", action="store_true",
+        help="(md only) append v0.154 thinking-trace section",
+    )
     args = p.parse_args(argv)
 
     from lib.trace import get_trace
     payload = get_trace(Path(args.db), args.trace_id)
-    sys.stdout.write(render(payload, args.format, db_path=Path(args.db)))
+    sys.stdout.write(render(
+        payload, args.format,
+        db_path=Path(args.db),
+        with_thinking=args.with_thinking,
+    ))
     return 0 if payload is not None else 1
 
 

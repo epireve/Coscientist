@@ -138,6 +138,7 @@ CREATE TABLE IF NOT EXISTS novelty_assessments (
     confidence          REAL NOT NULL,
     anchor_count        INTEGER NOT NULL,
     report_json         TEXT NOT NULL,        -- full per-contribution structure
+    thinking_log_json   TEXT,                 -- v0.154 — deliberation trace
     at                  TEXT NOT NULL
 );
 
@@ -150,6 +151,7 @@ CREATE TABLE IF NOT EXISTS publishability_verdicts (
     probability         REAL NOT NULL,
     kill_criterion      TEXT NOT NULL,
     report_json         TEXT NOT NULL,        -- full per-venue structure incl factors
+    thinking_log_json   TEXT,                 -- v0.154 — deliberation trace
     at                  TEXT NOT NULL,
     UNIQUE(manuscript_id, venue, at)
 );
@@ -162,6 +164,7 @@ CREATE TABLE IF NOT EXISTS attack_findings (
     severity            TEXT NOT NULL,        -- pass|minor|fatal
     evidence            TEXT,
     steelman            TEXT,                 -- required for fatal
+    thinking_log_json   TEXT,                 -- v0.154 — deliberation trace
     at                  TEXT NOT NULL
 );
 
@@ -187,6 +190,9 @@ CREATE TABLE IF NOT EXISTS hypotheses (
     tree_id             TEXT,
     depth               INTEGER NOT NULL DEFAULT 0,
     branch_index        INTEGER NOT NULL DEFAULT 0,
+    -- v0.154 — structured deliberation log. Optional; rows without
+    -- a recorded thinking trace remain NULL.
+    thinking_log_json   TEXT,
     created_at          TEXT NOT NULL
 );
 
@@ -208,6 +214,9 @@ CREATE INDEX IF NOT EXISTS idx_hyp_elo          ON hypotheses(elo DESC);
 -- v0.153 — composite index for fast subtree/BFS walks
 CREATE INDEX IF NOT EXISTS idx_hypotheses_tree_depth
     ON hypotheses(tree_id, depth);
+-- v0.154 — partial index for "rows with thinking trace" lookups
+CREATE INDEX IF NOT EXISTS idx_hypotheses_has_thinking
+    ON hypotheses(hyp_id) WHERE thinking_log_json IS NOT NULL;
 
 -- v0.38: tournament evolve-loop round ledger
 CREATE TABLE IF NOT EXISTS evolution_rounds (
