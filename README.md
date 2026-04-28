@@ -107,6 +107,23 @@ State flows: `discovered → triaged → acquired → extracted → read → cit
 
 **Backward compatibility**: in-flight runs from before v0.46.4 continue working — `db.py PHASE_ALIASES` silently translates old SEEKER phase names (social, grounder, historian, gaper, vision, theorist, rude, synthesizer, thinker, scribe) into new Expedition names.
 
+## Documentation
+
+| Doc | What |
+|---|---|
+| [`docs/architecture.md`](./docs/architecture.md) | System layout: artifact contract, SQLite scopes, migration framework, sub-agent phases |
+| [`docs/research-loop.md`](./docs/research-loop.md) | Narrative walkthrough of the 10-agent Expedition pipeline |
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md) | How to add a new skill / agent / MCP / migration |
+| [`SECURITY.md`](./SECURITY.md) | Vulnerability reporting + hardening posture |
+| [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) | Standard code of conduct |
+| [`SKILLS.md`](./SKILLS.md) | Auto-generated index of all 64 skills |
+| [`MCP_SERVERS.md`](./MCP_SERVERS.md) | Auto-generated index of custom MCPs |
+| [`EXTERNAL_MCPS.md`](./EXTERNAL_MCPS.md) | Third-party MCPs Coscientist consumes |
+| [`CHANGELOG.md`](./CHANGELOG.md) | Auto-generated from ROADMAP.md |
+| [`CLAUDE.md`](./CLAUDE.md) | Agent-facing project guide |
+| [`RESEARCHER.md`](./RESEARCHER.md) | Research principles for sub-agents |
+| [`ROADMAP.md`](./ROADMAP.md) | Full version log + future work |
+
 ## Skills
 
 For a complete auto-generated index of every skill with frontmatter

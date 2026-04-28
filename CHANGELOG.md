@@ -11,6 +11,33 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.86 — docs (2026-04-28)
+
+Four hand-curated docs added.
+
+- **`docs/architecture.md`** — system layout: two-tier mental
+  model (orchestration / artifacts), artifact contract + state
+  machines, SQLite scopes, migration framework, 8-phase sub-agent
+  organization, plugin distribution, test discipline.
+- **`docs/research-loop.md`** — narrative walkthrough of the
+  10-agent Expedition pipeline. Describes each persona's job,
+  break points, parallel dispatch, why this works, where it
+  strains.
+- **`CODE_OF_CONDUCT.md`** — Contributor Covenant 2.1 adapted.
+- **`SECURITY.md`** — vulnerability reporting channel, scope
+  (in/out), hardening posture (CHECKSUMS, sandbox, audit logs,
+  WAL, FK check), disclosure timeline.
+- **`README.md`** — new "Documentation" section linking all 12
+  top-level docs.
+
+10 new tests in `tests/test_v0_86_docs.py`:
+- 2 architecture (presence + core sections)
+- 3 research-loop (presence + pipeline phases + three modes)
+- 2 code-of-conduct (presence + email)
+- 3 security (presence + reporting channel + scope/hardening)
+
+Suite: 1653 → 1663 passing (+10).
+
 ## v0.85 — plugin uninstall cleanup + checksums + PyPI publish gate (2026-04-28)
 
 Plugin polish triple.
