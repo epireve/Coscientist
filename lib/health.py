@@ -23,7 +23,8 @@ from pathlib import Path
 from typing import Any
 
 
-# v0.113 — alert thresholds. Tunable via env or kwargs.
+# v0.113 — alert thresholds. Tunable via env, kwargs, or v0.114
+# config file at ~/.cache/coscientist/health_thresholds.json.
 DEFAULT_THRESHOLDS = {
     "max_stale_spans": 0,           # any stale = alert
     "max_failed_spans": 5,          # >5 failed = alert
@@ -33,17 +34,66 @@ DEFAULT_THRESHOLDS = {
 }
 
 
+def _config_path() -> Path:
+    """v0.114 — config file path."""
+    from lib.cache import cache_root
+    return cache_root() / "health_thresholds.json"
+
+
+def load_thresholds(
+    *,
+    overrides: dict[str, Any] | None = None,
+    config_path: Path | None = None,
+) -> dict[str, Any]:
+    """v0.114 — resolve thresholds with precedence:
+    DEFAULT_THRESHOLDS < config_file < overrides.
+
+    Bad config file (missing/invalid JSON/wrong types) silently
+    falls back to defaults — health is observability, never breaks.
+    Unknown keys in config are ignored.
+    """
+    out = dict(DEFAULT_THRESHOLDS)
+    cfg = config_path if config_path is not None else _config_path()
+    if cfg.exists():
+        try:
+            data = json.loads(cfg.read_text())
+            if isinstance(data, dict):
+                for k, v in data.items():
+                    if k not in DEFAULT_THRESHOLDS:
+                        continue
+                    expected_type = type(DEFAULT_THRESHOLDS[k])
+                    if isinstance(v, expected_type):
+                        out[k] = v
+                    elif (expected_type is float
+                            and isinstance(v, int)):
+                        out[k] = float(v)
+        except (json.JSONDecodeError, OSError):
+            pass
+    if overrides:
+        for k, v in overrides.items():
+            if k in DEFAULT_THRESHOLDS:
+                out[k] = v
+    return out
+
+
 def evaluate_alerts(
     report: dict[str, Any],
     *,
     thresholds: dict[str, Any] | None = None,
+    config_path: Path | None = None,
 ) -> list[dict[str, Any]]:
     """v0.113 — derive named alerts from a health report.
 
     Each alert: {severity: 'warn'|'crit', code, message, value,
     threshold}.
+
+    v0.114 — thresholds resolved via load_thresholds (defaults
+    + config file + overrides). `thresholds=` kwarg = highest
+    precedence.
     """
-    t = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
+    t = load_thresholds(
+        overrides=thresholds, config_path=config_path,
+    )
     alerts: list[dict[str, Any]] = []
 
     n_stale = len(report.get("stale", []))
@@ -322,7 +372,20 @@ def main(argv: list[str] | None = None) -> int:
         "--no-alerts", action="store_true",
         help="v0.113: suppress alert banner (raw report only).",
     )
+    p.add_argument(
+        "--show-thresholds", action="store_true",
+        help="v0.114: print resolved thresholds + config path "
+             "as JSON, then exit.",
+    )
     args = p.parse_args(argv)
+    if args.show_thresholds:
+        out = {
+            "config_path": str(_config_path()),
+            "config_exists": _config_path().exists(),
+            "thresholds": load_thresholds(),
+        }
+        sys.stdout.write(json.dumps(out, indent=2) + "\n")
+        return 0
     report = collect(max_age_minutes=args.max_age)
     alerts = (
         [] if args.no_alerts else evaluate_alerts(report)

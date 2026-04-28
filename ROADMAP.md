@@ -789,7 +789,31 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.113
+## Shipped: v0.51 → v0.114
+
+### v0.114 — health threshold config file ✅ (2026-04-28)
+
+Hardcoded `DEFAULT_THRESHOLDS` (v0.113) reasonable but research
+projects vary. Add JSON config at
+`~/.cache/coscientist/health_thresholds.json` for user override.
+
+`lib.health.load_thresholds(*, overrides=None, config_path=None)`
+resolves with precedence:
+DEFAULT_THRESHOLDS < config_file < overrides.
+
+Bad config (missing/invalid JSON/wrong types/unknown keys) silent
+fallback to defaults — health is observability, never breaks.
+Int auto-coerced to float where field expects float.
+
+`evaluate_alerts(report, *, thresholds=None, config_path=None)`
+plumbs through to `load_thresholds`.
+
+CLI: `--show-thresholds` prints resolved values + config path
+as JSON, exits 0. Useful for debugging "why didn't my alert fire".
+
+9 new tests (defaults / config / overrides / unknown / invalid
+JSON / wrong-type rejection / int→float coercion / integration
++ CLI). 1860 total passing.
 
 ### v0.113 — alert thresholds in health dump ✅ (2026-04-28)
 
