@@ -11,6 +11,30 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.129 — field-trends time-series (2026-04-28)
+
+`field-trends-analyzer series` subcommand — per-concept paper-
+about-concept counts split into N equal time buckets across a
+lookback window. Complements existing v0.32 momentum (just
+recent vs past split) with finer granularity.
+
+CLI: `uv run python .claude/skills/field-trends-analyzer/
+scripts/trends.py series --project-id <pid> [--window-days 365]
+[--buckets 12] [--top 10]`.
+
+Returns per concept:
+- `buckets`: list of N counts (oldest → newest)
+- `total_in_window`, `first_half_count`, `last_half_count`
+- `trend`: rising / declining / stable
+
+Default 12 buckets × 30 days = 1 year monthly series.
+
+Operator question answered: "How has 'scaling-laws' appeared
+in this project's papers per month over the last year".
+
+5 new tests (no concepts, bucket count, rising-trend,
+top-limit, bucket-starts in output). 1940 total passing.
+
 ## v0.128 — plugin + index pre-commit hook (2026-04-28)
 
 `scripts/pre-commit` — auto-regenerates plugin checksums +

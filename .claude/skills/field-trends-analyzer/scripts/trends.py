@@ -174,6 +174,98 @@ def cmd_momentum(args: argparse.Namespace) -> None:
     }, indent=2))
 
 
+def cmd_series(args: argparse.Namespace) -> None:
+    """v0.129 — per-concept time-series across N buckets.
+
+    Splits the lookback window into `--buckets` equal time slices,
+    counts paper-about-concept edges per bucket. Returns top N
+    concepts by total count, each with bucket counts list (oldest
+    first).
+
+    Use case: "scaling-laws appearances per month over last 12 mo".
+    """
+    con = _open(args.project_id)
+    now = datetime.now(UTC)
+    window_start = now - timedelta(days=args.window_days)
+    bucket_size = timedelta(days=args.window_days / args.buckets)
+    bucket_starts = [
+        window_start + bucket_size * i
+        for i in range(args.buckets)
+    ]
+    bucket_starts_iso = [b.isoformat() for b in bucket_starts]
+    bucket_starts_iso.append(now.isoformat())  # right edge
+
+    out = []
+    try:
+        try:
+            concepts = con.execute("""
+                SELECT node_id, label FROM graph_nodes
+                WHERE kind = 'concept'
+            """).fetchall()
+        except sqlite3.OperationalError:
+            concepts = []
+
+        for c in concepts:
+            try:
+                rows = con.execute("""
+                    SELECT n.created_at AS ts FROM graph_edges e
+                    JOIN graph_nodes n ON n.node_id = e.from_node
+                    WHERE e.to_node = ? AND e.relation = 'about'
+                      AND n.kind = 'paper'
+                """, (c["node_id"],)).fetchall()
+            except sqlite3.OperationalError:
+                rows = []
+            buckets = [0] * args.buckets
+            total_in_window = 0
+            for r in rows:
+                ts = r["ts"]
+                if not ts or ts < bucket_starts_iso[0]:
+                    continue
+                # Find which bucket
+                for i in range(args.buckets):
+                    if (ts >= bucket_starts_iso[i]
+                            and ts < bucket_starts_iso[i + 1]):
+                        buckets[i] += 1
+                        total_in_window += 1
+                        break
+            if total_in_window == 0:
+                continue
+            # Trend = sum of last half - sum of first half
+            half = args.buckets // 2
+            first_half = sum(buckets[:half])
+            last_half = sum(buckets[half:])
+            if last_half > first_half * 1.5:
+                trend = "rising"
+            elif last_half < first_half * 0.5 and first_half >= 2:
+                trend = "declining"
+            else:
+                trend = "stable"
+            out.append({
+                "concept": c["label"],
+                "node_id": c["node_id"],
+                "buckets": buckets,
+                "total_in_window": total_in_window,
+                "first_half_count": first_half,
+                "last_half_count": last_half,
+                "trend": trend,
+            })
+    finally:
+        con.close()
+
+    out.sort(key=lambda x: -x["total_in_window"])
+    out = out[:args.top]
+    print(json.dumps({
+        "project_id": args.project_id,
+        "window_days": args.window_days,
+        "buckets": args.buckets,
+        "bucket_size_days": round(
+            args.window_days / args.buckets, 2,
+        ),
+        "bucket_starts": bucket_starts_iso[:-1],
+        "concepts": out,
+    }, indent=2))
+
+
 def cmd_summary(args: argparse.Namespace) -> None:
     """Combined view: top concepts + top papers + top authors + total counts."""
     con = _open(args.project_id)
@@ -234,6 +326,18 @@ def main() -> None:
     ps = sub.add_parser("summary")
     ps.add_argument("--project-id", required=True)
     ps.set_defaults(func=cmd_summary)
+
+    # v0.129 — per-concept time-series across N buckets.
+    pser = sub.add_parser("series",
+                           help="Per-concept counts over N time buckets")
+    pser.add_argument("--project-id", required=True)
+    pser.add_argument("--window-days", type=int, default=365,
+                       help="Lookback window (default 365)")
+    pser.add_argument("--buckets", type=int, default=12,
+                       help="Number of buckets (default 12)")
+    pser.add_argument("--top", type=int, default=10,
+                       help="Top N concepts by total in window")
+    pser.set_defaults(func=cmd_series)
 
     args = p.parse_args()
     args.func(args)
