@@ -11,6 +11,34 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.116 — OTLP-compatible trace export (2026-04-28)
+
+`lib.trace_render.render_otlp(payload)` emits OpenTelemetry OTLP
+JSON shape so external tools (Jaeger, Honeycomb, Tempo) can
+ingest a coscientist run trace via standard collectors.
+
+Maps coscientist span kinds to OTLP `kind`:
+- `tool-call` → CLIENT (3)
+- everything else → INTERNAL (1)
+
+OTLP status: `error` → 2 (ERROR + error_msg), `ok` → 1 (OK),
+others → 0 (UNSET).
+
+Resource attributes: `service.name=coscientist`,
+`coscientist.run_id=<rid>`. Per-span attributes preserve
+`coscientist.kind` + flattened attrs_json keys (capped at 512
+chars). Events preserved with payload (capped at 1024).
+
+`_iso_to_nano(iso)` helper converts ISO 8601 to nanoseconds
+since epoch. Bad input returns 0.
+
+CLI: `uv run python -m lib.trace_render --db <path>
+--trace-id <rid> --format otlp`. New format choice alongside
+mermaid / md / json.
+
+9 new tests (iso_to_nano + 4 render_otlp scenarios + CLI).
+1878 total passing.
+
 ## v0.115 — CLAUDE.md observability docs (2026-04-28)
 
 Documents v0.89–v0.114 instrumentation stack in `CLAUDE.md` for

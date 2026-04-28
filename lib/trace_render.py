@@ -209,6 +209,119 @@ def render_agent_quality_section(db_path: Path,
     return "\n".join(lines)
 
 
+def render_otlp(payload: dict) -> str:
+    """v0.116 — emit OpenTelemetry OTLP-compatible JSON.
+
+    Maps coscientist trace + spans to OTLP `resourceSpans` shape
+    so external tools (Jaeger, Honeycomb, Tempo) can ingest a
+    coscientist run trace via standard collectors.
+
+    Reference shape:
+      {"resourceSpans": [{"scope_spans": [{"spans": [...]}]}]}
+
+    Coscientist span kinds map to OTLP `kind`:
+      phase / sub-agent / persist / harvest / other → INTERNAL (1)
+      tool-call → CLIENT (3)
+      gate → INTERNAL (1)
+    """
+    if payload is None:
+        return json.dumps({"resourceSpans": []}, indent=2)
+    trace = payload["trace"]
+    spans = payload["spans"]
+    trace_id = trace["trace_id"]
+
+    _OTLP_KIND = {
+        "phase": 1, "sub-agent": 1, "persist": 1, "other": 1,
+        "harvest": 1, "gate": 1, "tool-call": 3,
+    }
+
+    otlp_spans = []
+    for s in spans:
+        attrs: list = []
+        if s.get("attrs_json"):
+            try:
+                d = json.loads(s["attrs_json"])
+                if isinstance(d, dict):
+                    for k, v in d.items():
+                        attrs.append({
+                            "key": str(k),
+                            "value": {"stringValue": str(v)[:512]},
+                        })
+            except json.JSONDecodeError:
+                pass
+        attrs.append({
+            "key": "coscientist.kind",
+            "value": {"stringValue": s["kind"]},
+        })
+
+        events = []
+        for e in (s.get("events") or []):
+            events.append({
+                "name": e["name"],
+                "timeUnixNano": _iso_to_nano(e["at"]),
+                "attributes": [
+                    {"key": "payload",
+                     "value": {"stringValue":
+                               (e.get("payload_json") or "")[:1024]}},
+                ],
+            })
+
+        # OTLP status: 1=OK, 2=ERROR, 0=UNSET
+        otlp_status = (
+            {"code": 2, "message": s.get("error_msg") or ""}
+            if s["status"] == "error"
+            else {"code": 1}
+            if s["status"] == "ok"
+            else {"code": 0}
+        )
+
+        otlp_spans.append({
+            "traceId": trace_id,
+            "spanId": s["span_id"],
+            "parentSpanId": s.get("parent_span_id") or "",
+            "name": s["name"],
+            "kind": _OTLP_KIND.get(s["kind"], 1),
+            "startTimeUnixNano": _iso_to_nano(s["started_at"]),
+            "endTimeUnixNano": (
+                _iso_to_nano(s["ended_at"])
+                if s.get("ended_at") else 0
+            ),
+            "attributes": attrs,
+            "events": events,
+            "status": otlp_status,
+        })
+
+    return json.dumps({
+        "resourceSpans": [{
+            "resource": {
+                "attributes": [
+                    {"key": "service.name",
+                     "value": {"stringValue": "coscientist"}},
+                    {"key": "coscientist.run_id",
+                     "value": {"stringValue":
+                               trace.get("run_id") or ""}},
+                ],
+            },
+            "scopeSpans": [{
+                "scope": {"name": "coscientist", "version": "0.116"},
+                "spans": otlp_spans,
+            }],
+        }],
+    }, indent=2)
+
+
+def _iso_to_nano(iso: str | None) -> int:
+    """Convert ISO 8601 to nanoseconds since epoch."""
+    if not iso:
+        return 0
+    try:
+        from datetime import datetime
+        dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+        return int(dt.timestamp() * 1_000_000_000)
+    except (ValueError, AttributeError):
+        return 0
+
+
 def render(payload: dict, fmt: str,
            db_path: Path | None = None) -> str:
     if fmt == "mermaid":
@@ -222,9 +335,11 @@ def render(payload: dict, fmt: str,
         return out
     elif fmt == "json":
         return json.dumps(payload, indent=2, default=str) + "\n"
+    elif fmt == "otlp":
+        return render_otlp(payload) + "\n"
     else:
         raise ValueError(
-            f"unknown format {fmt!r}; expected mermaid|md|json"
+            f"unknown format {fmt!r}; expected mermaid|md|json|otlp"
         )
 
 
@@ -235,8 +350,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--db", required=True, help="Path to coscientist DB")
     p.add_argument("--trace-id", required=True)
-    p.add_argument("--format", choices=("mermaid", "md", "json"),
-                   default="md")
+    p.add_argument(
+        "--format", choices=("mermaid", "md", "json", "otlp"),
+        default="md",
+    )
     args = p.parse_args(argv)
 
     from lib.trace import get_trace
