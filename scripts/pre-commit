@@ -1,0 +1,66 @@
+#!/bin/sh
+# Coscientist pre-commit hook (v0.128).
+#
+# Auto-regenerates plugin checksums + skill/MCP indexes when
+# inputs changed, so committers don't forget. Stages
+# regenerated files into the same commit.
+#
+# Install via: scripts/install_hooks.sh
+#
+# Bypass for emergency: git commit --no-verify
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# Detect changes to inputs that drive generated artifacts
+CHANGED=$(git diff --cached --name-only)
+
+needs_checksums=0
+needs_skills=0
+needs_mcp=0
+needs_changelog=0
+
+echo "$CHANGED" | grep -qE '^(mcp/|plugin/.*/server/|\.claude/skills/|\.claude/agents/)' \
+    && needs_checksums=1
+echo "$CHANGED" | grep -qE '^\.claude/skills/.*/SKILL\.md$' && needs_skills=1
+echo "$CHANGED" | grep -qE '^mcp/.*/server\.py$' && needs_mcp=1
+echo "$CHANGED" | grep -qE '^ROADMAP\.md$' && needs_changelog=1
+
+regen_count=0
+
+if [ "$needs_checksums" = "1" ]; then
+    echo "[pre-commit] regenerating plugin checksums..."
+    uv run python -m lib.plugin_checksums generate > /dev/null
+    git add plugin/*/CHECKSUMS.txt 2>/dev/null || true
+    regen_count=$((regen_count + 1))
+fi
+
+if [ "$needs_skills" = "1" ]; then
+    echo "[pre-commit] regenerating SKILLS.md..."
+    uv run python -m lib.skill_index > SKILLS.md
+    git add SKILLS.md
+    regen_count=$((regen_count + 1))
+fi
+
+if [ "$needs_mcp" = "1" ]; then
+    echo "[pre-commit] regenerating MCP_SERVERS.md..."
+    uv run python -m lib.mcp_index > MCP_SERVERS.md 2>/dev/null \
+        && git add MCP_SERVERS.md \
+        || echo "[pre-commit]   (mcp_index unavailable, skipped)"
+    regen_count=$((regen_count + 1))
+fi
+
+if [ "$needs_changelog" = "1" ]; then
+    echo "[pre-commit] regenerating CHANGELOG.md..."
+    uv run python -m lib.changelog > CHANGELOG.md
+    git add CHANGELOG.md
+    regen_count=$((regen_count + 1))
+fi
+
+if [ "$regen_count" = "0" ]; then
+    echo "[pre-commit] no generated artifacts need refresh."
+fi
+
+exit 0

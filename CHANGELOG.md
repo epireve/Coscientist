@@ -11,6 +11,29 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.128 — plugin + index pre-commit hook (2026-04-28)
+
+`scripts/pre-commit` — auto-regenerates plugin checksums +
+SKILLS.md + MCP_SERVERS.md + CHANGELOG.md when inputs changed,
+stages regen output into the same commit. No more "checksum
+test fails CI because I forgot to regen".
+
+`scripts/install_hooks.sh` — symlinks `.git/hooks/pre-commit`
+to `scripts/pre-commit`. Idempotent. Run once after clone.
+
+Triggers (any matching cached file change):
+- `mcp/` or `plugin/.../server/` or `.claude/skills/` or
+  `.claude/agents/` → regen plugin checksums
+- `.claude/skills/.../SKILL.md` → regen SKILLS.md
+- `mcp/.../server.py` → regen MCP_SERVERS.md
+- `ROADMAP.md` → regen CHANGELOG.md
+
+Bypass: `git commit --no-verify`.
+
+10 new tests (file existence + executable bit + content
+markers + actual hook execution against temp git repo).
+1935 total passing.
+
 ## v0.127 — agent quality drift time-series (2026-04-28)
 
 `lib.agent_quality.quality_drift(*, window=5, roots=None)` —
