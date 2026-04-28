@@ -209,6 +209,34 @@ def render_agent_quality_section(db_path: Path,
     return "\n".join(lines)
 
 
+def _to_hex_id(s: str | None, *, length: int) -> str:
+    """v0.117 — coerce a coscientist ID into OTLP-compliant hex.
+
+    OTLP requires 32-char trace IDs and 16-char span IDs (hex).
+    Coscientist uses prefixed strings like 'trace-abc123def456'.
+    Strategy: take the trailing hex chars; pad with deterministic
+    leading zeros if too short; truncate from the end if too long
+    (preserves the entropy in the random suffix).
+
+    Empty / None input returns all-zero hex (OTLP "no parent" form).
+    """
+    if not s:
+        return "0" * length
+    # Drop the leading 'trace-' / 'span-' prefix if present.
+    if "-" in s:
+        suffix = s.rsplit("-", 1)[-1]
+    else:
+        suffix = s
+    # Filter to valid hex chars; sub anything else for stability.
+    hex_chars = "".join(
+        c if c in "0123456789abcdef" else "0"
+        for c in suffix.lower()
+    )
+    if len(hex_chars) >= length:
+        return hex_chars[:length]
+    return hex_chars.rjust(length, "0")
+
+
 def render_otlp(payload: dict) -> str:
     """v0.116 — emit OpenTelemetry OTLP-compatible JSON.
 
@@ -228,7 +256,10 @@ def render_otlp(payload: dict) -> str:
         return json.dumps({"resourceSpans": []}, indent=2)
     trace = payload["trace"]
     spans = payload["spans"]
-    trace_id = trace["trace_id"]
+    # v0.117 — OTLP-spec hex IDs (32 / 16 chars). Original
+    # coscientist IDs preserved in attributes for round-trip.
+    raw_trace_id = trace["trace_id"]
+    trace_id_hex = _to_hex_id(raw_trace_id, length=32)
 
     _OTLP_KIND = {
         "phase": 1, "sub-agent": 1, "persist": 1, "other": 1,
@@ -253,6 +284,11 @@ def render_otlp(payload: dict) -> str:
             "key": "coscientist.kind",
             "value": {"stringValue": s["kind"]},
         })
+        # v0.117 — preserve raw IDs for round-trip back to coscientist
+        attrs.append({
+            "key": "coscientist.span_id",
+            "value": {"stringValue": s["span_id"]},
+        })
 
         events = []
         for e in (s.get("events") or []):
@@ -276,9 +312,12 @@ def render_otlp(payload: dict) -> str:
         )
 
         otlp_spans.append({
-            "traceId": trace_id,
-            "spanId": s["span_id"],
-            "parentSpanId": s.get("parent_span_id") or "",
+            "traceId": trace_id_hex,
+            "spanId": _to_hex_id(s["span_id"], length=16),
+            "parentSpanId": (
+                _to_hex_id(s.get("parent_span_id"), length=16)
+                if s.get("parent_span_id") else ""
+            ),
             "name": s["name"],
             "kind": _OTLP_KIND.get(s["kind"], 1),
             "startTimeUnixNano": _iso_to_nano(s["started_at"]),
@@ -300,6 +339,8 @@ def render_otlp(payload: dict) -> str:
                     {"key": "coscientist.run_id",
                      "value": {"stringValue":
                                trace.get("run_id") or ""}},
+                    {"key": "coscientist.trace_id",
+                     "value": {"stringValue": raw_trace_id}},
                 ],
             },
             "scopeSpans": [{

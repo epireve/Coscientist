@@ -11,6 +11,29 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.117 — OTLP hex ID compliance (2026-04-28)
+
+v0.116 emitted coscientist's prefixed string IDs (`trace-abc123`,
+`span-def456`) directly. OTLP spec requires 32-char hex trace IDs
++ 16-char hex span IDs — Jaeger/Honeycomb/Tempo would reject.
+Fixed.
+
+`_to_hex_id(s, *, length)` strips `trace-`/`span-` prefix, filters
+to hex, pads with leading zeros if short, truncates from start if
+long. Empty/None → all-zero hex (OTLP "no parent" form).
+
+Round-trip preserved: raw coscientist IDs added as
+`coscientist.trace_id` (resource attr) and `coscientist.span_id`
+(per-span attr). External tool can ingest via OTLP and still
+correlate back.
+
+Parent span IDs handled identically — present become 16-char hex,
+absent become empty string.
+
+10 new tests (6 _to_hex_id edge cases + 4 OTLP compliance:
+trace 32-hex, span 16-hex, parent 16-hex with non-zero,
+round-trip raw IDs in attrs). 1888 total passing.
+
 ## v0.116 — OTLP-compatible trace export (2026-04-28)
 
 `lib.trace_render.render_otlp(payload)` emits OpenTelemetry OTLP
