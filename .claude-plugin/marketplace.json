@@ -28,6 +28,14 @@
       "version": "0.1.0",
       "category": "mcp",
       "tags": ["manuscript", "ast", "citations", "latex", "markdown", "docx", "mcp"]
+    },
+    {
+      "name": "coscientist-graph-query-mcp",
+      "source": "./plugin/coscientist-graph-query-mcp",
+      "description": "Read-only stdio MCP over Coscientist's per-project citation / concept / author graph. Wraps lib/graph.py SQLite-adjacency tables and adds BFS shortest-path. Forward-compatible with the planned Kuzu backend migration.",
+      "version": "0.1.0",
+      "category": "mcp",
+      "tags": ["graph", "citation-graph", "kuzu", "sqlite", "research", "mcp", "read-only"]
     }
   ]
 }

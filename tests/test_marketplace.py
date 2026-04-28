@@ -177,10 +177,88 @@ class ManuscriptMcpPluginTests(TestCase):
         )
 
 
+class GraphQueryMcpPluginTests(TestCase):
+    """graph-query-mcp plugin specifics. This plugin vendors a subset
+    of `lib/` because the MCP needs to read project DBs, which goes
+    through `lib.graph` + `lib.project` + `lib.cache` + `lib.migrations`."""
+
+    PLUGIN = _REPO / "plugin" / "coscientist-graph-query-mcp"
+    SOURCE = _REPO / "mcp" / "graph-query-mcp" / "server.py"
+
+    def test_plugin_dir_exists(self):
+        self.assertTrue(self.PLUGIN.exists())
+
+    def test_server_script_present(self):
+        srv = self.PLUGIN / "server" / "server.py"
+        self.assertTrue(srv.exists(), f"missing {srv}")
+        text = srv.read_text()
+        self.assertIn("FastMCP", text)
+        for tool in ("neighbors", "walk", "in_degree", "hubs",
+                     "node_info", "shortest_path"):
+            self.assertIn(f"def {tool}", text,
+                          f"missing tool {tool} in plugin server.py")
+
+    def test_mcp_json_declares_server(self):
+        cfg_path = self.PLUGIN / ".mcp.json"
+        self.assertTrue(cfg_path.exists(), f"missing {cfg_path}")
+        cfg = json.loads(cfg_path.read_text())
+        self.assertIn("mcpServers", cfg)
+        self.assertIn("graph-query", cfg["mcpServers"])
+        srv = cfg["mcpServers"]["graph-query"]
+        self.assertEqual(srv.get("type"), "stdio")
+        joined = " ".join(srv.get("args", []))
+        self.assertIn("CLAUDE_PLUGIN_ROOT", joined)
+        self.assertIn("server.py", joined)
+
+    def test_readme_present(self):
+        self.assertTrue((self.PLUGIN / "README.md").exists())
+
+    def test_plugin_server_matches_source(self):
+        plugin_srv = (self.PLUGIN / "server" / "server.py").read_text()
+        source_srv = self.SOURCE.read_text()
+        self.assertEqual(
+            plugin_srv, source_srv,
+            "plugin server.py drifted from mcp/graph-query-mcp/server.py — "
+            "regenerate via `cp mcp/graph-query-mcp/server.py "
+            "plugin/coscientist-graph-query-mcp/server/server.py`",
+        )
+
+    def test_vendored_lib_present(self):
+        """Plugin must vendor minimum lib/ deps so it works without
+        the parent repo on disk."""
+        for name in ("graph.py", "cache.py", "project.py",
+                     "migrations.py", "sqlite_schema.sql"):
+            self.assertTrue(
+                (self.PLUGIN / "lib" / name).exists(),
+                f"vendored lib/{name} missing from plugin",
+            )
+
+    def test_vendored_migrations_sql(self):
+        sql_dir = self.PLUGIN / "lib" / "migrations_sql"
+        self.assertTrue(sql_dir.exists())
+        files = list(sql_dir.glob("v*.sql"))
+        self.assertGreater(len(files), 0,
+                           "vendored migrations_sql/ has no fragments")
+
+    def test_vendored_lib_matches_source(self):
+        """Vendored lib/* files must byte-match the source tree to
+        prevent the plugin shipping with stale code."""
+        for name in ("graph.py", "cache.py", "project.py",
+                     "migrations.py", "sqlite_schema.sql"):
+            plug = (self.PLUGIN / "lib" / name).read_text()
+            src = (_REPO / "lib" / name).read_text()
+            self.assertEqual(
+                plug, src,
+                f"vendored lib/{name} drifted from source — "
+                f"regenerate via `cp lib/{name} {self.PLUGIN}/lib/`",
+            )
+
+
 if __name__ == "__main__":
     raise SystemExit(run_tests(
         MarketplaceManifestTests,
         PluginManifestParityTests,
         RetractionMcpPluginTests,
         ManuscriptMcpPluginTests,
+        GraphQueryMcpPluginTests,
     ))

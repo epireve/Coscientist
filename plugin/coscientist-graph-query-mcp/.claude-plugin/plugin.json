@@ -1,0 +1,20 @@
+{
+  "name": "coscientist-graph-query-mcp",
+  "version": "0.1.0",
+  "description": "Read-only stdio MCP over Coscientist's per-project citation / concept / author graph. Wraps lib/graph.py SQLite-adjacency tables and adds BFS shortest-path. Forward-compatible with the planned Kuzu backend migration.",
+  "author": "epireve",
+  "homepage": "https://github.com/epireve/coscientist",
+  "license": "MIT",
+  "keywords": [
+    "graph",
+    "citation-graph",
+    "kuzu",
+    "sqlite",
+    "research",
+    "mcp",
+    "read-only"
+  ],
+  "requires": {
+    "claude_code": ">=2.0.0"
+  }
+}

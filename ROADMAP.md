@@ -789,9 +789,62 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.73
+## Shipped: v0.51 → v0.74
 
 All items in this section are landed. See per-version notes.
+
+### v0.74 — graph-query-mcp + marketplace plugin ✅ (2026-04-28)
+
+Third (and final, for now) custom MCP. Read-only stdio server over
+the per-project citation / concept / author graph. Wraps
+`lib/graph.py` SQLite-adjacency primitives and adds BFS shortest-path
+that the Python API didn't expose.
+
+**Tools (6):**
+- `neighbors(project_id, node_id, relation=None, direction="out")`
+- `walk(project_id, start_node, relation, max_hops=2)` — BFS
+- `in_degree(project_id, node_id, relation=None)`
+- `hubs(project_id, kind, relation="cites", top_k=10)`
+- `node_info(project_id, node_id)` — single-node lookup
+- `shortest_path(project_id, start, end, max_hops=4, relation=None)` — new
+
+**Tests:** `tests/test_graph_query_mcp.py` — 16 tests using a real
+seeded project DB (5 nodes, 5 edges across `cites` + `about`
+relations). Covers all 6 tools incl. relation filters, in/out
+direction, disconnected components, and shortest-path edge cases
+(self, missing, max_hops cutoff, relation-filtered no-path).
+
+**Plugin (vendoring required):**
+
+Unlike retraction-mcp + manuscript-mcp (both standalone), this MCP
+needs `lib/graph.py` + `lib/cache.py` + `lib/project.py` +
+`lib/migrations.py` + `lib/sqlite_schema.sql` + `lib/migrations_sql/`
+to read project DBs. Plugin vendors them.
+
+- `plugin/coscientist-graph-query-mcp/lib/` — vendored copy of the
+  6 deps (5 .py + 1 .sql + migrations_sql/v9.sql + v10.sql).
+- A new test class `GraphQueryMcpPluginTests` (8 tests) asserts every
+  vendored file is byte-equal to its source — drift fails CI loudly.
+- `plugin/coscientist-graph-query-mcp/.mcp.json` — uses
+  `${CLAUDE_PLUGIN_ROOT}` so install location-agnostic.
+- `.claude-plugin/marketplace.json` — entry added.
+
+**Server path probe:** the source server.py probes `parents[1..3]`
+to find `lib/graph.py`, so the same script works in source tree
+(`<repo>/lib/`) or plugin install (`<plugin>/lib/`) without code
+changes.
+
+Suite: 1534 → 1558 passing (+24).
+
+**Install:**
+```bash
+/plugin marketplace add epireve/coscientist
+/plugin install coscientist-graph-query-mcp@coscientist
+```
+
+**Future work:** when `graph_nodes` + `graph_edges` outgrow
+SQLite-adjacency, the Kuzu migration (parked) replaces only the
+backend — these 6 tool signatures map 1:1 onto Cypher-style queries.
 
 ### v0.73 — manuscript-mcp + marketplace plugin ✅ (2026-04-28)
 
