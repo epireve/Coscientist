@@ -11,6 +11,31 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.87 — backup/restore scripts + cleanups (2026-04-28)
+
+Operational cleanups.
+
+**Backup/restore scripts**:
+- `scripts/backup_cache.sh` — tarball `~/.cache/coscientist/` (or
+  `$COSCIENTIST_CACHE_DIR`) into a timestamped `.tar.gz`. Excludes
+  `__pycache__`, `*.pyc`, `*.tmp`, WAL sidecar files. Bash strict
+  mode.
+- `scripts/restore_cache.sh` — reverse. Refuses to overwrite an
+  existing cache without `--force`. Suggests running
+  `lib.db_check` + `lib.install_check` post-restore.
+
+**Cleanup audits**: confirmed no dead code (`deprecated` mentions
+are legit feature naming in `concept_velocity.py`); confirmed
+`tests/_tmp_*.json` files are gitignored and never tracked.
+
+8 new tests in `tests/test_v0_87_cleanups.py`:
+- 4 backup-restore (presence, executable bit, full round-trip,
+  refuse-overwrite, strict mode)
+- 2 scripts-dir (install_all present, all .sh executable)
+- 1 tmp-files (gitignored, not tracked)
+
+Suite: 1663 → 1671 passing (+8).
+
 ## v0.86 — docs (2026-04-28)
 
 Four hand-curated docs added.

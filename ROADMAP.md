@@ -789,9 +789,34 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.86
+## Shipped: v0.51 → v0.87
 
 All items in this section are landed. See per-version notes.
+
+### v0.87 — backup/restore scripts + cleanups ✅ (2026-04-28)
+
+Operational cleanups.
+
+**Backup/restore scripts**:
+- `scripts/backup_cache.sh` — tarball `~/.cache/coscientist/` (or
+  `$COSCIENTIST_CACHE_DIR`) into a timestamped `.tar.gz`. Excludes
+  `__pycache__`, `*.pyc`, `*.tmp`, WAL sidecar files. Bash strict
+  mode.
+- `scripts/restore_cache.sh` — reverse. Refuses to overwrite an
+  existing cache without `--force`. Suggests running
+  `lib.db_check` + `lib.install_check` post-restore.
+
+**Cleanup audits**: confirmed no dead code (`deprecated` mentions
+are legit feature naming in `concept_velocity.py`); confirmed
+`tests/_tmp_*.json` files are gitignored and never tracked.
+
+8 new tests in `tests/test_v0_87_cleanups.py`:
+- 4 backup-restore (presence, executable bit, full round-trip,
+  refuse-overwrite, strict mode)
+- 2 scripts-dir (install_all present, all .sh executable)
+- 1 tmp-files (gitignored, not tracked)
+
+Suite: 1663 → 1671 passing (+8).
 
 ### v0.86 — docs ✅ (2026-04-28)
 
