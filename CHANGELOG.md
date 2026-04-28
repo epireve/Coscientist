@@ -11,6 +11,38 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.120 — ROADMAP audit: Tier A/B/C all (2026-04-28)
+
+Stale roadmap markers updated. Tier A/B/C all shipped status
+confirmed.
+
+**Tier B Tournament** (line 2549) — was unmarked, actually shipped
+v0.12 (`tournament` skill + ranker/evolver personas) + v0.79
+(integration tests). Marked ✅ with version refs.
+
+**Tier A4 Personal knowledge layer** — research-journal +
+project-dashboard + cross-project-memory all shipped v0.11.
+Section header marked ✅. Companion personas (diarist, watchman,
+indexer) noted under Phase F.
+
+**Tier A5 Critical-judgment subsystem** — novelty-auditor +
+publishability-judge + red-team personas (v0.3) + gap-analyzer +
+contribution-mapper + venue-match skills (v0.55) + self-play
+debate (v0.56) + calibration anchors + tournament Elo all shipped.
+Section + every bullet marked ✅ with version refs.
+
+**Header line 37** — "schema only; Tournament ranker is Tier B"
+corrected to reflect v0.12 ship.
+
+No code changes. Pure roadmap hygiene. 1897 tests pass.
+
+**State summary**:
+- Tier A: 5/5 subsystems ✅
+- Tier B: all bullet points ✅
+- Tier C: all bullet points ✅
+- Open work concentrated in observability (v0.89→v0.119) +
+  parked items (Kuzu graph, Neo4j, distributed deployment).
+
 ## v0.119 — sub-agent spans around Task dispatches (2026-04-28)
 
 Closes one of the v0.118 digest's "deliberately NOT done" items.
@@ -2420,7 +2452,7 @@ Ingest + analyze-your-own-work skills. Does not yet include draft/revise/format/
   - `projects` table + `lib/project.py` — top-level research container
   - `artifact_index` table + `lib/artifact.py` — polymorphic artifact kinds (manuscript, experiment, dataset, figure, review, grant, journal-entry, protocol) with per-kind state machines
   - `graph_nodes` + `graph_edges` tables + `lib/graph.py` — citation/concept/author graph (SQLite adjacency; Kuzu upgrade deferred)
-  - `hypotheses` + `tournament_matches` tables — Elo-ranked hypotheses with parent lineage (schema only; Tournament ranker is Tier B)
+  - `hypotheses` + `tournament_matches` tables — Elo-ranked hypotheses with parent lineage (schema landed v0.3; Tournament ranker + Evolver shipped v0.12, integration tests v0.79)
 - Schema now 20 tables total
 
 ## v0.2 — ROADMAP + RESEARCHER principles + Karpathy absorption (commits 4a3c8d5, bc135fa)

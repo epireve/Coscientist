@@ -34,7 +34,7 @@ The current v0.1 is a literature-synthesis pipeline. The point of the roadmap is
   - `projects` table + `lib/project.py` — top-level research container
   - `artifact_index` table + `lib/artifact.py` — polymorphic artifact kinds (manuscript, experiment, dataset, figure, review, grant, journal-entry, protocol) with per-kind state machines
   - `graph_nodes` + `graph_edges` tables + `lib/graph.py` — citation/concept/author graph (SQLite adjacency; Kuzu upgrade deferred)
-  - `hypotheses` + `tournament_matches` tables — Elo-ranked hypotheses with parent lineage (schema only; Tournament ranker is Tier B)
+  - `hypotheses` + `tournament_matches` tables — Elo-ranked hypotheses with parent lineage (schema landed v0.3; Tournament ranker + Evolver shipped v0.12, integration tests v0.79)
 - Schema now 20 tables total
 
 ### v0.3.1 — smoke test suite (commit 96bdeb9)
@@ -789,7 +789,39 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.119
+## Shipped: v0.51 → v0.120
+
+### v0.120 — ROADMAP audit: Tier A/B/C all ✅ (2026-04-28)
+
+Stale roadmap markers updated. Tier A/B/C all shipped status
+confirmed.
+
+**Tier B Tournament** (line 2549) — was unmarked, actually shipped
+v0.12 (`tournament` skill + ranker/evolver personas) + v0.79
+(integration tests). Marked ✅ with version refs.
+
+**Tier A4 Personal knowledge layer** — research-journal +
+project-dashboard + cross-project-memory all shipped v0.11.
+Section header marked ✅. Companion personas (diarist, watchman,
+indexer) noted under Phase F.
+
+**Tier A5 Critical-judgment subsystem** — novelty-auditor +
+publishability-judge + red-team personas (v0.3) + gap-analyzer +
+contribution-mapper + venue-match skills (v0.55) + self-play
+debate (v0.56) + calibration anchors + tournament Elo all shipped.
+Section + every bullet marked ✅ with version refs.
+
+**Header line 37** — "schema only; Tournament ranker is Tier B"
+corrected to reflect v0.12 ship.
+
+No code changes. Pure roadmap hygiene. 1897 tests pass.
+
+**State summary**:
+- Tier A: 5/5 subsystems ✅
+- Tier B: all bullet points ✅
+- Tier C: all bullet points ✅
+- Open work concentrated in observability (v0.89→v0.119) +
+  parked items (Kuzu graph, Neo4j, distributed deployment).
 
 ### v0.119 — sub-agent spans around Task dispatches ✅ (2026-04-28)
 
@@ -2509,36 +2541,37 @@ Promote citations/concepts/authors from rows to a real graph.
 - ✅ `writing-style apply` — paragraph-level critique via stdin (v0.7)
 - **Still pending**: venue-style overlays ("NeurIPS expects 'we show'", "clinical expects passive voice") — handled by future `manuscript-format`
 
-### A4. Personal knowledge layer (journal + dashboard + cross-project memory)
+### A4. Personal knowledge layer (journal + dashboard + cross-project memory) ✅
 
-These three cluster tightly.
+These three cluster tightly. All shipped (v0.11).
 
-- `research-journal` — daily lab notebook. Ideas recorded as they arise, cross-referenced to runs/manuscripts/experiments. Time-stamped.
-- `project-dashboard` — single view of all active projects, deadlines, reviews due, papers in flight. CLI + optional web.
-- `cross-project-memory` — persistent knowledge graph across projects. "I know I've read this somewhere" search. Connection-mining across apparently-unrelated projects.
+- ✅ `research-journal` — daily lab notebook. Ideas + observations cross-referenced to runs/manuscripts/experiments. Time-stamped, searchable.
+- ✅ `project-dashboard` — single view across all projects: active runs, papers by reading state, manuscripts in flight, audit issues.
+- ✅ `cross-project-memory` — read-only search across all project DBs. "I know I read this somewhere" + "which projects touched this paper".
+- ✅ Companion personas — `diarist`, `watchman`, `indexer` (Phase F sub-agents).
 
-### A5. Critical-judgment subsystem (novelty, publishability, sharp critique)
+### A5. Critical-judgment subsystem (novelty, publishability, sharp critique) ✅
 
 Serves use cases: cross-check WIP, ultrathink own work, critique own/others' work. Structured to fight known LLM failure modes in judgment: sycophancy, status-quo hedging, confident claims without prior-art search, missing specific attack vectors, no calibration.
 
-**New sub-agents:**
+**Sub-agents (all shipped v0.3):**
 
-- `novelty-auditor` — decomposes a paper's claimed contributions into `(claim, method, domain, finding, metric)` tuples. For each tuple, runs targeted prior-art search: exact conceptual match, method-in-new-domain, scale-only change, finding-in-new-population. Produces a novelty matrix: per-contribution closest prior work + delta + delta-sufficiency verdict. Gate: cannot emit a verdict without naming ≥5 specific nearby papers by canonical_id.
-- `publishability-judge` — rubric-based venue-calibrated judgment. Per target venue, evaluates novelty + significance + methodology + scope + execution against that venue's rubric. Calibrated against a user-maintained reference set of known-accepted/known-rejected/borderline papers. Outputs probability per venue (committed number, no hedging) + "what would need to change to move up a tier".
-- `red-team` — upgrade of `rude` with explicit attack vectors, not generic critique. Checks by name: p-hacking signals, HARKing, selective baselines, missing controls, confounders, underpowered studies, circular reasoning, oversold deltas, irreproducibility. Outputs severity-rated attack log; verdict "would-kill-paper" vs "reviewer-2-concern".
+- ✅ `novelty-auditor` — decomposes claimed contributions into `(claim, method, domain, finding, metric)` tuples. Runs targeted prior-art search per tuple. Produces novelty matrix with delta-sufficiency verdict. Gate: ≥5 specific anchors per contribution.
+- ✅ `publishability-judge` — rubric-based venue-calibrated judgment. Probability per venue + factors_up + factors_down + kill_criterion + tier_up_requirements. Gate refuses hedge words.
+- ✅ `red-team` — explicit attack vectors not generic critique. Checks by name: p-hacking, HARKing, selective baselines, missing controls, underpowered, circular reasoning, oversold deltas, irreproducibility, cherry-picking, inappropriate stats, Goodhart's law.
 
-**New skills:**
+**Skills (all shipped):**
 
-- `gap-analyzer` — operationalizes Gaper's output. For each gap: real or artifact of incomplete search? Addressable or hard-problem? Publishable if filled, at what venue tier? Adjacent fields with analog solutions? Expected difficulty (person-years, resources).
-- `contribution-mapper` — positions a manuscript in the research landscape. Extracts contributions, maps to closest prior work via citation + semantic distance, computes method/domain/finding distances, emits a 2D landscape plot with your work located.
-- `venue-match` — data-backed venue recommendation. Acceptance rates for work-like-yours, reviewer expectations per venue, deadline fit, impact/open-access/community-fit tradeoffs.
+- ✅ `gap-analyzer` — operationalizes Surveyor's output. Per gap: real/artifact, addressable, publishability tier (A/B/C/none), adjacent fields, expected difficulty. (v0.55)
+- ✅ `contribution-mapper` — positions manuscript in landscape via Jaccard distance over method/domain/finding axes; 2D projection. (v0.55)
+- ✅ `venue-match` — data-backed venue recommendation against built-in registry (NeurIPS, ICLR, Nature, eLife, PLOS ONE, arXiv, etc.). (v0.55)
 
-**Infrastructure:**
+**Infrastructure (all shipped):**
 
-- **Self-play debate** for high-stakes verdicts: two instances of `novelty-auditor` argue opposing sides; `publishability-judge` decides on argument quality and evidence grounding.
-- **Calibration anchors**: every judgment cites ≥5 specific prior works; verdicts without anchors are disqualified by the gate script.
-- **User-maintained calibration set**: user labels their own historical accepts/rejects + borderline cases; anchors learned from this set tune the rubric over time.
-- **Tournament Elo** (reuses the Tier B tournament ranker): pairwise comparisons of candidate hypotheses or manuscripts against the calibration set for recoverable quantified judgment.
+- ✅ **Self-play debate** for high-stakes verdicts: PRO + CON + JUDGE personas. (v0.56)
+- ✅ **Calibration anchors**: gate script enforces ≥5 anchors per contribution; verdicts without anchors disqualified. (v0.3, novelty-check skill)
+- ✅ **User-maintained calibration set**: per-venue calibration sets at `~/.cache/coscientist/calibration/venues/<slug>.json`. `calibration` skill manages.
+- ✅ **Tournament Elo**: pairwise tournament + ranker + evolver. (v0.12, see Tier B)
 
 **Why this is Tier A, not B**: without it, every other Tier A subsystem produces confident-sounding but un-calibrated output. Manuscript-audit needs novelty-auditor to avoid flagging "already known" claims as novel. Manuscript-critique is only as sharp as `red-team`. Reference-agent's graph only matters if we can tell hubs from noise.
 
@@ -2546,7 +2579,7 @@ Serves use cases: cross-check WIP, ultrathink own work, critique own/others' wor
 
 High value but narrower or more domain-dependent.
 
-- **Tournament ranker + Evolution agent** (Google Co-scientist pattern): new sub-agents `ranker` (pairwise Elo tournament over Theorist/Thinker proposals) and `evolver` (mutate top-Elo candidates and re-tournament). Table `hypotheses` with Elo.
+- ✅ **Tournament ranker + Evolution agent** (Google Co-scientist pattern): `ranker` (pairwise Elo over Architect/Visionary proposals) + `evolver` (mutate top-Elo candidates → children re-enter tournament) shipped v0.12. Schema (`hypotheses` + `tournament_matches`) landed v0.3. Integration tests v0.79. (v0.12, v0.79)
 - ✅ **Systematic review (PRISMA)**: `systematic-review` skill — protocol-first init, search (freeze), two-stage screen, extract, bias, prisma, status. 4 new DB tables. (v0.28)
 - ✅ **Statistics skill**: effect sizes, power analysis, meta-analysis, test selection, assumption checks. Pure stdlib — no external deps. 6 modules. (v0.29)
 - ✅ **Figure agent**: register figures, audit palette/captions/alt-text, list by manuscript. (v0.29)
