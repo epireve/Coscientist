@@ -789,7 +789,46 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.148
+## Shipped: v0.51 → v0.149
+
+### v0.149 — S2 enrichment client ✅ (2026-04-29)
+
+`lib/s2_enrichment.py` — pure-stdlib Semantic Scholar Graph API
+client focused on the **enrichment phase**. Fetches TL;DR
+(SPECTER2), SPECTER2 embedding vectors, influentialCitationCount,
+and the citation/reference graph for batches of triaged papers.
+
+Why a second client (separate from OpenAlex):
+- S2 has data OpenAlex lacks: TLDR, embeddings, influential subset.
+- Discovery flow stays on Consensus; ingestion stays on OpenAlex.
+- This module is for the *triaged* set only.
+
+API:
+- `batch_get_papers(ids, fields=)` — up to 500 IDs/req via
+  POST /paper/batch. ID formats: bare paperId, `DOI:...`,
+  `ARXIV:...`, `MAG:...`, `ACL:...`, `PMID:...`, `CorpusId:...`.
+- `get_paper(id, fields=)`
+- `get_paper_references(id)` / `get_paper_citations(id)`
+- `search_papers(query)`
+- Static helpers: `extract_tldr`, `extract_embedding`,
+  `extract_influential_count`, `extract_external_ids` (returns
+  every cross-source ID — DOI, ArXiv, MAG, PubMed, ACL, PMC,
+  CorpusId, paperId).
+
+Auth precedence: kwarg → `S2_API_KEY` env → anonymous.
+Rate limit via `lib.rate_limit` (1 req/s anon, 100/s with key).
+Trace: `s2/<endpoint>` tool-call spans when env trace context set.
+Cache: SQLite-backed at `~/.cache/coscientist/s2_cache.db`,
+30-day TTL. Errors not cached. Auth excluded from cache key.
+
+CLI subcommands: `batch`, `paper`, `search`, `cache`.
+
+29 tests covering auth resolution, cache key construction, batch
+size validation, ID-prefix handling, request method correctness
+(GET vs POST), error propagation, all static helpers, cache
+roundtrip + clear, and CLI.
+
+2093 → 2122 (+29).
 
 ### v0.147-v0.148 — OpenAlex Tier 2 begins ✅ (2026-04-29)
 
