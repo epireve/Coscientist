@@ -157,11 +157,17 @@ def start_span(
     *,
     parent_span_id: str | None = None,
     attrs: dict | None = None,
+    capture_on_error: bool = False,
+    snapshot_tables: list[str] | None = None,
 ):
     """Context manager: opens a span, yields the handle, closes on exit.
 
     On exception, status=error + error_kind/error_msg captured;
     exception re-raised after persistence.
+
+    v0.90: pass `capture_on_error=True` to also append a structured
+    `error_context` event with traceback. Pass `snapshot_tables` to
+    include row counts at failure time.
     """
     valid_kinds = {"phase", "sub-agent", "tool-call", "gate",
                    "persist", "harvest", "other"}
@@ -189,6 +195,14 @@ def start_span(
     try:
         yield handle
     except BaseException as e:  # noqa: BLE001 — re-raised below
+        if capture_on_error:
+            try:
+                capture_error_context(
+                    db_path, handle, e,
+                    snapshot_tables=snapshot_tables,
+                )
+            except Exception:  # capture must not mask original
+                pass
         handle._close(
             status="error",
             error_kind=type(e).__name__,
@@ -197,6 +211,59 @@ def start_span(
         raise
     else:
         handle._close(status="ok", error_kind=None, error_msg=None)
+
+
+def capture_error_context(
+    db_path: Path,
+    span: "_SpanHandle",
+    exc: BaseException,
+    *,
+    stdout_tail: str | None = None,
+    stderr_tail: str | None = None,
+    snapshot_tables: list[str] | None = None,
+    max_bytes: int = 4096,
+) -> None:
+    """v0.90 — append a structured `error_context` event with traceback,
+    optional output tails, and DB row-count snapshot.
+
+    Call from inside an exception handler before re-raising. Bounded
+    payload (default 4KB per channel).
+    """
+    import traceback as _tb
+    payload: dict[str, Any] = {
+        "exception": {
+            "type": type(exc).__name__,
+            "msg": str(exc)[:max_bytes],
+            "traceback": "".join(
+                _tb.format_exception(type(exc), exc, exc.__traceback__)
+            )[-max_bytes:],
+        }
+    }
+    if stdout_tail is not None:
+        payload["stdout_tail"] = stdout_tail[-max_bytes:]
+    if stderr_tail is not None:
+        payload["stderr_tail"] = stderr_tail[-max_bytes:]
+    if snapshot_tables:
+        payload["row_counts"] = _row_counts(db_path, snapshot_tables)
+    span.event("error_context", payload)
+
+
+def _row_counts(db_path: Path, tables: list[str]) -> dict[str, int]:
+    """Best-effort row count per table; missing tables yield -1."""
+    out: dict[str, int] = {}
+    con = _connect(db_path)
+    try:
+        for t in tables:
+            try:
+                n = con.execute(
+                    f'SELECT COUNT(*) FROM "{t}"'
+                ).fetchone()[0]
+                out[t] = int(n)
+            except sqlite3.OperationalError:
+                out[t] = -1
+    finally:
+        con.close()
+    return out
 
 
 def get_trace(db_path: Path, trace_id: str) -> dict | None:

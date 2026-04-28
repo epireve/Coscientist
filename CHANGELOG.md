@@ -11,6 +11,38 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.91 — trace renderer CLI (2026-04-28)
+
+Layer C of the traceability plan.
+
+- `lib/trace_render.py::render_mermaid(payload)` — `graph TD`
+  hierarchical span tree. Failed spans red (classDef), slow spans
+  (>5s) yellow.
+- `lib/trace_render.py::render_markdown(payload)` — chronological
+  timeline with per-span event log + status emoji.
+- `lib/trace_render.py::render_json(payload)` — full read-back.
+- CLI: `uv run python -m lib.trace_render --db <path>
+  --trace-id <tid> --format mermaid|md|json`.
+
+8 tests: mermaid (empty/root/failed-painted), markdown (empty/
+span-order/event-payload), JSON round-trip, invalid format rejected.
+
+## v0.90 — error context capture (2026-04-28)
+
+Layer B of the traceability plan.
+
+- `lib/trace.py::capture_error_context(db, span, exc, *,
+  stdout_tail, stderr_tail, snapshot_tables, max_bytes)` —
+  appends `error_context` event with traceback, optional output
+  tails, DB row-count snapshot. Bounded payload (4KB default).
+- `start_span(..., capture_on_error=True, snapshot_tables=[...])`
+  auto-fires capture before re-raise.
+- Capture failure never masks original exception.
+
+5 tests covering capture, no-flag = no-capture, snapshot_tables
+(incl. missing tables → -1), bounding, capture failure doesn't
+mask.
+
 ## v0.89 — execution traces (OpenTelemetry-style spans) (2026-04-28)
 
 Layer A of the traceability plan. Lays the foundation for live
