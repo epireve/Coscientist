@@ -23,6 +23,89 @@ from pathlib import Path
 from typing import Any
 
 
+# v0.113 — alert thresholds. Tunable via env or kwargs.
+DEFAULT_THRESHOLDS = {
+    "max_stale_spans": 0,           # any stale = alert
+    "max_failed_spans": 5,          # >5 failed = alert
+    "max_tool_error_rate": 0.20,    # >20% errors per tool = alert
+    "min_quality_score": 0.50,      # mean < 0.5 per agent = alert
+    "max_active_runs": 10,          # parallel runs >10 = alert
+}
+
+
+def evaluate_alerts(
+    report: dict[str, Any],
+    *,
+    thresholds: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """v0.113 — derive named alerts from a health report.
+
+    Each alert: {severity: 'warn'|'crit', code, message, value,
+    threshold}.
+    """
+    t = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
+    alerts: list[dict[str, Any]] = []
+
+    n_stale = len(report.get("stale", []))
+    if n_stale > t["max_stale_spans"]:
+        alerts.append({
+            "severity": "warn", "code": "stale_spans",
+            "message": f"{n_stale} stale span(s) past threshold",
+            "value": n_stale,
+            "threshold": t["max_stale_spans"],
+        })
+
+    n_failed = report.get("failed_spans_total", 0) or 0
+    if n_failed > t["max_failed_spans"]:
+        alerts.append({
+            "severity": "crit", "code": "failed_spans",
+            "message": f"{n_failed} failed spans across runs",
+            "value": n_failed,
+            "threshold": t["max_failed_spans"],
+        })
+
+    n_active = len(report.get("active", []))
+    if n_active > t["max_active_runs"]:
+        alerts.append({
+            "severity": "warn", "code": "too_many_active",
+            "message": f"{n_active} active runs",
+            "value": n_active,
+            "threshold": t["max_active_runs"],
+        })
+
+    by_tool = report.get("tool_latency", {}).get("by_tool", {}) or {}
+    for name, d in by_tool.items():
+        if d.get("n", 0) >= 5 and d.get("n_errors", 0) > 0:
+            rate = d["n_errors"] / max(1, d["n"])
+            if rate > t["max_tool_error_rate"]:
+                alerts.append({
+                    "severity": "crit",
+                    "code": "tool_error_rate",
+                    "message": (
+                        f"{name} error rate "
+                        f"{rate:.0%} ({d['n_errors']}/{d['n']})"
+                    ),
+                    "value": round(rate, 3),
+                    "threshold": t["max_tool_error_rate"],
+                })
+
+    by_agent = report.get("quality", {}).get("by_agent", {}) or {}
+    for agent, d in by_agent.items():
+        if d.get("n", 0) >= 3 and d.get("mean", 1.0) < t["min_quality_score"]:
+            alerts.append({
+                "severity": "warn",
+                "code": "low_quality",
+                "message": (
+                    f"{agent} mean {d['mean']:.2f} below "
+                    f"{t['min_quality_score']:.2f}"
+                ),
+                "value": round(d["mean"], 3),
+                "threshold": t["min_quality_score"],
+            })
+
+    return alerts
+
+
 def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
     """Walk every run-*.db and aggregate health signals."""
     from lib.cache import runs_dir
@@ -115,8 +198,20 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
     }
 
 
-def render_md(report: dict[str, Any]) -> str:
+def render_md(report: dict[str, Any],
+              *, alerts: list[dict] | None = None) -> str:
     lines = ["# Coscientist health", ""]
+    # v0.113 — alerts banner first if any
+    if alerts:
+        lines.append("## Alerts")
+        lines.append("")
+        for a in alerts:
+            emoji = "🚨" if a["severity"] == "crit" else "⚠️"
+            lines.append(
+                f"- {emoji} **{a['code']}** {a['message']} "
+                f"(threshold={a['threshold']})"
+            )
+        lines.append("")
     lines.append(f"- **Runs scanned**: {report['n_runs']}")
     lines.append(f"- **Active**: {len(report['active'])}")
     lines.append(f"- **Stale spans**: {len(report['stale'])}")
@@ -223,14 +318,28 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--format", choices=("md", "json"), default="md")
     p.add_argument("--max-age", type=int, default=30,
                     help="Stale-span threshold in minutes.")
+    p.add_argument(
+        "--no-alerts", action="store_true",
+        help="v0.113: suppress alert banner (raw report only).",
+    )
     args = p.parse_args(argv)
     report = collect(max_age_minutes=args.max_age)
+    alerts = (
+        [] if args.no_alerts else evaluate_alerts(report)
+    )
     if args.format == "json":
+        out = dict(report)
+        out["alerts"] = alerts
         sys.stdout.write(
-            json.dumps(report, indent=2, default=str) + "\n"
+            json.dumps(out, indent=2, default=str) + "\n"
         )
     else:
-        sys.stdout.write(render_md(report))
+        sys.stdout.write(render_md(report, alerts=alerts))
+    # v0.113 — non-zero exit if any 'crit' alert fires (CI/cron hook)
+    if any(a["severity"] == "crit" for a in alerts):
+        return 2
+    if alerts:
+        return 1
     return 0
 
 

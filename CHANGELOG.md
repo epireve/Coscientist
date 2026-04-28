@@ -11,6 +11,36 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.113 — alert thresholds in health dump (2026-04-28)
+
+Health dump (v0.106) printed raw counts. v0.113 adds tunable
+thresholds + alert evaluation. Actionable signal not numbers.
+
+`lib.health.DEFAULT_THRESHOLDS`:
+- `max_stale_spans` = 0
+- `max_failed_spans` = 5
+- `max_tool_error_rate` = 0.20 (20%)
+- `min_quality_score` = 0.50
+- `max_active_runs` = 10
+
+`evaluate_alerts(report, thresholds=None)` returns list of
+`{severity, code, message, value, threshold}`. Severity: `warn`
+or `crit`.
+
+Render shows "Alerts" banner first when present (🚨 crit, ⚠️ warn).
+
+CLI exit codes:
+- 0: no alerts
+- 1: only warn alerts
+- 2: at least one crit alert
+
+`--no-alerts` flag suppresses evaluation (raw report).
+
+CI/cron-friendly: `lib.health` exits non-zero when something
+needs attention.
+
+9 new tests. 1851 total passing.
+
 ## v0.112 — tool-call error spans actually error (2026-04-28)
 
 **Bug fix.** v0.93c `maybe_emit_tool_call(error=...)` accepted
