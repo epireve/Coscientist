@@ -11,6 +11,24 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.95 — trace-status quick view (2026-04-28)
+
+`lib/trace_status.py` — compact "is run X alive, what phase, any
+failed spans" without rendering full markdown timeline. Faster +
+more scannable than `trace_render --format md` during live
+smoke tests.
+
+**API**: `summarize_trace(db_path, trace_id) -> dict`,
+`summarize_runs(roots=None) -> list[dict]`. Counts spans by kind
++ status, surfaces latest phase + latest error.
+
+**CLI**: `uv run python -m lib.trace_status [--run-id <rid>]
+[--format md|json]`. No `--run-id` scans every `run-*.db` under
+`~/.cache/coscientist/runs/`.
+
+8 new tests covering missing-db / missing-trace / span counting
+/ multi-run scan / md renderer / CLI. 1735 total passing.
+
 ## v0.94 — auto-quality hook on phase completion (2026-04-28)
 
 `db.py record-phase --complete --output-json <path>` now triggers
