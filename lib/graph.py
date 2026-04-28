@@ -37,10 +37,16 @@ VALID_RELATIONS = {
 
 
 def _connect(project_id: str) -> sqlite3.Connection:
+    """v0.82: WAL-mode connection (consistency with lib.project._connect).
+
+    lib.graph mutates graph_nodes + graph_edges, so it's a writer too.
+    Matching project.py's WAL retrofit closes the inconsistency.
+    """
     db = project_db_path(project_id)
     if not db.exists():
         raise FileNotFoundError(f"no project DB at {db} — create the project first")
-    con = sqlite3.connect(db)
+    from lib.cache import connect_wal
+    con = connect_wal(db)
     con.row_factory = sqlite3.Row
     return con
 

@@ -130,6 +130,15 @@ def cmd_list_archives(args: argparse.Namespace) -> dict:
     return {"archives": archives, "count": len(archives)}
 
 
+def cmd_purge_archives(args: argparse.Namespace) -> dict:
+    """v0.82 — opt-in delete of old audit/sandbox archives."""
+    from lib.audit_retention import purge_archives
+    return purge_archives(
+        older_than_days=args.older_than_days,
+        confirm=args.confirm,
+    )
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -145,6 +154,16 @@ def main() -> None:
     r.set_defaults(func=cmd_rotate)
 
     sub.add_parser("list-archives").set_defaults(func=cmd_list_archives)
+
+    pa = sub.add_parser(
+        "purge-archives",
+        help="v0.82 — delete audit/sandbox archives older than N days",
+    )
+    pa.add_argument("--older-than-days", type=int, required=True,
+                    help="Minimum age (days) for deletion")
+    pa.add_argument("--confirm", action="store_true",
+                    help="Actually delete. Without this, dry-run only.")
+    pa.set_defaults(func=cmd_purge_archives)
 
     args = p.parse_args()
     out = args.func(args)

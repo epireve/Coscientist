@@ -789,9 +789,33 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.81
+## Shipped: v0.51 → v0.82
 
 All items in this section are landed. See per-version notes.
+
+### v0.82 — audit retention + lib.graph WAL consistency ✅ (2026-04-28)
+
+Latent risk closure. Two items.
+
+**Audit-archive retention**: `lib/audit_retention.py` parses
+rotation stamps (`<base>.YYYYMMDDTHHMMSSZ`) to compute age, lists
+audit + sandbox archives older than N days. `purge_archives()` is
+opt-in via `confirm=True` — mirrors audit-rotate's "refuses to
+delete archives without explicit user intent" doctrine. Audit-rotate
+gains a `purge-archives` subcommand.
+
+**lib.graph WAL retrofit**: `lib/graph.py::_connect` now uses
+`lib.cache.connect_wal`, matching `lib/project.py` post-v0.71. Both
+write to the same project DB; consistency closes a latent risk
+where parallel writers could race.
+
+9 new tests in `tests/test_v0_82_audit_retention.py`:
+- 2 archive-age (from-stamp, zero-for-today)
+- 3 list-archives (empty, finds-audit, filter-by-age)
+- 3 purge (dry-run, confirm-deletes, zero-days-rejected)
+- 1 graph-WAL (graph.add_node leaves journal_mode=wal)
+
+Suite: 1618 → 1627 passing (+9).
 
 ### v0.81 — CI runner + install-check + README troubleshooting ✅ (2026-04-28)
 
