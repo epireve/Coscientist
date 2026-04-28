@@ -777,6 +777,109 @@ def leaderboard(roots: list[Path] | None = None) -> dict:
     return {"n_rows": n_rows, "n_dbs": n_dbs, "by_agent": by_agent}
 
 
+def quality_drift(
+    *,
+    window: int = 5,
+    roots: list[Path] | None = None,
+) -> dict:
+    """v0.127 — per-agent score drift over time.
+
+    Walks every run DB, sorts each agent's scores by `at`,
+    splits into latest `window` vs prior `window`, computes
+    delta. Surfaces "scout was 0.85 mean over last 5 runs but
+    0.55 over prior 5 — investigate".
+
+    Returns: {n_rows, n_dbs, window, by_agent: {name: {
+      n_total, latest_window: {n, mean, scores},
+      prior_window: {n, mean, scores}, delta_mean,
+      direction: 'improving|declining|stable|insufficient'
+    }}}.
+
+    Direction:
+      - 'insufficient' if either window has n < window
+      - 'improving' if delta_mean > 0.05
+      - 'declining' if delta_mean < -0.05
+      - 'stable' otherwise
+    """
+    from lib.cache import runs_dir
+    root = roots[0] if roots else runs_dir()
+    if window < 1:
+        window = 1
+    series: dict[str, list[tuple[str, float]]] = {}
+    n_dbs = 0
+    if not root.exists():
+        return {"n_rows": 0, "n_dbs": 0,
+                "window": window, "by_agent": {}}
+    for db in sorted(root.glob("run-*.db")):
+        try:
+            con = sqlite3.connect(db)
+            con.row_factory = sqlite3.Row
+            try:
+                rows = con.execute(
+                    "SELECT agent_name, score_total, at "
+                    "FROM agent_quality"
+                ).fetchall()
+            except sqlite3.OperationalError:
+                con.close()
+                continue
+            con.close()
+            n_dbs += 1
+            for r in rows:
+                series.setdefault(r["agent_name"], []).append(
+                    (r["at"], float(r["score_total"])),
+                )
+        except Exception:
+            continue
+
+    by_agent: dict[str, dict] = {}
+    n_rows = 0
+    for agent, points in series.items():
+        points.sort(key=lambda p: p[0])
+        n_total = len(points)
+        n_rows += n_total
+        latest = points[-window:]
+        prior = points[-(2 * window):-window] if n_total >= 2 else []
+        latest_scores = [p[1] for p in latest]
+        prior_scores = [p[1] for p in prior]
+        latest_mean = (
+            sum(latest_scores) / len(latest_scores)
+            if latest_scores else 0.0
+        )
+        prior_mean = (
+            sum(prior_scores) / len(prior_scores)
+            if prior_scores else 0.0
+        )
+        delta = latest_mean - prior_mean if prior_scores else 0.0
+        if (len(latest_scores) < window
+                or len(prior_scores) < window):
+            direction = "insufficient"
+        elif delta > 0.05:
+            direction = "improving"
+        elif delta < -0.05:
+            direction = "declining"
+        else:
+            direction = "stable"
+        by_agent[agent] = {
+            "n_total": n_total,
+            "latest_window": {
+                "n": len(latest_scores),
+                "mean": round(latest_mean, 3),
+                "scores": [round(s, 3) for s in latest_scores],
+            },
+            "prior_window": {
+                "n": len(prior_scores),
+                "mean": round(prior_mean, 3),
+                "scores": [round(s, 3) for s in prior_scores],
+            },
+            "delta_mean": round(delta, 3),
+            "direction": direction,
+        }
+    return {
+        "n_rows": n_rows, "n_dbs": n_dbs,
+        "window": window, "by_agent": by_agent,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI: `summary` reports per-agent quality."""
     import argparse
@@ -794,12 +897,23 @@ def main(argv: list[str] | None = None) -> int:
     )
     lb.add_argument("--root", default=None,
                      help="Override runs root (default ~/.cache/coscientist/runs)")
+    dr = sub.add_parser(
+        "drift",
+        help="v0.127: per-agent quality drift over time. "
+             "Latest --window scores vs prior --window.",
+    )
+    dr.add_argument("--root", default=None)
+    dr.add_argument("--window", type=int, default=5,
+                     help="Window size (default 5)")
     args = p.parse_args(argv)
     if args.cmd == "summary":
         out = summary(Path(args.db), run_id=args.run_id)
-    else:
+    elif args.cmd == "leaderboard":
         roots = [Path(args.root)] if args.root else None
         out = leaderboard(roots=roots)
+    else:  # drift
+        roots = [Path(args.root)] if args.root else None
+        out = quality_drift(window=args.window, roots=roots)
     print(json.dumps(out, indent=2))
     return 0
 

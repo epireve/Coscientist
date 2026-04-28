@@ -11,6 +11,35 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.127 — agent quality drift time-series (2026-04-28)
+
+`lib.agent_quality.quality_drift(*, window=5, roots=None)` —
+walks every run DB, sorts each agent's scores by `at`, splits
+latest `window` vs prior `window`, computes delta + direction.
+
+Returns `by_agent: {name: {n_total, latest_window: {n, mean,
+scores}, prior_window: {...}, delta_mean, direction}}`.
+
+Direction:
+- `insufficient` if either window has n < window
+- `improving` if delta > 0.05
+- `declining` if delta < -0.05
+- `stable` otherwise
+
+CLI: `uv run python -m lib.agent_quality drift [--window N]`.
+
+**Wired into health**: `health.collect()` returns `drift` key.
+`evaluate_alerts` fires `quality_decline` warn when an agent's
+delta_mean is below `max_quality_decline` (default -0.10) AND
+direction = `declining`. Surfaces "scout dropped 0.30 over
+last 5 runs vs prior 5".
+
+Two new threshold keys: `max_quality_decline=-0.10`,
+`drift_window=5`.
+
+8 new tests (empty, insufficient, declining, improving, stable,
+chronological-split, multi-agent, CLI). 1925 total passing.
+
 ## v0.126 — per-project health threshold overlay (2026-04-28)
 
 Extends v0.114 single-config-file design with per-project

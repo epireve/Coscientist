@@ -31,6 +31,8 @@ DEFAULT_THRESHOLDS = {
     "max_tool_error_rate": 0.20,    # >20% errors per tool = alert
     "min_quality_score": 0.50,      # mean < 0.5 per agent = alert
     "max_active_runs": 10,          # parallel runs >10 = alert
+    "max_quality_decline": -0.10,   # v0.127: drift delta below this = alert
+    "drift_window": 5,              # v0.127: window size for drift check
 }
 
 
@@ -183,6 +185,24 @@ def evaluate_alerts(
                 "threshold": t["min_quality_score"],
             })
 
+    # v0.127: drift alerts
+    drift = report.get("drift", {}) or {}
+    for agent, d in (drift.get("by_agent") or {}).items():
+        if d.get("direction") == "declining":
+            delta = d.get("delta_mean", 0)
+            if delta <= t["max_quality_decline"]:
+                alerts.append({
+                    "severity": "warn",
+                    "code": "quality_decline",
+                    "message": (
+                        f"{agent} declined {delta:+.2f} "
+                        f"(latest {d['latest_window']['mean']:.2f} "
+                        f"vs prior {d['prior_window']['mean']:.2f})"
+                    ),
+                    "value": delta,
+                    "threshold": t["max_quality_decline"],
+                })
+
     return alerts
 
 
@@ -265,6 +285,10 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
         gates = trace_status.gate_summary_across_runs()
     except Exception:
         gates = {"n_gates": 0, "by_gate": {}}
+    try:
+        drift = agent_quality.quality_drift()
+    except Exception:
+        drift = {"n_rows": 0, "by_agent": {}}
 
     return {
         "n_runs": n_runs,
@@ -274,6 +298,7 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
         "quality": quality,
         "harvests": harvests,
         "gates": gates,
+        "drift": drift,
         "failed_spans_total": failed_total,
     }
 
