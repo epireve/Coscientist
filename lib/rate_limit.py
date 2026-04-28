@@ -29,7 +29,13 @@ def _domain_of(url_or_domain: str) -> str:
 
 
 def wait(url_or_domain: str, delay_seconds: float | None = None) -> None:
-    """Block until the configured delay has elapsed since the last call for this domain."""
+    """Block until the configured delay has elapsed since the last call for this domain.
+
+    v0.143 — emits a `tool-call` span named `rate_limit/<domain>`
+    when env trace context set. result_summary contains
+    blocked_seconds + delay so health.tool_call_latency surfaces
+    rate-limited domains as slow tools.
+    """
     delay = (
         delay_seconds
         if delay_seconds is not None
@@ -38,9 +44,24 @@ def wait(url_or_domain: str, delay_seconds: float | None = None) -> None:
     domain = _domain_of(url_or_domain)
     marker = _marker(domain)
     now = time.time()
+    blocked = 0.0
     if marker.exists():
         last = marker.stat().st_mtime
         elapsed = now - last
         if elapsed < delay:
-            time.sleep(delay - elapsed)
+            blocked = delay - elapsed
+            time.sleep(blocked)
     marker.touch()
+    # Best-effort span emit — silent no-op if no trace context.
+    try:
+        from lib.trace import maybe_emit_tool_call
+        maybe_emit_tool_call(
+            f"rate_limit/{domain}",
+            args_summary={"delay_s": delay},
+            result_summary={
+                "blocked_s": round(blocked, 3),
+                "domain": domain,
+            },
+        )
+    except Exception:
+        pass

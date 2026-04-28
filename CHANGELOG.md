@@ -11,6 +11,58 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.143 — rate-limit tool-call spans (2026-04-29)
+
+`lib.rate_limit.wait()` now emits a `tool-call` kind span named
+`rate_limit/<domain>` when env trace context set. result_summary
+contains `blocked_s` (seconds the call actually waited) +
+`delay_s` (configured delay) + `domain`.
+
+Surfaces in `lib.health --tool-latency` as a slow tool when
+publishers throttle. Operator can see "Springer rate-limit
+blocked 47% of fetches over last 24h".
+
+3 new tests: silent noop without env, span emission with env,
+blocked_s recorded on second call within delay.
+
+1997 total passing.
+
+## v0.142 — per-plugin server smoke tests (2026-04-29)
+
+5 tests exercising `plugin/<X>/server/server.py` directly via
+importlib (catches runtime import errors that byte-equal source
+checksums miss). Includes regression for v0.130 docx-missing
+fix on plugin path.
+
+## v0.141 — test runtime profiling (2026-04-29)
+
+`tests/run_all.py --profile` flag — times each test class,
+prints top-20 slowest. Runtime breakdown for current 1982 tests
+(~30s suite): `CompilationMetaTests` 21s (single largest;
+fingerprint generation), then `DoclingMissingTests` 7s,
+`GhAvailabilityTests` 5s. Total 105s when each class runs all
+its method bodies (much higher than gated-suite total because
+profile doesn't share fixtures or fail-fast).
+
+## v0.140 — pre-commit hook nudge in run_all (2026-04-29)
+
+`tests/run_all.py` now calls `lib.hook_check.check()` before
+test discovery. Prints `⚠️ [pre-commit] not installed; run
+scripts/install_hooks.sh` warning when symlink missing. Non-
+blocking — doesn't fail suite. 3 new tests.
+
+## v0.139 — session digest v0.118-v0.138 (2026-04-29)
+
+`docs/SESSION-DIGEST-v0.118-v0.138.md` — second session digest.
+21 versions covered. Tests went 1888 → 1982 (+94). Documents
+operator-surface additions (OTLP push, per-project thresholds,
+quality drift, persona doc check, hook check, local CI tools,
+field-trends time-series). Lists deferred items (sub-agent
+internal spans, health cron) with reasoning.
+
+4 regression tests pin sections + version coverage + operator
+commands + deferred-items mention.
+
 ## v0.138 — lint cleanup batch (2026-04-29)
 
 `ruff check --fix lib/ tests/ .claude/skills/` auto-fixed 722

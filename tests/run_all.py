@@ -86,9 +86,63 @@ def _discover_test_classes() -> list[type]:
     return ordered
 
 
+def _maybe_warn_pre_commit_hook():
+    """v0.140 — nudge if pre-commit hook isn't installed.
+
+    Non-blocking — prints warning, doesn't fail the suite.
+    Skipped in CI (no .git/hooks expected).
+    """
+    try:
+        from lib.hook_check import check
+        r = check()
+        if not r["ok"] and "not a git repo" not in (
+            r.get("message") or ""
+        ):
+            print(
+                f"\n⚠️  [pre-commit] {r['message']}\n"
+                f"   action: {r['action']}\n",
+                flush=True,
+            )
+    except Exception:
+        pass  # nudge must not break the test runner
+
+
+def _profile_classes(classes: list[type]) -> None:
+    """v0.141 — time each test class, print top-20 slowest."""
+    import time
+    timings: list[tuple[float, str]] = []
+    for cls in classes:
+        instance = cls()
+        method_names = [
+            name for name in dir(instance)
+            if name.startswith("test_")
+        ]
+        start = time.perf_counter()
+        for name in method_names:
+            try:
+                getattr(instance, name)()
+            except Exception:
+                pass  # we're profiling, not gating
+        elapsed = time.perf_counter() - start
+        timings.append((
+            elapsed, f"{cls.__module__}.{cls.__name__}",
+        ))
+    timings.sort(reverse=True)
+    print("\n[profile] top 20 slowest test classes (s):", flush=True)
+    for elapsed, name in timings[:20]:
+        print(f"  {elapsed:6.2f}s  {name}", flush=True)
+    total = sum(t for t, _ in timings)
+    print(f"\n[profile] total: {total:.1f}s across "
+          f"{len(timings)} classes\n", flush=True)
+
+
 if __name__ == "__main__":
+    _maybe_warn_pre_commit_hook()
     classes = _discover_test_classes()
     print(f"[discover] {len(classes)} test classes "
           f"from {len({c.__module__ for c in classes})} modules", flush=True)
+    if "--profile" in sys.argv:
+        _profile_classes(classes)
+        sys.exit(0)
     failures = run_tests(*classes)
     sys.exit(failures)
