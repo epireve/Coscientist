@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS schema_versions (
 # v9..v10 add tables via `_ensure_vN_tables`). Kept as a single list
 # so the monotonicity test can assert no version is silently skipped
 # between the SQL-based MIGRATIONS list and the in-code migrations.
-ALL_VERSIONS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+ALL_VERSIONS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
 
 
 def _table_exists(con: sqlite3.Connection, name: str) -> bool:
@@ -256,6 +256,20 @@ def ensure_current(db_path: Path,
                     (12, "v0.92_agent_quality", now),
                 )
             newly_applied.append(12)
+
+        # v0.148 — institution + funder graph node kinds. Project-DB
+        # only: gates on graph_nodes existence (project DBs have it,
+        # run DBs do not).
+        if 13 not in applied and _table_exists(con, "graph_nodes"):
+            _ensure_v13_columns(con)
+            _ensure_v13_indexes(con)
+            with con:
+                con.execute(
+                    "INSERT INTO schema_versions (version, name, applied_at) "
+                    "VALUES (?, ?, ?)",
+                    (13, "v0.148_graph_institutions_funders", now),
+                )
+            newly_applied.append(13)
     finally:
         con.close()
     return newly_applied
@@ -304,6 +318,34 @@ def _ensure_v12_tables(con: sqlite3.Connection) -> None:
     """v0.92 — agent_quality table. DDL in migrations_sql/v12.sql."""
     with con:
         con.executescript(_read_migration_sql(12))
+
+
+def _ensure_v13_columns(con: sqlite3.Connection) -> None:
+    """v0.148 — graph_nodes.external_ids_json + graph_nodes.source.
+
+    Stores all data provided by every source: openalex_id, ror_id, doi,
+    arxiv_id, pmid, orcid, s2_corpus_id, semanticscholar_id, mag_id, ...
+    `source` records which source last wrote this node.
+    """
+    cols = [r[1] for r in con.execute("PRAGMA table_info(graph_nodes)")]
+    if "external_ids_json" not in cols:
+        with con:
+            con.execute(
+                "ALTER TABLE graph_nodes ADD COLUMN external_ids_json TEXT"
+            )
+    if "source" not in cols:
+        with con:
+            con.execute(
+                "ALTER TABLE graph_nodes ADD COLUMN source TEXT"
+            )
+
+
+def _ensure_v13_indexes(con: sqlite3.Connection) -> None:
+    """v0.148 — partial indexes for institution/funder kinds + new
+    relations. DDL in migrations_sql/v13.sql.
+    """
+    with con:
+        con.executescript(_read_migration_sql(13))
 
 
 def _ensure_v8_columns(con: sqlite3.Connection) -> None:

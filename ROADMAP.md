@@ -789,6 +789,65 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
+## Shipped: v0.51 → v0.148
+
+### v0.147-v0.148 — OpenAlex Tier 2 begins ✅ (2026-04-29)
+
+**Phase-aware source picker + schema v13 graph kinds.**
+Codifies the rule: discovery → Consensus, ingestion →
+OpenAlex, enrichment → S2, graph-walk → OpenAlex. Schema
+extends graph nodes to institution + funder kinds with
+ROR/ORCID/cross-source ID storage.
+
+#### v0.147 — `lib/source_selector.py`
+
+Pure-stdlib decision module. `select_source(*, phase, mode,
+has_seed, budget_tier, open_question)` returns a typed
+`SourceRecommendation` with primary + fallbacks + reasoning.
+Decision order honors seed short-circuit, free-budget
+exclusion of paid sources, mode-specific overrides. Default
+to OpenAlex (safe baseline).
+
+`call_budget(*, mode, n_candidates)` emits target call
+counts per source for budget enforcement.
+
+CLI: `--phase`, `--mode`, `--has-seed`, `--budget-tier`,
+`--concrete`, `--budget`. Text or JSON output.
+
+21 tests. Decision-tree exhaustive coverage.
+
+#### v0.148 — schema v13 + graph extensions
+
+Migration v13 (`lib/migrations_sql/v13.sql`):
+- Partial indexes on `kind=institution`, `kind=funder`
+- Partial indexes on `relation=affiliated-with`,
+  `relation=funded-by`
+- `graph_nodes.external_ids_json` column —
+  store_all_data_provided rule. Holds every cross-source ID
+  emitted (openalex_id, doi, arxiv_id, pmid, orcid, ror_id,
+  s2_corpus_id, semanticscholar_id, mag_id)
+- `graph_nodes.source` column — last writer
+  (openalex|s2|consensus|paper-search|manual)
+
+`lib.graph` extensions:
+- `VALID_KINDS` adds `institution`, `funder`
+- `VALID_RELATIONS` adds `affiliated-with`, `funded-by`
+- `add_node(..., external_ids=, source=)` — back-compat
+  optional kwargs. Forward-compatible against pre-v13 DBs
+- `merge_external_ids(project_id, nid, new_ids, source=)` —
+  idempotent merger. Existing keys win unless current value
+  is None. Gracefully no-ops on missing nodes or pre-v13 DBs
+
+Vendored copies (`plugin/coscientist-graph-query-mcp/lib/`)
+synced + checksums regenerated.
+
+21 tests covering kinds, relations, migration application,
+column existence, external_ids persistence + merge semantics.
+
+#### Test count
+
+2042 → 2093 (+51 across v0.147-v0.148).
+
 ## Shipped: v0.51 → v0.146
 
 ### v0.144-v0.146 — OpenAlex Tier 1 ✅ (2026-04-29)

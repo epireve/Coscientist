@@ -20,7 +20,12 @@ from datetime import UTC, datetime
 
 from lib.project import project_db_path
 
-VALID_KINDS = {"paper", "concept", "author", "manuscript", "experiment", "topic"}
+VALID_KINDS = {
+    "paper", "concept", "author", "manuscript", "experiment", "topic",
+    # v0.148 — institution + funder for ORCID/ROR-enriched authors and
+    # OpenAlex-sourced funder nodes.
+    "institution", "funder",
+}
 VALID_RELATIONS = {
     "cites",
     "cited-by",
@@ -32,6 +37,9 @@ VALID_RELATIONS = {
     "about",
     "authored-by",
     "in-project",
+    # v0.148 — author→institution and paper→funder edges.
+    "affiliated-with",
+    "funded-by",
 }
 
 
@@ -62,17 +70,106 @@ def add_node(
     ref: str,
     label: str,
     data: dict | None = None,
+    *,
+    external_ids: dict | None = None,
+    source: str | None = None,
 ) -> str:
+    """Insert a node. v0.148 adds optional `external_ids` and `source`.
+
+    `external_ids` should hold every cross-source identifier the caller
+    has (e.g. `{openalex_id, doi, arxiv_id, pmid, orcid, ror_id,
+    s2_corpus_id, semanticscholar_id, mag_id}`). Stored as JSON in
+    `graph_nodes.external_ids_json`. Schema migration v13.
+
+    `source` records which source last wrote this node
+    (openalex|s2|consensus|paper-search|manual).
+
+    Both fields are optional and silently skipped on DBs that haven't
+    received migration v13 yet.
+    """
     nid = node_id(kind, ref)
     con = _connect(project_id)
+    cols = [r[1] for r in con.execute("PRAGMA table_info(graph_nodes)")]
+    has_v13 = "external_ids_json" in cols and "source" in cols
     with con:
-        con.execute(
-            "INSERT OR IGNORE INTO graph_nodes (node_id, kind, label, data_json, created_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (nid, kind, label, json.dumps(data) if data else None, datetime.now(UTC).isoformat()),
-        )
+        if has_v13:
+            con.execute(
+                "INSERT OR IGNORE INTO graph_nodes "
+                "(node_id, kind, label, data_json, created_at, "
+                "external_ids_json, source) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    nid, kind, label,
+                    json.dumps(data) if data else None,
+                    datetime.now(UTC).isoformat(),
+                    json.dumps(external_ids) if external_ids else None,
+                    source,
+                ),
+            )
+        else:
+            con.execute(
+                "INSERT OR IGNORE INTO graph_nodes "
+                "(node_id, kind, label, data_json, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (nid, kind, label,
+                 json.dumps(data) if data else None,
+                 datetime.now(UTC).isoformat()),
+            )
     con.close()
     return nid
+
+
+def merge_external_ids(
+    project_id: str,
+    nid: str,
+    new_ids: dict,
+    *,
+    source: str | None = None,
+) -> None:
+    """Merge new cross-source identifiers into an existing node.
+
+    v0.148 — store_all_data_provided. Idempotent: existing keys win
+    unless their value is None. Updates `source` to the latest writer.
+    No-op on DBs without migration v13.
+    """
+    if not new_ids:
+        return
+    con = _connect(project_id)
+    cols = [r[1] for r in con.execute("PRAGMA table_info(graph_nodes)")]
+    if "external_ids_json" not in cols:
+        con.close()
+        return
+    row = con.execute(
+        "SELECT external_ids_json FROM graph_nodes WHERE node_id=?",
+        (nid,),
+    ).fetchone()
+    if not row:
+        con.close()
+        return
+    existing = {}
+    if row[0]:
+        try:
+            existing = json.loads(row[0]) or {}
+        except json.JSONDecodeError:
+            existing = {}
+    for k, v in new_ids.items():
+        if v is None:
+            continue
+        if existing.get(k) is None:
+            existing[k] = v
+    with con:
+        if source:
+            con.execute(
+                "UPDATE graph_nodes SET external_ids_json=?, source=? "
+                "WHERE node_id=?",
+                (json.dumps(existing), source, nid),
+            )
+        else:
+            con.execute(
+                "UPDATE graph_nodes SET external_ids_json=? WHERE node_id=?",
+                (json.dumps(existing), nid),
+            )
+    con.close()
 
 
 def add_edge(

@@ -251,18 +251,23 @@ CREATE TABLE IF NOT EXISTS artifact_index (
 -- Graph adjacency layer. Nodes reference artifacts (or free-standing
 -- concepts / authors). Edges have a label that identifies the semantics.
 CREATE TABLE IF NOT EXISTS graph_nodes (
-    node_id             TEXT PRIMARY KEY,     -- typed: paper:<cid> | concept:<slug> | author:<s2_id> | manuscript:<mid>
-    kind                TEXT NOT NULL,        -- paper|concept|author|manuscript|experiment|topic
+    node_id             TEXT PRIMARY KEY,     -- typed: paper:<cid> | concept:<slug> | author:<s2_id> | manuscript:<mid> | institution:<ror> | funder:<openalex_id>
+    kind                TEXT NOT NULL,        -- paper|concept|author|manuscript|experiment|topic|institution|funder
     label               TEXT NOT NULL,        -- human-readable
     data_json           TEXT,                 -- optional structured payload
-    created_at          TEXT NOT NULL
+    created_at          TEXT NOT NULL,
+    -- v0.148 — store_all_data_provided. Cross-source identifiers
+    -- captured at ingest: openalex_id, doi, arxiv_id, pmid, orcid,
+    -- ror_id, s2_corpus_id, semanticscholar_id, mag_id, etc.
+    external_ids_json   TEXT,
+    source              TEXT                  -- openalex|s2|consensus|paper-search|manual
 );
 
 CREATE TABLE IF NOT EXISTS graph_edges (
     edge_id             INTEGER PRIMARY KEY AUTOINCREMENT,
     from_node           TEXT NOT NULL REFERENCES graph_nodes(node_id) ON DELETE CASCADE,
     to_node             TEXT NOT NULL REFERENCES graph_nodes(node_id) ON DELETE CASCADE,
-    relation            TEXT NOT NULL,        -- cites|cited-by|extends|refutes|uses|depends-on|coauthored|about|authored-by|in-project
+    relation            TEXT NOT NULL,        -- cites|cited-by|extends|refutes|uses|depends-on|coauthored|about|authored-by|in-project|affiliated-with|funded-by
     weight              REAL DEFAULT 1.0,
     data_json           TEXT,                 -- context snippet, quote, etc.
     created_at          TEXT NOT NULL
@@ -272,6 +277,15 @@ CREATE INDEX IF NOT EXISTS idx_artifact_kind    ON artifact_index(kind);
 CREATE INDEX IF NOT EXISTS idx_artifact_project ON artifact_index(project_id);
 CREATE INDEX IF NOT EXISTS idx_edges_from       ON graph_edges(from_node, relation);
 CREATE INDEX IF NOT EXISTS idx_edges_to         ON graph_edges(to_node, relation);
+-- v0.148 — partial indexes on new node kinds + relations.
+CREATE INDEX IF NOT EXISTS idx_graph_nodes_kind_institution
+    ON graph_nodes(kind) WHERE kind = 'institution';
+CREATE INDEX IF NOT EXISTS idx_graph_nodes_kind_funder
+    ON graph_nodes(kind) WHERE kind = 'funder';
+CREATE INDEX IF NOT EXISTS idx_graph_edges_relation_affiliated
+    ON graph_edges(relation) WHERE relation = 'affiliated-with';
+CREATE INDEX IF NOT EXISTS idx_graph_edges_relation_funded
+    ON graph_edges(relation) WHERE relation = 'funded-by';
 
 -- -----------------------------------------------------------------------
 -- Tier A1: manuscript subsystem
