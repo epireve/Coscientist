@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS schema_versions (
 # v9..v10 add tables via `_ensure_vN_tables`). Kept as a single list
 # so the monotonicity test can assert no version is silently skipped
 # between the SQL-based MIGRATIONS list and the in-code migrations.
-ALL_VERSIONS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+ALL_VERSIONS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
 
 
 def _table_exists(con: sqlite3.Connection, name: str) -> bool:
@@ -245,6 +245,17 @@ def ensure_current(db_path: Path,
                     (11, "v0.89_execution_traces", now),
                 )
             newly_applied.append(11)
+
+        # v0.92 — agent quality scoring.
+        if 12 not in applied and is_coscientist_db:
+            _ensure_v12_tables(con)
+            with con:
+                con.execute(
+                    "INSERT INTO schema_versions (version, name, applied_at) "
+                    "VALUES (?, ?, ?)",
+                    (12, "v0.92_agent_quality", now),
+                )
+            newly_applied.append(12)
     finally:
         con.close()
     return newly_applied
@@ -287,6 +298,12 @@ def _ensure_v11_tables(con: sqlite3.Connection) -> None:
     """
     with con:
         con.executescript(_read_migration_sql(11))
+
+
+def _ensure_v12_tables(con: sqlite3.Connection) -> None:
+    """v0.92 — agent_quality table. DDL in migrations_sql/v12.sql."""
+    with con:
+        con.executescript(_read_migration_sql(12))
 
 
 def _ensure_v8_columns(con: sqlite3.Connection) -> None:

@@ -45,6 +45,9 @@ EXPECTED_AGENTS = {
     # Phase H — Self-play debate (v0.56). PRO + CON + JUDGE for
     # high-stakes verdict sharpening.
     "debate-pro", "debate-con", "debate-judge",
+    # Phase I — Quality judging (v0.92). One sub-agent that scores
+    # another persona's output against its rubric.
+    "quality-judge",
 }
 
 

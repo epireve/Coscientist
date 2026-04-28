@@ -178,11 +178,48 @@ def render_markdown(payload: dict) -> str:
     return "\n".join(lines)
 
 
-def render(payload: dict, fmt: str) -> str:
+def render_agent_quality_section(db_path: Path,
+                                  run_id: str | None) -> str:
+    """v0.92 — per-agent quality summary appended to markdown.
+
+    Returns empty string if no run_id or zero quality rows.
+    """
+    if not run_id:
+        return ""
+    try:
+        from lib.agent_quality import summary as _summary
+        s = _summary(db_path, run_id=run_id)
+    except Exception:
+        return ""
+    if s.get("n_rows", 0) == 0:
+        return ""
+    lines = ["", "## Agent quality (v0.92)", ""]
+    for agent, d in sorted(s["by_agent"].items()):
+        latest = d.get("latest_score")
+        latest_str = (
+            f"{latest:.2f}" if isinstance(latest, (int, float))
+            else "—"
+        )
+        lines.append(
+            f"- **{agent}** — latest {latest_str} "
+            f"(n={d['n']}, mean {d['mean']:.2f}, "
+            f"range {d['min']:.2f}–{d['max']:.2f})"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render(payload: dict, fmt: str,
+           db_path: Path | None = None) -> str:
     if fmt == "mermaid":
         return render_mermaid(payload)
     elif fmt == "md":
-        return render_markdown(payload)
+        out = render_markdown(payload)
+        # v0.92: append agent-quality summary if available.
+        if payload and db_path is not None:
+            run_id = payload.get("trace", {}).get("run_id")
+            out += render_agent_quality_section(db_path, run_id)
+        return out
     elif fmt == "json":
         return json.dumps(payload, indent=2, default=str) + "\n"
     else:
@@ -204,7 +241,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from lib.trace import get_trace
     payload = get_trace(Path(args.db), args.trace_id)
-    sys.stdout.write(render(payload, args.format))
+    sys.stdout.write(render(payload, args.format, db_path=Path(args.db)))
     return 0 if payload is not None else 1
 
 

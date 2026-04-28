@@ -667,3 +667,23 @@ CREATE INDEX IF NOT EXISTS idx_spans_trace ON spans(trace_id);
 CREATE INDEX IF NOT EXISTS idx_spans_parent ON spans(parent_span_id);
 CREATE INDEX IF NOT EXISTS idx_span_events_span ON span_events(span_id);
 CREATE INDEX IF NOT EXISTS idx_traces_run ON traces(run_id);
+
+-- v0.92 — agent quality scoring (per-run, per-agent, per-judge)
+CREATE TABLE IF NOT EXISTS agent_quality (
+    quality_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id         TEXT,
+    span_id        TEXT,
+    agent_name     TEXT NOT NULL,
+    rubric_version TEXT NOT NULL,
+    score_total    REAL NOT NULL,
+    criteria_json  TEXT NOT NULL,
+    judge          TEXT NOT NULL,
+    artifact_path  TEXT,
+    reasoning      TEXT,
+    notes          TEXT,
+    at             TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_aq_run ON agent_quality(run_id);
+CREATE INDEX IF NOT EXISTS idx_aq_agent ON agent_quality(agent_name);
+CREATE INDEX IF NOT EXISTS idx_aq_judge ON agent_quality(judge);
+CREATE INDEX IF NOT EXISTS idx_aq_at ON agent_quality(at);

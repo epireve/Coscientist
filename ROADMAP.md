@@ -789,9 +789,55 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.91
+## Shipped: v0.51 → v0.92
 
 All items in this section are landed. See per-version notes.
+
+### v0.92 — agent quality scoring ✅ (2026-04-28)
+
+Three judging modes, one persistence target. Pairs with v0.89-v0.91
+traceability for full visibility into both **what happened** and
+**how well it happened**.
+
+**Migration v12**: new `agent_quality` table. Same agent can be
+scored by multiple judges (auto-rubric + llm-judge + future ranker);
+all rows kept.
+
+**`lib/agent_quality.py`** — three modes:
+
+1. **auto-rubric** (`score_auto`): pure-stdlib structural checks.
+   Rubrics for scout, surveyor, architect, synthesist, weaver.
+   Reusable helpers: `count_at_least`, `every_item_has_fields`,
+   `fraction_with_field`, `unique_kind_count`.
+2. **llm-judge** (`emit_judge_prompt` + `persist_judge_result`):
+   two-step protocol. Orchestrator dispatches the new
+   `quality-judge` sub-agent (runs inside Claude Code's Task tool;
+   no extra API plumbing) with a structured prompt; sub-agent
+   returns JSON; orchestrator persists.
+3. **ranker** (deferred to v0.93): pairwise tournament over agent
+   outputs.
+
+**`quality-judge` sub-agent** (`.claude/agents/quality-judge.md`):
+reads artifact + rubric, returns JSON `{scores, reasoning}`.
+Anti-pattern guidance against inflation/cherry-picking/hedging.
+Calibration heuristics for typical score ranges.
+
+**Trace renderer integration**: `render(payload, "md",
+db_path=...)` appends "Agent quality" section reading from
+`agent_quality` for the trace's run_id.
+
+**CLI**: `uv run python -m lib.agent_quality summary --db <path>
+[--run-id <rid>]`.
+
+17 new tests covering migration v12, check helpers, score_auto
+(high/low/unknown/partial/persist), judge protocol (prompt fields,
+unknown-agent error, persist row, missing-scores graceful),
+summary aggregation, renderer integration.
+
+Plugin lib + checksums resynced. `tests/test_agents.EXPECTED_AGENTS`
+extended.
+
+Suite: 1700 → 1717 passing (+17).
 
 ### v0.91 — trace renderer CLI ✅ (2026-04-28)
 
