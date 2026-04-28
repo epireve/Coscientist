@@ -789,7 +789,34 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.121
+## Shipped: v0.51 → v0.122
+
+### v0.122 — graph backend + manuscript format formal locks ✅ (2026-04-28)
+
+Two follow-ups to v0.121 open-questions audit:
+
+**Kuzu dead** (March 2025 shutdown, repo archived). Q1
+re-resolved: SQLite-adjacency stays; alternatives noted
+(graphqlite from colliery-io, DuckDB, TigerGraph CE) for
+when latency forces migration. No urgency.
+
+**Q2 markdown-first formally locked** with full pros/cons
+worked through:
+- Pros: pure-stdlib text analysis composes (stylist works
+  directly), diff-friendly, no compile loop, pandoc
+  handles LaTeX math + raw blocks pass-through.
+- Cons accepted: complex math/tables need raw `\latex`
+  blocks inside markdown.
+- LaTeX-first ruled out: ~5GB TeX Live dep, compile loop,
+  sub-agents need LaTeX-aware parsing, binary versioning.
+
+LaTeX export at submission time via `manuscript-format`
+(v0.27, pandoc-driven).
+
+Parked section expanded: graph backend upgrade now lists
+explicit alternatives + clear trigger condition.
+
+No code changes. 1897 tests pass.
 
 ### v0.121 — open questions all resolved ✅ (2026-04-28)
 
@@ -2748,8 +2775,8 @@ finishes inside the stream-idle window.
 
 ## Open questions and decisions pending
 
-1. Graph DB: Kuzu vs SQLite-adjacency vs Neo4j — **resolved 2026-04-28**: stay on SQLite-adjacency. Kuzu parked until query-latency pain shows up (>1s on real workloads). Neo4j ruled out (overkill).
-2. Manuscript format: LaTeX-first or markdown-first for `manuscript-draft`? — **resolved**: markdown-first ships in v0.26. LaTeX export via pandoc (`manuscript-format`).
+1. Graph DB: Kuzu vs SQLite-adjacency vs Neo4j — **resolved 2026-04-28**: stay on SQLite-adjacency. Kuzu was leading candidate but Kuzu Inc shut down March 2025; repo archived. Alternatives (graphqlite, DuckDB, TigerGraph CE) parked until query-latency pain shows up (>1s on real workloads). Neo4j ruled out (overkill).
+2. Manuscript format: LaTeX-first or markdown-first for `manuscript-draft`? — **resolved 2026-04-28**: markdown-first (v0.26 first cut, formally locked v0.122). Reasons: pure-stdlib text analysis composes (stylist + writing-style audit work directly), diff-friendly, no compile loop, pandoc handles LaTeX math + raw blocks pass-through. Trade-off: complex math/tables sometimes need raw `\latex` blocks inside markdown (acceptable). LaTeX export at submission time via `manuscript-format` (pandoc-driven). LaTeX-first ruled out: TeX Live dep weight, compile loop slows iteration, sub-agents would need LaTeX-aware parsing, versioning binaries harder.
 3. Refactor timing: before Tier A (recommended) or after? — **resolved 2026-04-28**: piecemeal-during-Tier-A worked. Risk avoided was "wrong abstraction" — building features first surfaced real abstractions empirically. v0.3 → v0.34 incremental refactor; Tier A complete + refactor complete with no big-bang.
 4. Sandbox backend for reproducibility-mcp: Docker local / E2B / Modal / all three? — **resolved**: Docker local (v0.34). E2B/Modal parked.
 5. Tournament compute budget: willing to spend tokens on pairwise Elo, or start with top-K selection? — **resolved**: shipped both (round-robin + top-K-vs-rest + top-K-internal strategies in v0.12).
@@ -2761,7 +2788,7 @@ All open questions resolved as of 2026-04-28.
 
 ## Parked (considered, deferred, not dropped)
 
-- Kuzu graph migration — current SQLite-adjacency handles per-project volume (~thousands of nodes). Migrate when query latency >1s.
+- Graph backend upgrade — Kuzu was the leading candidate but Kuzu Inc shut down March 2025; repo archived. Alternatives to evaluate when SQLite-adjacency hits >1s query latency: **graphqlite** (colliery-io, SQLite-backed, similar approach to current), **DuckDB** (columnar, has graph extensions), **TigerGraph community edition**, or just push SQLite further with recursive CTE optimization. No urgency; current volume small.
 - Neo4j integration — overkill for a personal tool
 - Distributed/cloud agent deployment — keep local-first
 - Non-English corpus support — out of scope for now

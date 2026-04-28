@@ -11,6 +11,33 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.122 — graph backend + manuscript format formal locks (2026-04-28)
+
+Two follow-ups to v0.121 open-questions audit:
+
+**Kuzu dead** (March 2025 shutdown, repo archived). Q1
+re-resolved: SQLite-adjacency stays; alternatives noted
+(graphqlite from colliery-io, DuckDB, TigerGraph CE) for
+when latency forces migration. No urgency.
+
+**Q2 markdown-first formally locked** with full pros/cons
+worked through:
+- Pros: pure-stdlib text analysis composes (stylist works
+  directly), diff-friendly, no compile loop, pandoc
+  handles LaTeX math + raw blocks pass-through.
+- Cons accepted: complex math/tables need raw `\latex`
+  blocks inside markdown.
+- LaTeX-first ruled out: ~5GB TeX Live dep, compile loop,
+  sub-agents need LaTeX-aware parsing, binary versioning.
+
+LaTeX export at submission time via `manuscript-format`
+(v0.27, pandoc-driven).
+
+Parked section expanded: graph backend upgrade now lists
+explicit alternatives + clear trigger condition.
+
+No code changes. 1897 tests pass.
+
 ## v0.121 — open questions all resolved (2026-04-28)
 
 8 "open questions and decisions pending" all marked resolved
