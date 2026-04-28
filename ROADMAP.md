@@ -789,7 +789,28 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.98
+## Shipped: v0.51 → v0.99
+
+### v0.99 — version parser audit (pre-v0.100 defensive) ✅ (2026-04-28)
+
+User opted to keep 0.x line going past v0.99 → v0.100 → v0.101...
+instead of bumping to v1.0 prematurely. v1.0 reserved for the
+true stable cut.
+
+Audit found `lib/changelog.py` already tuple-based: `_version_key`
+splits on dots, parses each segment as int, so v0.100 → (0, 100)
+sorts correctly after v0.99 → (0, 99). ROADMAP heading regex
+`v\d+\.\d+(?:\.\d+)?(?:[a-z])?` accepts three-digit minors.
+
+No code change needed — added regression test pinning the
+v0.10 < v0.98a < v0.99 < v0.100 ordering. Caught zero bugs but
+prevents future contributor from "fixing" the parser into a
+string sort.
+
+`lib/migrations.py` uses int versions (1..12), unaffected.
+No other version-string parsers found in repo.
+
+1 new test. 1749 total passing.
 
 ### v0.98 — stale-span auto-close action ✅ (2026-04-28)
 

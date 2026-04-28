@@ -48,6 +48,27 @@ class VersionKeyTests(TestCase):
         self.assertLess(_version_key(a), _version_key(b))
         self.assertLess(_version_key(b), _version_key(c))
 
+    def test_three_digit_minor_sorts_after_two_digit(self):
+        """v0.99: regression pin — v0.100 must sort after v0.99
+        (defeats string-sort surprise where '100' < '99'
+        lexicographically)."""
+        from lib.changelog import ChangelogEntry as E
+        v10 = E("v0.10", "", "", "")
+        v99 = E("v0.99", "", "", "")
+        v100 = E("v0.100", "", "", "")
+        v98a = E("v0.98a", "", "", "")
+        self.assertLess(_version_key(v10), _version_key(v98a))
+        self.assertLess(_version_key(v98a), _version_key(v99))
+        self.assertLess(_version_key(v99), _version_key(v100))
+        # And full sort matches numeric expectation.
+        sorted_versions = sorted(
+            [v100, v10, v99, v98a], key=_version_key,
+        )
+        self.assertEqual(
+            [e.version for e in sorted_versions],
+            ["v0.10", "v0.98a", "v0.99", "v0.100"],
+        )
+
 
 class ChangelogParityTests(TestCase):
     def test_changelog_md_exists(self):
