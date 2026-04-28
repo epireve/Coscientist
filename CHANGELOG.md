@@ -52,6 +52,55 @@ membership, root + child stamping, sibling branch_index increment,
 grandchild depth, missing-parent error, get_tree ordering, get_subtree
 BFS, prune correctness, and agent frontmatter.
 
+## v0.152 — reference-agent ORCID + institution enrichment (2026-04-29)
+
+`.claude/skills/reference-agent/scripts/enrich_authors.py` walks
+the `kind='author'` nodes in a project graph and resolves each
+against OpenAlex (default) or Semantic Scholar. Uses the v0.148
+graph helpers — no schema changes.
+
+Resolution order (OpenAlex backend):
+
+1. `external_ids_json.openalex_author_id` → `client.get_author(oa_id)`
+2. `external_ids_json.orcid` → `client.get_author("orcid:<id>")`
+3. Fallback: `client.search_authors(label)`; prefer exact
+   `display_name` match, tiebreak by `works_count` (most recent
+   year proxy via OpenAlex's own ranking).
+
+For each match, `lib.graph.merge_external_ids` records
+`openalex_author_id`, `orcid`, and (when found via S2)
+`s2_author_id`, with `source="openalex"` (or `"s2"`).
+
+For each `last_known_institutions[]` entry, an `institution`
+node (kind enabled in v0.148) is upserted with ref = ROR slug
+(falling back to OpenAlex id, then slugged display_name) and
+`external_ids = {ror_id, openalex_id, country_code}`. An
+`affiliated-with` edge is added author → institution
+(pre-checked against `graph_edges` so re-runs are idempotent).
+
+CLI: `--project-id <pid>` for batch over every author node;
+`--author-nid 'author:<ref>'` for single-author mode;
+`--source openalex|s2` selects the backend. S2 backend skips
+institution synthesis (S2 author records lack ROR + country).
+`s2_client=` kwarg on `enrich_author` enables an S2 fallback
+when OpenAlex returns no match.
+
+All errors return dicts with `"error"` key — never raises.
+Project-batch mode collects per-author errors in `errors[]`
+and continues processing the rest.
+
+16 tests covering: enrich-by-orcid path, enrich-by-openalex_id
+from external_ids, name-search exact-match preference,
+works_count tiebreak, institution node ROR+country+OA-id
+persistence, idempotent affiliated-with edge, no-institution
+clean path, missing author node error, missing project DB
+error, no-label-no-id error, no-author-nodes empty result,
+batch-mode all-authors processed, batch-mode error collection,
+S2 backend dispatch, S2 fallback when OpenAlex 404s, CLI
+argparse choices.
+
+2166 → 2182 (+16). Verified locally.
+
 ## v0.151 — populate_concepts OpenAlex topics ingestion (2026-04-29)
 
 `.claude/skills/reference-agent/scripts/populate_concepts.py`
