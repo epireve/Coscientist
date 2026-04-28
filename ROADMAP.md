@@ -789,9 +789,51 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.64
+## Shipped: v0.51 → v0.65
 
 All items in this section are landed. See per-version notes.
+
+### v0.65 — structural hardening ✅ (2026-04-27)
+
+Six-commit pass on break-risk surface area. Each commit independently
+revertable; none touched user-facing behavior.
+
+- **v0.65b** — auto-discover test classes. `tests/run_all.py` shrank
+  from ~520 LOC of manual import/registration to ~70 LOC of `pkgutil`
+  walk. Priority modules (gates, integration) run first; cache-leak
+  detector runs last. Surfaced 2 previously-orphaned test classes.
+  Ratchet test (`test_runner_discovery.py`) prevents silent class loss.
+- **v0.65d** — migration monotonicity invariants. New `ALL_VERSIONS`
+  tuple in `lib/migrations.py`; 7 invariant tests (start-at-1,
+  strictly increasing, contiguous, MIGRATIONS subset, fresh-DB =
+  ALL_VERSIONS, idempotent re-run, MIGRATIONS unique).
+- **v0.65a** — schema-as-single-source. v9/v10 DDL extracted to
+  `lib/migrations_sql/v9.sql` + `v10.sql`; `_ensure_v9_tables` and
+  `_ensure_v10_tables` now `executescript` from the fragment files.
+  Removes ~140 LOC of duplicated DDL from `migrations.py`.
+  `test_schema_parity.py` asserts schema.sql + migrations produce
+  identical table set / index set / column shape.
+- **v0.65f** — SKIPPED. After v0.65a `migrations.py` is 372 LOC; the
+  growth that motivated splitting halted. Re-evaluate at v0.70+.
+- **v0.65c** — skill/agent name invariants.
+  `test_skill_agent_invariants.py` asserts every `PHASE_ALIASES`
+  target maps to a real `.claude/agents/<name>.md`, no alias points
+  at itself, every agent has YAML frontmatter, every agent is
+  referenced somewhere outside its own file (orphan detector), and
+  the v0.53.6 `wide-*` agents all exist.
+- **v0.65e** — cache-leak detector. `test_cache_leak_detector.py`
+  snapshots `~/.cache/coscientist/` at module-import time, asserts
+  unchanged at end of suite. Runs last via new `_LATE_MODULES` tuple
+  in `run_all.py`. Catches tests that bypass `isolated_cache()` and
+  pollute real cache.
+- **v0.65g** — WAL mode helper. New `lib.cache.connect_wal(db_path)`
+  opens SQLite with `journal_mode=WAL` + `busy_timeout`. Opt-in for
+  parallel writers (Wide Research orchestrator-worker). Idempotent;
+  WAL persists per-DB. 7 tests cover mode set, persistence,
+  busy_timeout, parent-dir creation, concurrent reader+writer.
+
+Suite: 1410 → 1448 passing (+38). Three commits land this iteration:
+b+d, a, c+e+g.
 
 ### v0.64 — audit-query resolutions subcommand ✅ (2026-04-27)
 

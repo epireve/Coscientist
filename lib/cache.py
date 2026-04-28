@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import re
+import sqlite3
 from pathlib import Path
 
 
@@ -73,6 +74,36 @@ def runs_dir() -> Path:
     p = cache_root() / "runs"
     p.mkdir(parents=True, exist_ok=True)
     return p
+
+
+def connect_wal(db_path: Path | str, *, timeout: float = 30.0) -> sqlite3.Connection:
+    """v0.65g — open a SQLite connection with WAL + busy_timeout.
+
+    Why: parallel skill invocations (Wide Research orchestrator-worker
+    pattern) write to the same DB. SQLite's default rollback journal
+    blocks a writer if any reader is active, which surfaces as
+    `database is locked`. WAL allows concurrent readers + a single
+    writer, busy_timeout retries silently if the single-writer slot
+    is held.
+
+    Idempotent: WAL is a per-DB on-disk flag set on first connection.
+    Re-running PRAGMA journal_mode=WAL on an already-WAL DB is a no-op.
+
+    Existing call sites that use plain sqlite3.connect() are not
+    affected — this helper is opt-in. New code that opens long-lived
+    connections or runs in parallel should prefer connect_wal().
+    """
+    p = Path(db_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(p, timeout=timeout)
+    # WAL pragma must run outside a transaction.
+    con.execute("PRAGMA journal_mode=WAL")
+    # Wait up to `timeout` seconds for a busy lock before raising.
+    con.execute(f"PRAGMA busy_timeout={int(timeout * 1000)}")
+    # Foreign keys off by default (SQLite quirk); leave that decision
+    # to callers — we don't enforce here to avoid surprising existing
+    # code that relies on FK-off behavior.
+    return con
 
 
 def run_inputs_dir(run_id: str) -> Path:

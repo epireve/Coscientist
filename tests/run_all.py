@@ -29,6 +29,13 @@ _PRIORITY_MODULES = (
     "tests.test_db_state_machine",
 )
 
+# Run these LAST — they observe side effects from the rest of the
+# suite (e.g. cache-leak detector compares end-of-session state to
+# import-time snapshot).
+_LATE_MODULES = (
+    "tests.test_cache_leak_detector",
+)
+
 
 def _discover_test_classes() -> list[type]:
     """Walk tests/ and return every TestCase subclass whose name ends in
@@ -65,13 +72,19 @@ def _discover_test_classes() -> list[type]:
             classes.sort(key=lambda c: c.__name__)
             discovered[mod_name] = classes
 
-    # Priority first (in declared order), then everything else sorted.
+    # Priority first (in declared order), then everything else
+    # sorted, then late modules at the tail.
+    late_classes: list[type] = []
+    for mod_name in _LATE_MODULES:
+        if mod_name in discovered:
+            late_classes.extend(discovered.pop(mod_name))
     ordered: list[type] = []
     for mod_name in _PRIORITY_MODULES:
         if mod_name in discovered:
             ordered.extend(discovered.pop(mod_name))
     for mod_name in sorted(discovered):
         ordered.extend(discovered[mod_name])
+    ordered.extend(late_classes)
     return ordered
 
 
