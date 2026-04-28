@@ -11,6 +11,32 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.83 — PyPI release workflow + install_all.sh (2026-04-28)
+
+Two operational wins.
+
+**PyPI release workflow** (`.github/workflows/release.yml`): Builds
+sdist + wheel for each MCP plugin on tag push (`retraction-mcp-vX`,
+`manuscript-mcp-vX`, `graph-query-mcp-vX`) or manual dispatch.
+Publishes are gated (commented out) — operator turns it on once
+trusted-publishing is configured. Until then the build job alone
+validates packaging.
+
+**install_all.sh** (`scripts/install_all.sh`): One-shot bash
+script that runs `claude plugin marketplace add` then installs
+all 4 Coscientist plugins. Uses bash strict mode, errors clearly
+if `claude` CLI is missing, runs `claude mcp list` for verification
+at the end. User-executable.
+
+9 new tests in `tests/test_v0_83_release.py`:
+- 4 release-workflow (file present, all 3 tag patterns, uv build,
+  publish step gated)
+- 5 install-script (file present, executable bit set, all 4
+  plugins listed, marketplace-add precedes install, uses
+  `set -e` strict mode)
+
+Suite: 1627 → 1636 passing (+9).
+
 ## v0.82 — audit retention + lib.graph WAL consistency (2026-04-28)
 
 Latent risk closure. Two items.

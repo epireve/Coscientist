@@ -1,0 +1,66 @@
+name: Release MCP plugins
+
+on:
+  push:
+    tags:
+      - "retraction-mcp-v*"
+      - "manuscript-mcp-v*"
+      - "graph-query-mcp-v*"
+  workflow_dispatch:
+    inputs:
+      plugin:
+        description: "Which plugin to publish (retraction-mcp / manuscript-mcp / graph-query-mcp)"
+        required: true
+        type: choice
+        options:
+          - retraction-mcp
+          - manuscript-mcp
+          - graph-query-mcp
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Determine plugin from tag or input
+        id: plugin
+        run: |
+          if [[ -n "${{ github.event.inputs.plugin }}" ]]; then
+            echo "name=${{ github.event.inputs.plugin }}" >> $GITHUB_OUTPUT
+          else
+            # Tag format: <plugin>-vX.Y.Z
+            tag="${GITHUB_REF#refs/tags/}"
+            plugin="${tag%-v*}"
+            echo "name=${plugin}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build sdist + wheel
+        working-directory: plugin/coscientist-${{ steps.plugin.outputs.name }}
+        run: |
+          uv build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ steps.plugin.outputs.name }}
+          path: plugin/coscientist-${{ steps.plugin.outputs.name }}/dist/
+
+  # Publish step is intentionally separate + manual gate. Uncomment +
+  # configure trusted-publishing once a maintainer is ready to push to
+  # PyPI. Until then, the build job alone validates packaging.
+  #
+  # publish:
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     id-token: write
+  #   steps:
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: dist-${{ needs.build.outputs.plugin }}
+  #         path: dist/
+  #     - uses: pypa/gh-action-pypi-publish@release/v1
