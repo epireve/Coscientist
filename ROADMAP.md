@@ -789,7 +789,26 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.106
+## Shipped: v0.51 → v0.107
+
+### v0.107 — health skill + runbook integration ✅ (2026-04-28)
+
+`/health` slash command. New skill at
+`.claude/skills/health/SKILL.md` + wrapper script
+`scripts/health.py` that forwards to `lib.health` (v0.106).
+
+Discoverable through skill index: `SKILLS.md` regenerated to 65
+total skills.
+
+`docs/SMOKE-TEST-RUNBOOK.md` (v0.101) updated — Step 2 now
+recommends `lib.health` as first-stop diagnostics, falls back to
+`lib.trace_status` for trace-only views.
+
+6 new tests pin: skill exists, frontmatter valid, mentions
+lib.health + --max-age, wrapper script exists + runs end-to-end,
+runbook references the module. 1813 total passing.
+
+User-facing instrumentation surface complete.
 
 ### v0.106 — health dump ✅ (2026-04-28)
 

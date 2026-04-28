@@ -26,7 +26,14 @@ agent_quality tables are ready.
 
 ## Step 2 — Watch traces in real time
 
-In another shell, scan all runs:
+For a single-shot health dump combining trace status + tool latency
++ quality leaderboard + stale spans (recommended first stop):
+
+```bash
+uv run python -m lib.health
+```
+
+Or just trace status across runs:
 
 ```bash
 uv run python -m lib.trace_status
