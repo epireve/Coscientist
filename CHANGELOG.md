@@ -11,6 +11,35 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.80 — plugin pyprojects + main() entries + cross-DB sweep (2026-04-28)
+
+Three medium-tier improvements bundled.
+
+**Plugin pyproject.toml per MCP**: Each of the 3 MCP plugins now
+has its own `pyproject.toml` with name, version, license,
+dependencies (`mcp>=1.0`), and a `[project.scripts]` console-script
+entry. Unblocks PyPI-style publishing path
+(`uvx coscientist-retraction-mcp`, etc.).
+
+**Server `main()` entries**: Each `mcp/<name>-mcp/server.py` exposes
+a `def main()` so console scripts can target `server:main`. Plugin
+copies resynced; `ServerMainEntryTests` enforces byte equality.
+
+**`prune_writes_all_dbs` sweep helper**: New
+`lib.db_notify.prune_writes_all_dbs(cache_root, keep_last_n=,
+older_than=)` walks every coscientist DB (`runs/*.db` +
+`projects/*/project.db`) and applies the same retention rules.
+audit-query gains a `prune-writes-all` subcommand.
+
+9 new tests in `tests/test_v0_80_medium.py`:
+- 4 plugin-pyproject tests (presence, console script, mcp dep,
+  version match)
+- 2 server-main tests (every server has main, plugin↔source byte
+  parity)
+- 3 sweep tests (empty cache, run-DB sweep, keep-last-N global)
+
+Suite: 1601 → 1610 passing (+9).
+
 ## v0.79 — tournament integration + lib.shortest_path + CHANGELOG.md (2026-04-28)
 
 Quick-win bundle: 3 items.

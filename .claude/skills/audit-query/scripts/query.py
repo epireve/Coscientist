@@ -343,6 +343,17 @@ def cmd_prune_writes(args: argparse.Namespace) -> dict:
         con.close()
 
 
+def cmd_prune_writes_all(args: argparse.Namespace) -> dict:
+    """v0.80 — sweep prune_writes across every coscientist DB."""
+    from lib.cache import cache_root
+    from lib.db_notify import prune_writes_all_dbs
+    return prune_writes_all_dbs(
+        cache_root(),
+        keep_last_n=args.keep_last_n,
+        older_than=args.older_than,
+    )
+
+
 def cmd_summary(args: argparse.Namespace) -> dict:
     incl = getattr(args, "include_archives", False)
     fa = argparse.Namespace(since=args.since, domain=None, limit=5,
@@ -444,6 +455,16 @@ def main() -> None:
     pw.add_argument("--older-than", default=None,
                     help="Delete rows with at < this ISO timestamp")
     pw.set_defaults(func=cmd_prune_writes)
+
+    pwa = sub.add_parser(
+        "prune-writes-all",
+        help="Sweep prune_writes across every coscientist DB (v0.80)",
+    )
+    pwa.add_argument("--keep-last-n", type=int, default=None,
+                     help="Keep only the N newest rows per DB")
+    pwa.add_argument("--older-than", default=None,
+                     help="Delete rows with at < this ISO timestamp")
+    pwa.set_defaults(func=cmd_prune_writes_all)
 
     args = p.parse_args()
     out = args.func(args)

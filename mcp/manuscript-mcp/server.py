@@ -258,5 +258,10 @@ def parse_manuscript(
     }
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Console-script entry. v0.80 — pyproject scripts hook."""
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()

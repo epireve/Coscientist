@@ -204,6 +204,63 @@ def prune_writes(
     }
 
 
+def prune_writes_all_dbs(
+    cache_root,
+    *,
+    keep_last_n: int | None = None,
+    older_than: str | None = None,
+) -> dict:
+    """v0.80 — sweep prune_writes across every coscientist DB.
+
+    Walks ~/.cache/coscientist/runs/*.db + projects/*/project.db,
+    applies the same retention rules to each. Read-only on DBs that
+    don't have the db_writes table yet.
+
+    Returns: {dbs_scanned, total_deleted, total_remaining,
+              per_db: [{path, deleted, remaining}, ...]}.
+    """
+    from pathlib import Path
+    root = Path(cache_root)
+    candidates: list[Path] = []
+    runs_dir = root / "runs"
+    if runs_dir.exists():
+        candidates.extend(p for p in runs_dir.glob("*.db") if p.is_file())
+    projects_dir = root / "projects"
+    if projects_dir.exists():
+        for proj in projects_dir.iterdir():
+            db = proj / "project.db"
+            if db.exists():
+                candidates.append(db)
+    per_db: list[dict] = []
+    total_deleted = 0
+    total_remaining = 0
+    for db_path in sorted(candidates):
+        try:
+            con = sqlite3.connect(db_path)
+        except sqlite3.Error:
+            continue
+        try:
+            res = prune_writes(
+                con, keep_last_n=keep_last_n, older_than=older_than,
+            )
+        finally:
+            con.close()
+        per_db.append({
+            "path": str(db_path),
+            "deleted": res.get("deleted", 0),
+            "remaining": res.get("remaining", 0),
+            "table_present": res.get("table_present", False),
+        })
+        total_deleted += res.get("deleted", 0)
+        total_remaining += res.get("remaining", 0)
+    return {
+        "dbs_scanned": len(candidates),
+        "total_deleted": total_deleted,
+        "total_remaining": total_remaining,
+        "per_db": per_db,
+    }
+
+
 def _table_exists(con: sqlite3.Connection, name: str) -> bool:
     row = con.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
