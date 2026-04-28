@@ -306,45 +306,70 @@ def cmd_record_phase(args: argparse.Namespace) -> None:
     _emit_phase_span(args.run_id, args.phase,
                      start=args.start, complete=args.complete,
                      error=args.error, output_json=args.output_json)
-    # v0.94 — auto-quality scoring on phase completion. Best-effort.
-    if args.complete and args.output_json:
-        _maybe_auto_score(args.run_id, args.phase, args.output_json)
+    # v0.94/v0.103 — auto-quality scoring on phase completion.
+    # Best-effort. Schema gate runs on output_json (record-phase
+    # contract); rubric runs on --quality-artifact only. v0.94
+    # fallback to output_json removed in v0.103 — rubrics expect
+    # richer persona-side artifacts (e.g. /tmp/scout-shortlist.json),
+    # not record-phase summary JSON.
+    if args.complete:
+        if args.output_json:
+            _maybe_validate_schema(args.run_id, args.phase,
+                                    args.output_json)
+        rubric_target = getattr(args, "quality_artifact", None)
+        if rubric_target:
+            _maybe_auto_score(args.run_id, args.phase, rubric_target)
 
 
-def _maybe_auto_score(run_id: str, phase: str, output_json: str) -> None:
-    """v0.94 — auto-rubric score the persona output if a rubric exists.
-
-    Phase name maps 1:1 to rubric agent name (scout, surveyor,
-    architect, synthesist, weaver). Personas without a rubric: noop.
-    All errors swallowed — quality scoring is observability.
-
-    v0.102 — runs persona_schema.validate first; if shape invalid,
-    skips rubric (would score garbage) and emits a `schema_error`
-    span event for the trace.
+def _maybe_validate_schema(run_id: str, phase: str,
+                            output_json: str) -> None:
+    """v0.103 — validate record-phase output_json against the
+    persona schema. On failure, emit a `gate`-kind schema-error span.
+    Best-effort.
     """
     try:
-        from lib import agent_quality, persona_schema, trace
+        from lib import persona_schema, trace
         from lib.cache import run_db_path
-        if phase not in agent_quality.RUBRICS:
-            return
         artifact = Path(output_json)
         if not artifact.exists():
             return
-        # v0.102 shape gate.
         res = persona_schema.validate(phase, artifact)
-        if not res.ok:
-            try:
-                db = run_db_path(run_id)
-                trace.init_trace(db, trace_id=run_id, run_id=run_id)
-                with trace.start_span(
-                    db, run_id, "gate", f"schema-{phase}",
-                    attrs={"phase": phase, "error": res.error},
-                ) as sp:
-                    sp.event("schema_error",
-                             {"agent": phase, "error": res.error,
-                              "artifact_path": str(artifact)})
-            except Exception:
-                pass
+        if res.ok:
+            return
+        db = run_db_path(run_id)
+        trace.init_trace(db, trace_id=run_id, run_id=run_id)
+        try:
+            with trace.start_span(
+                db, run_id, "gate", f"schema-{phase}",
+                attrs={"phase": phase, "error": res.error},
+            ) as sp:
+                sp.event("schema_error",
+                         {"agent": phase, "error": res.error,
+                          "artifact_path": str(artifact)})
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+
+def _maybe_auto_score(run_id: str, phase: str,
+                       artifact_path: str) -> None:
+    """v0.94 — auto-rubric score the persona artifact if a rubric exists.
+
+    `artifact_path` is the rubric target (richer persona artifact
+    or output_json fallback). Schema gate is no longer called here
+    — caller (record-phase) invokes _maybe_validate_schema on the
+    record-phase output_json separately.
+
+    Personas without a rubric: noop. All errors swallowed.
+    """
+    try:
+        from lib import agent_quality
+        from lib.cache import run_db_path
+        if phase not in agent_quality.RUBRICS:
+            return
+        artifact = Path(artifact_path)
+        if not artifact.exists():
             return
         agent_quality.score_auto(
             db_path=run_db_path(run_id), run_id=run_id, span_id=None,
@@ -856,6 +881,12 @@ def main() -> None:
     pp.add_argument("--run-id", required=True); pp.add_argument("--phase", required=True)
     pp.add_argument("--start", action="store_true"); pp.add_argument("--complete", action="store_true")
     pp.add_argument("--output-json", default=None); pp.add_argument("--error", default=None)
+    pp.add_argument(
+        "--quality-artifact", default=None,
+        help="v0.103: separate richer artifact for auto-rubric "
+             "scoring (e.g. /tmp/scout-shortlist.json). Falls "
+             "back to --output-json if omitted.",
+    )
     pp.set_defaults(func=cmd_record_phase)
 
     pb = sub.add_parser("record-break")

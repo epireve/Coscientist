@@ -26,51 +26,50 @@ def _write_json(payload, suffix=".json"):
 
 
 class ScoutSchemaTests(TestCase):
+    """v0.103 — scout shape corrected to dict (papers_seeded etc)."""
+
     def test_valid_scout_passes(self):
-        items = [
-            {"canonical_id": "p1", "title": "T", "source": "s2"},
-        ]
-        p = _write_json(items)
+        d = {
+            "papers_seeded": 10, "shortlist_size": 10,
+            "duplicates_dropped": 0, "stopped_because": "ok",
+        }
+        p = _write_json(d)
         try:
             res = persona_schema.validate("scout", p)
             self.assertTrue(res.ok, res.error)
-            self.assertEqual(len(res.payload), 1)
         finally:
             p.unlink()
 
     def test_scout_missing_field_rejected(self):
-        items = [{"canonical_id": "p1", "title": "T"}]  # no source
-        p = _write_json(items)
+        d = {"papers_seeded": 10}  # missing rest
+        p = _write_json(d)
         try:
             res = persona_schema.validate("scout", p)
             self.assertFalse(res.ok)
-            self.assertIn("source", res.error)
+            self.assertIn("missing", res.error)
         finally:
             p.unlink()
 
-    def test_scout_dict_top_rejected(self):
-        p = _write_json({"canonical_id": "p1"})
+    def test_scout_list_top_rejected(self):
+        p = _write_json([{"papers_seeded": 10}])
         try:
             res = persona_schema.validate("scout", p)
             self.assertFalse(res.ok)
-            self.assertIn("expected list", res.error)
-        finally:
-            p.unlink()
-
-    def test_scout_empty_list_rejected(self):
-        p = _write_json([])
-        try:
-            res = persona_schema.validate("scout", p)
-            self.assertFalse(res.ok)
-            self.assertIn(">=1 items", res.error)
+            self.assertIn("expected dict", res.error)
         finally:
             p.unlink()
 
 
 class WeaverDictSchemaTests(TestCase):
+    """v0.103 — weaver shape corrected to consensus/tensions."""
+
     def test_valid_weaver_passes(self):
         p = _write_json({
-            "agreements": [], "disagreements": [],
+            "phase": "weaver",
+            "summary": "x",
+            "sharpened_question": "y",
+            "consensus": [],
+            "tensions": [],
         })
         try:
             res = persona_schema.validate("weaver", p)
@@ -79,11 +78,11 @@ class WeaverDictSchemaTests(TestCase):
             p.unlink()
 
     def test_weaver_missing_key_rejected(self):
-        p = _write_json({"agreements": []})  # no disagreements
+        p = _write_json({"phase": "weaver", "summary": "x"})
         try:
             res = persona_schema.validate("weaver", p)
             self.assertFalse(res.ok)
-            self.assertIn("disagreements", res.error)
+            self.assertIn("missing", res.error)
         finally:
             p.unlink()
 
@@ -132,13 +131,15 @@ class FileErrorTests(TestCase):
 
 class CliTests(TestCase):
     def test_cli_passes(self):
-        items = [
-            {"canonical_id": "p1", "title": "T", "source": "s2"},
-        ]
-        p = _write_json(items)
+        d = {
+            "papers_seeded": 10, "shortlist_size": 10,
+            "duplicates_dropped": 0, "stopped_because": "ok",
+        }
+        p = _write_json(d)
         try:
             r = subprocess.run(
                 [sys.executable, "-m", "lib.persona_schema",
+                 "validate",
                  "--agent", "scout",
                  "--artifact-path", str(p)],
                 capture_output=True, text=True, cwd=str(_REPO),
@@ -149,10 +150,11 @@ class CliTests(TestCase):
             p.unlink()
 
     def test_cli_fails_with_exit_1(self):
-        p = _write_json([])
+        p = _write_json({})  # missing all required fields
         try:
             r = subprocess.run(
                 [sys.executable, "-m", "lib.persona_schema",
+                 "validate",
                  "--agent", "scout",
                  "--artifact-path", str(p)],
                 capture_output=True, text=True, cwd=str(_REPO),

@@ -58,29 +58,59 @@ class Schema:
 # but kept independent — schemas can exist without rubrics and
 # vice-versa.
 SCHEMAS: dict[str, Schema] = {
+    # v0.103 — scout/surveyor/architect/synthesist also dict-top
+    # per persona output spec ({phase, summary, ...} or
+    # {papers_seeded, shortlist_size, ...}). Initial v0.102 list-top
+    # entries were wrong — corrected here.
     "scout": Schema(
-        top_kind="list",
-        item_required_fields=("canonical_id", "title", "source"),
-        min_items=1,
+        top_kind="dict",
+        dict_required_fields=(
+            "papers_seeded", "shortlist_size",
+            "duplicates_dropped", "stopped_because",
+        ),
     ),
     "surveyor": Schema(
-        top_kind="list",
-        item_required_fields=("gap", "rationale"),
-        min_items=1,
+        top_kind="dict",
+        dict_required_fields=("phase", "summary", "gaps"),
     ),
     "architect": Schema(
-        top_kind="list",
-        item_required_fields=("hypothesis", "test"),
-        min_items=1,
+        top_kind="dict",
+        dict_required_fields=("phase", "summary", "hypotheses"),
     ),
     "synthesist": Schema(
-        top_kind="list",
-        item_required_fields=("implication",),
-        min_items=1,
+        top_kind="dict",
+        dict_required_fields=("phase", "summary", "implications"),
     ),
     "weaver": Schema(
         top_kind="dict",
-        dict_required_fields=("agreements", "disagreements"),
+        dict_required_fields=(
+            "phase", "summary", "sharpened_question",
+            "consensus", "tensions",
+        ),
+    ),
+    # v0.103 — Phase 1 + 2c + 3 personas
+    "cartographer": Schema(
+        top_kind="dict",
+        dict_required_fields=("phase", "summary", "seminals"),
+    ),
+    "chronicler": Schema(
+        top_kind="dict",
+        dict_required_fields=("phase", "summary", "timeline"),
+    ),
+    "inquisitor": Schema(
+        top_kind="dict",
+        dict_required_fields=("phase", "summary", "evaluations"),
+    ),
+    "visionary": Schema(
+        top_kind="dict",
+        dict_required_fields=("phase", "summary", "directions"),
+    ),
+    "steward": Schema(
+        top_kind="dict",
+        dict_required_fields=(
+            "phase", "brief_path", "map_path",
+            "claims_cited", "papers_cited", "eval_passed",
+        ),
     ),
 }
 
@@ -170,16 +200,53 @@ def validate(agent_name: str, artifact_path: Path) -> ValidationResult:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI: validate <agent> <path> → exit 0/1."""
+    """CLI: validate <agent> <path> → exit 0/1, or `list` schemas."""
     import argparse
     import sys
     p = argparse.ArgumentParser(prog="persona_schema")
-    p.add_argument("--agent", required=True)
-    p.add_argument("--artifact-path", required=True)
+    sub = p.add_subparsers(dest="cmd")
+
+    pv = sub.add_parser("validate", help="Validate artifact shape")
+    pv.add_argument("--agent", required=True)
+    pv.add_argument("--artifact-path", required=True)
+
+    sub.add_parser("list", help="List registered schemas (v0.103)")
+
+    # Backward-compat: bare flags trigger validate.
+    p.add_argument("--agent", default=None, help=argparse.SUPPRESS)
+    p.add_argument("--artifact-path", default=None,
+                    help=argparse.SUPPRESS)
     args = p.parse_args(argv)
-    res = validate(args.agent, Path(args.artifact_path))
-    out = {"ok": res.ok, "agent": args.agent,
-           "artifact_path": args.artifact_path}
+
+    if args.cmd == "list":
+        out = {
+            agent: {
+                "top_kind": s.top_kind,
+                "item_required_fields": list(s.item_required_fields),
+                "dict_required_fields": list(s.dict_required_fields),
+                "min_items": s.min_items,
+            }
+            for agent, s in sorted(SCHEMAS.items())
+        }
+        sys.stdout.write(json.dumps(out, indent=2) + "\n")
+        return 0
+
+    agent = (
+        getattr(args, "agent", None)
+        if args.cmd == "validate"
+        else None
+    ) or args.agent
+    artifact = (
+        getattr(args, "artifact_path", None)
+        if args.cmd == "validate"
+        else None
+    ) or args.artifact_path
+    if not agent or not artifact:
+        p.print_help(sys.stderr)
+        return 2
+    res = validate(agent, Path(artifact))
+    out = {"ok": res.ok, "agent": agent,
+           "artifact_path": artifact}
     if res.error:
         out["error"] = res.error
     sys.stdout.write(json.dumps(out, indent=2) + "\n")

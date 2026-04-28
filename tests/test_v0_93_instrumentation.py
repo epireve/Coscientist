@@ -211,11 +211,13 @@ class AutoQualityHookTests(TestCase):
             )
             json.dump(items, tf); tf.close()
             # First start, then complete with the artifact path.
+            # v0.103: pass via --quality-artifact (rubric target),
+            # not --output-json (record-phase contract / schema gate).
             for flag in ("--start", "--complete"):
                 args = [sys.executable, str(db_py), "record-phase",
                         "--run-id", rid, "--phase", "scout", flag]
                 if flag == "--complete":
-                    args += ["--output-json", tf.name]
+                    args += ["--quality-artifact", tf.name]
                 r = subprocess.run(args, capture_output=True,
                                    text=True, cwd=str(_REPO))
                 self.assertEqual(r.returncode, 0, r.stderr)

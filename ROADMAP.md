@@ -789,7 +789,35 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.102
+## Shipped: v0.51 → v0.103
+
+### v0.103 — full persona schemas + record-phase split ✅ (2026-04-28)
+
+**Schema corrections** — v0.102 shipped scout/surveyor/architect/
+synthesist as list-top; reading actual persona output specs in
+`.claude/agents/*.md` revealed they all emit dict at top with
+`phase` + summary + items[]. Same with weaver (consensus/tensions,
+not agreements/disagreements). Fixed.
+
+**Five new persona schemas**: cartographer, chronicler, inquisitor,
+visionary, steward. All dict-top with persona-specific required
+fields. Total: 10 personas registered.
+
+**record-phase split (v0.94 → v0.103)**: separate `--output-json`
+(record-phase contract — schema gate target) from `--quality-artifact`
+(rubric target — richer persona-side artifact like
+/tmp/scout-shortlist.json). v0.94 fallback removed: rubric
+runs only when `--quality-artifact` passed. Schema gate runs
+on `--output-json` independently.
+
+**CLI**: `uv run python -m lib.persona_schema list` prints all
+registered schemas as JSON. `validate` subcommand for explicit
+shape check (backward-compat: bare `--agent` + `--artifact-path`
+still works).
+
+8 new tests (full schema coverage + list CLI + record-phase split).
+v0.93 + v0.102 tests updated to match corrected shapes. 1779
+total passing.
 
 ### v0.102 — persona output schema validator ✅ (2026-04-28)
 
