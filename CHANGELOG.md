@@ -11,6 +11,29 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.108 — harvest summary in health dump (2026-04-28)
+
+v0.93b started writing `harvest_write` events on every harvest.py
+call (raw_count/deduped_count/kept_count/queries_sent). Health
+dump (v0.106) ignored them. Fixed.
+
+`lib.trace_status.harvest_summary(db, *, trace_id=None)` extracts
+all harvest spans + events, aggregates by persona. Returns n,
+totals (raw/deduped/kept/queries), by-persona breakdown.
+
+`harvest_summary_across_runs(roots=None)` companion for cross-run
+view.
+
+`lib.health.collect()` now includes `harvests` key. Md renderer
+adds "Harvest activity (per persona)" section sorted by kept-count
+descending.
+
+Operator can now answer "did Phase 0 actually retrieve anything"
+in one command.
+
+6 new tests (per-DB aggregation + trace filter + cross-run +
+health md integration). 1819 total passing.
+
 ## v0.107 — health skill + runbook integration (2026-04-28)
 
 `/health` slash command. New skill at

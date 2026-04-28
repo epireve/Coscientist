@@ -189,6 +189,75 @@ def find_stale_spans(
     return out
 
 
+def harvest_summary(
+    db_path: Path, *, trace_id: str | None = None,
+) -> dict[str, Any]:
+    """v0.108 — aggregate harvest_write events across spans.
+
+    Returns: {n_harvests, by_persona: {name: {n, raw, deduped,
+    kept, queries}}, totals: {raw, deduped, kept, queries}}.
+    Filters to spans with kind='harvest'.
+    """
+    if not db_path.exists():
+        return {"n_harvests": 0, "by_persona": {},
+                "totals": {"raw": 0, "deduped": 0,
+                           "kept": 0, "queries": 0}}
+    con = _open(db_path)
+    try:
+        try:
+            if trace_id:
+                rows = list(con.execute(
+                    "SELECT s.name, e.payload_json FROM spans s "
+                    "JOIN span_events e ON s.span_id = e.span_id "
+                    "WHERE s.trace_id=? AND s.kind='harvest' "
+                    "AND e.name='harvest_write'",
+                    (trace_id,),
+                ))
+            else:
+                rows = list(con.execute(
+                    "SELECT s.name, e.payload_json FROM spans s "
+                    "JOIN span_events e ON s.span_id = e.span_id "
+                    "WHERE s.kind='harvest' "
+                    "AND e.name='harvest_write'",
+                ))
+        except sqlite3.OperationalError:
+            return {"n_harvests": 0, "by_persona": {},
+                    "totals": {"raw": 0, "deduped": 0,
+                               "kept": 0, "queries": 0}}
+    finally:
+        con.close()
+    by_persona: dict[str, dict] = {}
+    tot = {"raw": 0, "deduped": 0, "kept": 0, "queries": 0}
+    for r in rows:
+        try:
+            payload = json.loads(r["payload_json"] or "{}")
+        except json.JSONDecodeError:
+            continue
+        persona = (r["name"] or "").split("/", 1)[0] or "?"
+        d = by_persona.setdefault(
+            persona,
+            {"n": 0, "raw": 0, "deduped": 0,
+             "kept": 0, "queries": 0},
+        )
+        d["n"] += 1
+        for src, dst in (("raw_count", "raw"),
+                          ("deduped_count", "deduped"),
+                          ("kept_count", "kept"),
+                          ("queries_sent", "queries")):
+            v = payload.get(src) or 0
+            try:
+                v = int(v)
+            except (TypeError, ValueError):
+                v = 0
+            d[dst] += v
+            tot[dst] += v
+    return {
+        "n_harvests": len(rows),
+        "by_persona": by_persona,
+        "totals": tot,
+    }
+
+
 def tool_call_latency(
     db_path: Path, *, trace_id: str | None = None,
 ) -> dict[str, Any]:
@@ -239,6 +308,57 @@ def tool_call_latency(
         d["p95_ms"] = durs[min(n - 1, int(n * 0.95))] if n else 0
         d["max_ms"] = durs[-1] if n else 0
     return {"n_rows": len(rows), "by_tool": by_tool}
+
+
+def harvest_summary_across_runs(
+    roots: list[Path] | None = None,
+) -> dict[str, Any]:
+    """v0.108 — harvest summary aggregated across every run DB."""
+    from lib.cache import runs_dir
+    root = roots[0] if roots else runs_dir()
+    by_persona: dict[str, dict] = {}
+    tot = {"raw": 0, "deduped": 0, "kept": 0, "queries": 0}
+    n_harvests = 0
+    n_dbs = 0
+    if not root.exists():
+        return {"n_harvests": 0, "n_dbs": 0,
+                "by_persona": {}, "totals": tot}
+    for db in sorted(root.glob("run-*.db")):
+        try:
+            s = harvest_summary(db)
+        except Exception:
+            continue
+        if s["n_harvests"] == 0 and not s["by_persona"]:
+            # still counts as scanned if traces table exists
+            try:
+                con = _open(db)
+                try:
+                    con.execute("SELECT 1 FROM traces LIMIT 1")
+                    n_dbs += 1
+                except sqlite3.OperationalError:
+                    pass
+                con.close()
+            except Exception:
+                pass
+            continue
+        n_dbs += 1
+        n_harvests += s["n_harvests"]
+        for persona, d in s["by_persona"].items():
+            agg = by_persona.setdefault(
+                persona,
+                {"n": 0, "raw": 0, "deduped": 0,
+                 "kept": 0, "queries": 0},
+            )
+            for k in ("n", "raw", "deduped", "kept", "queries"):
+                agg[k] += d[k]
+        for k in tot:
+            tot[k] += s["totals"][k]
+    return {
+        "n_harvests": n_harvests,
+        "n_dbs": n_dbs,
+        "by_persona": by_persona,
+        "totals": tot,
+    }
 
 
 def tool_call_latency_across_runs(

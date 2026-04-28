@@ -83,7 +83,7 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
         except Exception:
             pass
 
-    # tool latency + quality leaderboards
+    # tool latency + quality leaderboards + harvest summary
     try:
         tool_latency = trace_status.tool_call_latency_across_runs()
     except Exception:
@@ -92,6 +92,12 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
         quality = agent_quality.leaderboard()
     except Exception:
         quality = {"n_rows": 0, "by_agent": {}}
+    try:
+        harvests = trace_status.harvest_summary_across_runs()
+    except Exception:
+        harvests = {"n_harvests": 0, "by_persona": {},
+                    "totals": {"raw": 0, "deduped": 0,
+                                "kept": 0, "queries": 0}}
 
     return {
         "n_runs": n_runs,
@@ -99,6 +105,7 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
         "stale": stale,
         "tool_latency": tool_latency,
         "quality": quality,
+        "harvests": harvests,
         "failed_spans_total": failed_total,
     }
 
@@ -146,6 +153,21 @@ def render_md(report: dict[str, Any]) -> str:
                 f"errors={d['n_errors']} "
                 f"mean={d['mean_ms']:.0f}ms "
                 f"p95={d['p95_ms']}ms"
+            )
+        lines.append("")
+
+    harvests = report.get("harvests") or {}
+    by_persona = harvests.get("by_persona", {})
+    if by_persona:
+        lines.append("## Harvest activity (per persona)")
+        lines.append("")
+        for persona, d in sorted(
+            by_persona.items(), key=lambda kv: -kv[1]["kept"],
+        ):
+            lines.append(
+                f"- **{persona}** harvests={d['n']} "
+                f"raw={d['raw']} → deduped={d['deduped']} "
+                f"→ kept={d['kept']} (queries={d['queries']})"
             )
         lines.append("")
 
