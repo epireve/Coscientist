@@ -789,9 +789,43 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.80
+## Shipped: v0.51 → v0.81
 
 All items in this section are landed. See per-version notes.
+
+### v0.81 — CI runner + install-check + README troubleshooting ✅ (2026-04-28)
+
+Marketplace + infra polish. Four items.
+
+**GitHub Actions CI**: `.github/workflows/tests.yml` runs the full
+suite on push/PR against `main`, matrix Python 3.11 + 3.12. Uses
+`uv sync --extra dev --extra mcp` and runs `tests/run_all.py`.
+Lint step (ruff) is `continue-on-error` for now — informational.
+
+**install_check CLI**: `lib/install_check.py` walks
+`marketplace.json`, validates every declared plugin (plugin.json
+present + parses, name/version match, server.py compiles, .mcp.json
+valid). Optional `--with-mcp-list` shells out to `claude mcp list`
+for runtime verification. Run: `uv run python -m lib.install_check`.
+
+**README troubleshooting section**: 6 common install failures
+documented with cause + fix. Includes pointer to `install_check`
+for self-diagnosis.
+
+**`mcp` dep verify test**: Asserts `pyproject.toml` declares
+`mcp>=1.0` in the `mcp` optional-dep group (so `uv sync --extra mcp`
+keeps working).
+
+8 new tests in `tests/test_v0_81_infra.py`:
+- CI workflow file present + invokes run_all.py
+- pyproject mcp extra declared
+- run_checks returns structured dict
+- all known plugins healthy (no drift between marketplace + plugin.json)
+- ≥ 4 plugins
+- MCP plugins have valid server.py + .mcp.json
+- README has troubleshooting section + references install_check
+
+Suite: 1610 → 1618 passing (+8).
 
 ### v0.80 — plugin pyprojects + main() entries + cross-DB sweep ✅ (2026-04-28)
 

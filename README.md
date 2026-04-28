@@ -67,6 +67,17 @@ paper-search, semantic-scholar, academic, zotero, playwright,
 browser-use). They're not republished here — see
 [EXTERNAL_MCPS.md](./EXTERNAL_MCPS.md) for setup.
 
+### Install troubleshooting
+
+| Symptom | Likely cause + fix |
+|---|---|
+| `/plugin install` fails with "marketplace not found" | Run `/plugin marketplace add epireve/coscientist` first. |
+| MCP server doesn't appear in `claude mcp list` after install | Plugin's `.mcp.json` uses `${CLAUDE_PLUGIN_ROOT}` — make sure your Claude Code version supports plugin env vars (≥ 2.0.0). |
+| `mcp` package not found at runtime | Either install via `uv sync --extra mcp` (source tree) or rely on `uv run --with mcp` declared inside each plugin's `.mcp.json`. |
+| `pandoc not on PATH` errors from `manuscript-mcp` | Only `.docx` parsing needs pandoc. Install via `brew install pandoc` or distro package manager. Markdown + LaTeX paths work without it. |
+| `coscientist-graph-query-mcp` errors `lib.graph not found` | Plugin vendors its own `lib/`; check that `plugin/coscientist-graph-query-mcp/lib/graph.py` exists. The marketplace install should include it. |
+| Want to verify everything before reporting a bug? | Run `uv run python -m lib.install_check --with-mcp-list`. Returns a structured JSON report on every plugin + (optionally) `claude mcp list` output. |
+
 ## Architecture
 
 Each skill is atomic and does one job. Skills compose through a shared **paper artifact** on disk — no skill calls another skill directly, so any piece can be swapped out.
