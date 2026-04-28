@@ -789,7 +789,50 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.130
+## Shipped: v0.51 → v0.132
+
+### v0.132 — local CI emulation + GitHub MCP ✅ (2026-04-28)
+
+Two ergonomic fixes for the CI feedback loop.
+
+**1. `scripts/test-like-ci.sh`** — emulates GitHub Actions
+tests.yml steps locally so failures surface BEFORE push.
+Same env vars, same install order, same test invocation.
+Optional `--fresh` flag clones repo into tmp dir first
+(catches gitignore / untracked-file bugs that local repo
+state masks).
+
+**2. `scripts/ci-status.sh`** — wraps `gh` CLI for quick
+CI inspection from shell. Subcommands:
+- (no arg): latest run status + conclusion + failed steps
+- `--watch`: poll until terminal state
+- `--logs`: full failed-step logs
+- `--rerun`: rerun failed jobs only
+
+Detects when `gh` not installed/authed; surfaces install hint.
+
+**3. GitHub MCP** registered in `.mcp.json.example`. Uses
+`@modelcontextprotocol/server-github` via npx (no install).
+Token via `GITHUB_PERSONAL_ACCESS_TOKEN` env (real token in
+gitignored `.mcp.json`; `gh auth token` provides it).
+
+Future Claude sessions can now act on CI directly via MCP
+tools (list workflow runs, fetch logs, rerun) instead of
+shell-out — though `scripts/ci-status.sh` remains the cheaper
+default.
+
+**Verified live**: post-v0.131 push, `gh run list` confirms
+CI green again. v0.131 fix worked as designed.
+
+### v0.131 — fix CacheLeakDetector CI flake ✅ (2026-04-28)
+
+Cache dir can appear AFTER import (lib init / other tests).
+`_BASELINE` is import-time snapshot, intentionally None when
+cache absent at that moment. Test keyed off current `exists()`
+→ ran assertion when guard should have skipped.
+
+Fix: skip when `_BASELINE is None` regardless of current
+`exists()`. CI confirmed green next run.
 
 ### v0.130 — CI fixes ✅ (2026-04-28)
 

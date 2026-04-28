@@ -64,6 +64,17 @@
       "env": {
         "ZOTERO_API_HOST": "<zotero_api_host>"
       }
+    },
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "<github_personal_access_token>"
+      }
     }
   }
 }
