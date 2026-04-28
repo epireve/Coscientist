@@ -1,25 +1,38 @@
 ---
 name: paper-discovery
-description: Search for academic papers across Consensus, paper-search MCP, academic MCP, and Semantic Scholar. Deduplicate results, write artifact stubs, and return a ranked shortlist. First step of any research task.
+description: Search for academic papers across Consensus, paper-search MCP, academic MCP, Semantic Scholar, and OpenAlex (v0.145). Deduplicate results, write artifact stubs, and return a ranked shortlist. First step of any research task.
 when_to_use: Starting a new research thread, or explicitly asked to "find papers on X". Not for fetching PDFs — that's `paper-acquire`. Not for reading — that's `arxiv-to-markdown` or `pdf-extract`.
 ---
 
 # paper-discovery
 
-Orchestrates the four discovery MCPs in parallel, merges results on DOI/arXiv-ID/normalized-title, and writes a stub artifact per paper. Output is a ranked shortlist; no PDFs are fetched.
+Orchestrates the five discovery sources in parallel, merges results on DOI/arXiv-ID/OpenAlex-ID/normalized-title, and writes a stub artifact per paper. Output is a ranked shortlist; no PDFs are fetched.
 
 ## Source selection heuristics
 
-Always run Consensus first — its claim-extraction is the best input for `paper-triage`. Then run others in parallel. Use all four unless the query strongly matches one domain:
+Always run Consensus first — its claim-extraction is the best input for `paper-triage`. Then run others in parallel. Use all five unless the query strongly matches one domain:
 
-| Domain | Primary MCPs |
+| Domain | Primary sources |
 |---|---|
-| Biomed / clinical | `paper-search` (PubMed, PMC, Europe PMC) + `consensus` |
-| CS / ML / physics / math | `paper-search` (arXiv) + `semantic-scholar` + `consensus` |
-| Crypto | `paper-search` (IACR) + `semantic-scholar` |
-| Engineering | `academic` (IEEE, Springer, ScienceDirect) + `consensus` |
-| Humanities / philosophy | `consensus` + `academic` |
-| Broad / cross-disciplinary | all four |
+| Biomed / clinical | `paper-search` (PubMed, PMC, Europe PMC) + `consensus` + `openalex` |
+| CS / ML / physics / math | `paper-search` (arXiv) + `semantic-scholar` + `openalex` + `consensus` |
+| Crypto | `paper-search` (IACR) + `semantic-scholar` + `openalex` |
+| Engineering | `academic` (IEEE, Springer, ScienceDirect) + `consensus` + `openalex` |
+| Humanities / philosophy | `consensus` + `academic` + `openalex` |
+| Broad / cross-disciplinary | all five |
+| OA-only / quick / preprint-heavy | `openalex` (10 req/s polite-pool, free) |
+
+**OpenAlex** (v0.145, via `lib.openalex_client` — not an MCP) gives:
+- 250M works, ORCID-linked authors, ROR institutions
+- Pre-scored topic tags (saves manual concept inference)
+- OA URL directly in metadata (eliminates one fallback hop in `paper-acquire`)
+- 10 req/s polite-pool (free with `OPENALEX_MAILTO`), 100 req/s with `OPENALEX_API_KEY`
+- Invoke via:
+  ```bash
+  uv run python .claude/skills/paper-discovery/scripts/openalex_source.py \
+    --query "your query" --per-page 25 --out /tmp/openalex.json
+  ```
+- Then concat with other source outputs and pipe to `merge.py`.
 
 ## How to use this skill (agent-facing instructions)
 

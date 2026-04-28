@@ -65,5 +65,10 @@
         "ZOTERO_API_HOST": "<zotero_api_host>"
       }
     }
+  },
+  "_comment_openalex": "v0.144 — OpenAlex is consumed via lib.openalex_client (not as MCP). Set OPENALEX_MAILTO env for free polite-pool (10 req/s) or OPENALEX_API_KEY for premium (100 req/s).",
+  "_env_examples": {
+    "OPENALEX_MAILTO": "<your_email>",
+    "OPENALEX_API_KEY": "<openalex_api_key_optional>"
   }
 }

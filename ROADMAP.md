@@ -789,7 +789,83 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.143
+## Shipped: v0.51 → v0.146
+
+### v0.144-v0.146 — OpenAlex Tier 1 ✅ (2026-04-29)
+
+**Strict-upgrade integration of OpenAlex** as 5th discovery
+source. 250M works, ORCID-linked authors, ROR institutions,
+pre-scored topic tags, native OA URL detection. Free
+polite-pool (10 req/s with `OPENALEX_MAILTO`) or premium
+(100 req/s with `OPENALEX_API_KEY`).
+
+**Why it matters**: OpenAlex returns OA URLs directly →
+eliminates one hop in `paper-acquire` chain. Pre-computed
+topics → richer `paper-triage` signal beyond TLDR. ORCID
+authors → fixes "Wang 2020 vs Wang 2021" ambiguity. Free,
+CC0, indefinitely sustainable (OurResearch/nonprofit).
+
+#### v0.144 — `lib/openalex_client.py`
+
+Pure-stdlib client. Methods:
+- `get_work(oa_id_or_doi)` — fetch one work
+- `search_works(query, *, per_page, page, filters, sort, select)`
+- `get_work_references(oa_id)` — referenced_works extraction
+- `get_cited_by(oa_id)` — papers citing this one
+- `get_author(oa_id_or_orcid)` — author lookup
+- `get_institution(oa_id_or_ror)` — institution lookup
+- `fulltext_search(query)` — OA-only body search
+
+Static helpers:
+- `extract_oa_url(work)` — best PDF URL with fallback chain
+- `reconstruct_abstract(inverted_index)` — rebuild plaintext
+- `extract_topics(work, min_score=0.5)` — score-filtered topics
+
+Auth precedence: kwarg → `OPENALEX_API_KEY` env →
+`OPENALEX_MAILTO` env → anonymous. Rate-limit via existing
+`lib.rate_limit`. Trace via `maybe_emit_tool_call` (every
+call lands as `openalex/<endpoint>` span). All errors return
+`{"error": str}` — never raises. CLI: `get-work` /
+`search` / `get-author` subcommands.
+
+24 tests including local-mock HTTP server fixtures.
+
+#### v0.145 — paper-discovery integration
+
+`.claude/skills/paper-discovery/scripts/openalex_source.py`
+adapter — wraps client, maps each work to `merge.py` input
+shape (compatible with existing dedup pipeline). Extracts
+authors, OA URL, abstract (from inverted index), DOI,
+arXiv ID (from landing URL), PMID, venue, citation count,
+topics. Per-source `discovered_via` tracking.
+
+`paper-discovery/SKILL.md` updated — adds OpenAlex to
+source-selection heuristics. New OA-only / quick category
+favors OpenAlex alone.
+
+13 tests covering map_work field extraction + error handling
++ CLI.
+
+#### v0.146 — paper-acquire OA shortcut
+
+`.claude/skills/paper-acquire/scripts/oa_via_openalex.py`
+becomes Tier 0 in OA fallback chain. Resolves PDF URL via
+4-step lookup priority:
+
+1. DOI from manifest → `get_work` → `extract_oa_url`
+2. arXiv ID → search + landing URL match
+3. `openalex_id` field (if scout populated)
+4. Title search (lowest confidence)
+
+Returns `{ok, oa_url, openalex_id, lookup_via, error}`.
+CLI prints URL on success or fails. Best-effort — falls
+through silently when no OA URL.
+
+8 tests with mock client.
+
+#### Test count
+
+1997 → 2042 (+45 across v0.144-v0.146).
 
 ### v0.143 — rate-limit tool-call spans ✅ (2026-04-29)
 
