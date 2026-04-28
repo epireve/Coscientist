@@ -11,6 +11,17 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.133 — revert GitHub MCP from project config (2026-04-28)
+
+Wrong scope. `.mcp.json.example` is for tools the coscientist
+*project* needs (research-domain MCPs). GitHub MCP is for the
+operator inspecting CI, belongs in user-level Claude config
+(~/.claude.json), not committed to the project repo.
+
+Removed `github` block from `.mcp.json.example` and local
+`.mcp.json`. `scripts/ci-status.sh` (gh CLI wrapper) remains
+the canonical CI-check path — no MCP needed for shell.
+
 ## v0.132 — local CI emulation + GitHub MCP (2026-04-28)
 
 Two ergonomic fixes for the CI feedback loop.
@@ -31,15 +42,11 @@ CI inspection from shell. Subcommands:
 
 Detects when `gh` not installed/authed; surfaces install hint.
 
-**3. GitHub MCP** registered in `.mcp.json.example`. Uses
-`@modelcontextprotocol/server-github` via npx (no install).
-Token via `GITHUB_PERSONAL_ACCESS_TOKEN` env (real token in
-gitignored `.mcp.json`; `gh auth token` provides it).
-
-Future Claude sessions can now act on CI directly via MCP
-tools (list workflow runs, fetch logs, rerun) instead of
-shell-out — though `scripts/ci-status.sh` remains the cheaper
-default.
+(Note: GitHub MCP was briefly added to `.mcp.json.example`
+in v0.132's first commit then reverted in v0.133 — wrong
+scope. Project `.mcp.json` is for research tooling
+(paper-search, semantic-scholar, zotero); CI-check tooling
+belongs in user-level `~/.claude.json`, not the project.)
 
 **Verified live**: post-v0.131 push, `gh run list` confirms
 CI green again. v0.131 fix worked as designed.
