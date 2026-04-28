@@ -189,6 +189,113 @@ def find_stale_spans(
     return out
 
 
+def gate_summary(
+    db_path: Path, *, trace_id: str | None = None,
+) -> dict[str, Any]:
+    """v0.109 — aggregate gate-kind span outcomes by gate name.
+
+    Each gate span carries attrs.verdict ('ok'|'rejected'). Returns
+    by-gate breakdown: {n_ok, n_rejected, n_total, recent_errors}.
+    """
+    if not db_path.exists():
+        return {"n_gates": 0, "by_gate": {}}
+    con = _open(db_path)
+    try:
+        try:
+            if trace_id:
+                rows = list(con.execute(
+                    "SELECT name, status, attrs_json, error_msg "
+                    "FROM spans WHERE trace_id=? AND kind='gate' "
+                    "ORDER BY started_at DESC",
+                    (trace_id,),
+                ))
+            else:
+                rows = list(con.execute(
+                    "SELECT name, status, attrs_json, error_msg "
+                    "FROM spans WHERE kind='gate' "
+                    "ORDER BY started_at DESC",
+                ))
+        except sqlite3.OperationalError:
+            return {"n_gates": 0, "by_gate": {}}
+    finally:
+        con.close()
+    by_gate: dict[str, dict] = {}
+    for r in rows:
+        name = r["name"] or "?"
+        d = by_gate.setdefault(
+            name,
+            {"n_total": 0, "n_ok": 0, "n_rejected": 0,
+             "recent_errors": []},
+        )
+        d["n_total"] += 1
+        verdict = None
+        if r["attrs_json"]:
+            try:
+                attrs = json.loads(r["attrs_json"])
+                verdict = attrs.get("verdict")
+            except json.JSONDecodeError:
+                pass
+        if verdict == "ok":
+            d["n_ok"] += 1
+        elif verdict == "rejected":
+            d["n_rejected"] += 1
+        elif r["status"] == "error":
+            d["n_rejected"] += 1
+        elif r["status"] == "ok":
+            d["n_ok"] += 1
+        # Always capture error_msg if span errored, regardless of
+        # verdict path.
+        if (r["status"] == "error" and r["error_msg"]
+                and len(d["recent_errors"]) < 3):
+            d["recent_errors"].append(r["error_msg"][:120])
+    return {"n_gates": len(rows), "by_gate": by_gate}
+
+
+def gate_summary_across_runs(
+    roots: list[Path] | None = None,
+) -> dict[str, Any]:
+    """v0.109 — gate summary aggregated across every run DB."""
+    from lib.cache import runs_dir
+    root = roots[0] if roots else runs_dir()
+    by_gate: dict[str, dict] = {}
+    n_gates = 0
+    n_dbs = 0
+    if not root.exists():
+        return {"n_gates": 0, "n_dbs": 0, "by_gate": {}}
+    for db in sorted(root.glob("run-*.db")):
+        try:
+            s = gate_summary(db)
+        except Exception:
+            continue
+        if s["n_gates"] == 0:
+            try:
+                con = _open(db)
+                try:
+                    con.execute("SELECT 1 FROM traces LIMIT 1")
+                    n_dbs += 1
+                except sqlite3.OperationalError:
+                    pass
+                con.close()
+            except Exception:
+                pass
+            continue
+        n_dbs += 1
+        n_gates += s["n_gates"]
+        for name, d in s["by_gate"].items():
+            agg = by_gate.setdefault(
+                name,
+                {"n_total": 0, "n_ok": 0, "n_rejected": 0,
+                 "recent_errors": []},
+            )
+            for k in ("n_total", "n_ok", "n_rejected"):
+                agg[k] += d[k]
+            for e in d["recent_errors"]:
+                if len(agg["recent_errors"]) < 5:
+                    agg["recent_errors"].append(e)
+    return {"n_gates": n_gates, "n_dbs": n_dbs,
+             "by_gate": by_gate}
+
+
 def harvest_summary(
     db_path: Path, *, trace_id: str | None = None,
 ) -> dict[str, Any]:

@@ -11,6 +11,25 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.109 — gate-decision summary in health (2026-04-28)
+
+v0.93b emits gate-kind spans (publishability, novelty, future
+gates) with verdict in attrs. Health (v0.106) ignored them. Fixed.
+
+`lib.trace_status.gate_summary(db, *, trace_id=None)` aggregates
+gate spans by name: n_total, n_ok, n_rejected, recent_errors
+(top 3 error_msgs). `gate_summary_across_runs()` cross-run.
+
+`lib.health.collect()` now returns `gates` key. Md renderer adds
+"Gate decisions" section sorted by n_rejected descending; surfaces
+recent error messages inline (top 2 per gate).
+
+Operator can answer "did publishability accept anything across
+runs" + "what's the most common rejection reason" in one
+command.
+
+6 new tests. 1825 total passing.
+
 ## v0.108 — harvest summary in health dump (2026-04-28)
 
 v0.93b started writing `harvest_write` events on every harvest.py

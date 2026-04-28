@@ -98,6 +98,10 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
         harvests = {"n_harvests": 0, "by_persona": {},
                     "totals": {"raw": 0, "deduped": 0,
                                 "kept": 0, "queries": 0}}
+    try:
+        gates = trace_status.gate_summary_across_runs()
+    except Exception:
+        gates = {"n_gates": 0, "by_gate": {}}
 
     return {
         "n_runs": n_runs,
@@ -106,6 +110,7 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
         "tool_latency": tool_latency,
         "quality": quality,
         "harvests": harvests,
+        "gates": gates,
         "failed_spans_total": failed_total,
     }
 
@@ -154,6 +159,23 @@ def render_md(report: dict[str, Any]) -> str:
                 f"mean={d['mean_ms']:.0f}ms "
                 f"p95={d['p95_ms']}ms"
             )
+        lines.append("")
+
+    gates = report.get("gates") or {}
+    by_gate = gates.get("by_gate", {})
+    if by_gate:
+        lines.append("## Gate decisions")
+        lines.append("")
+        for name, d in sorted(
+            by_gate.items(), key=lambda kv: -kv[1]["n_rejected"],
+        ):
+            lines.append(
+                f"- **{name}** ok={d['n_ok']} "
+                f"rejected={d['n_rejected']} "
+                f"(total={d['n_total']})"
+            )
+            for err in d["recent_errors"][:2]:
+                lines.append(f"  - ❌ {err[:100]}")
         lines.append("")
 
     harvests = report.get("harvests") or {}
