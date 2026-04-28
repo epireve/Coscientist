@@ -11,6 +11,27 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.100 — tool-call latency aggregator (2026-04-28)
+
+First three-digit minor in the 0.x line. v0.93c started recording
+tool-call span durations via `start_span` context manager; this
+release surfaces them.
+
+`lib.trace_status.tool_call_latency(db, *, trace_id=None)`
+aggregates by tool name: n, n_errors, mean_ms, p50_ms, p95_ms,
+max_ms. Companion `tool_call_latency_across_runs(roots=None)`
+for cross-run perf views.
+
+CLI: `uv run python -m lib.trace_status --tool-latency
+[--run-id <rid>] [--format md|json]`. md output sorts tools
+slowest-first by mean.
+
+Useful smoke-test signal: which MCPs are hot, which fail often,
+where the latency budget actually goes.
+
+6 new tests (no-db, by-name aggregation, trace filter, empty
+cross-run, multi-db cross-run, CLI). 1755 total passing.
+
 ## v0.99 — version parser audit (pre-v0.100 defensive) (2026-04-28)
 
 User opted to keep 0.x line going past v0.99 → v0.100 → v0.101...

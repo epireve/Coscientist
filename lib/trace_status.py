@@ -189,6 +189,105 @@ def find_stale_spans(
     return out
 
 
+def tool_call_latency(
+    db_path: Path, *, trace_id: str | None = None,
+) -> dict[str, Any]:
+    """v0.100 — aggregate tool-call span durations by tool name.
+
+    Returns: {n_rows, by_tool: {name: {n, n_errors, mean_ms,
+                                       p50_ms, p95_ms, max_ms}}}.
+    Filters to spans with kind='tool-call' and a non-null
+    duration_ms.
+    """
+    if not db_path.exists():
+        return {"n_rows": 0, "by_tool": {}}
+    con = _open(db_path)
+    try:
+        try:
+            if trace_id:
+                rows = list(con.execute(
+                    "SELECT name, duration_ms, status FROM spans "
+                    "WHERE trace_id=? AND kind='tool-call' "
+                    "AND duration_ms IS NOT NULL",
+                    (trace_id,),
+                ))
+            else:
+                rows = list(con.execute(
+                    "SELECT name, duration_ms, status FROM spans "
+                    "WHERE kind='tool-call' "
+                    "AND duration_ms IS NOT NULL",
+                ))
+        except sqlite3.OperationalError:
+            return {"n_rows": 0, "by_tool": {}}
+    finally:
+        con.close()
+    by_tool: dict[str, dict] = {}
+    for r in rows:
+        d = by_tool.setdefault(
+            r["name"],
+            {"n": 0, "n_errors": 0, "durations": []},
+        )
+        d["n"] += 1
+        if r["status"] == "error":
+            d["n_errors"] += 1
+        d["durations"].append(int(r["duration_ms"]))
+    for name, d in by_tool.items():
+        durs = sorted(d.pop("durations"))
+        n = len(durs)
+        d["mean_ms"] = sum(durs) / n if n else 0.0
+        d["p50_ms"] = durs[n // 2] if n else 0
+        d["p95_ms"] = durs[min(n - 1, int(n * 0.95))] if n else 0
+        d["max_ms"] = durs[-1] if n else 0
+    return {"n_rows": len(rows), "by_tool": by_tool}
+
+
+def tool_call_latency_across_runs(
+    roots: list[Path] | None = None,
+) -> dict[str, Any]:
+    """v0.100 — tool-call latency aggregated across every run DB."""
+    from lib.cache import runs_dir
+    root = roots[0] if roots else runs_dir()
+    by_tool: dict[str, dict] = {}
+    n_dbs = 0
+    n_rows = 0
+    if not root.exists():
+        return {"n_rows": 0, "n_dbs": 0, "by_tool": {}}
+    for db in sorted(root.glob("run-*.db")):
+        try:
+            con = _open(db)
+            try:
+                rows = list(con.execute(
+                    "SELECT name, duration_ms, status FROM spans "
+                    "WHERE kind='tool-call' "
+                    "AND duration_ms IS NOT NULL",
+                ))
+            except sqlite3.OperationalError:
+                con.close()
+                continue
+            con.close()
+            n_dbs += 1
+            n_rows += len(rows)
+            for r in rows:
+                d = by_tool.setdefault(
+                    r["name"],
+                    {"n": 0, "n_errors": 0, "durations": []},
+                )
+                d["n"] += 1
+                if r["status"] == "error":
+                    d["n_errors"] += 1
+                d["durations"].append(int(r["duration_ms"]))
+        except Exception:
+            continue
+    for name, d in by_tool.items():
+        durs = sorted(d.pop("durations"))
+        n = len(durs)
+        d["mean_ms"] = sum(durs) / n if n else 0.0
+        d["p50_ms"] = durs[n // 2] if n else 0
+        d["p95_ms"] = durs[min(n - 1, int(n * 0.95))] if n else 0
+        d["max_ms"] = durs[-1] if n else 0
+    return {"n_rows": n_rows, "n_dbs": n_dbs, "by_tool": by_tool}
+
+
 def mark_stale_error(
     db_path: Path, *, max_age_minutes: int = 30,
     reason: str = "stale-span auto-close",
@@ -281,7 +380,39 @@ def main(argv: list[str] | None = None) -> int:
         "--reason", default="stale-span auto-close",
         help="error_msg used when --mark-error fires.",
     )
+    p.add_argument(
+        "--tool-latency", action="store_true",
+        help="v0.100: aggregate tool-call span durations by name.",
+    )
     args = p.parse_args(argv)
+    if args.tool_latency:
+        from lib.cache import run_db_path
+        if args.run_id:
+            out = tool_call_latency(
+                run_db_path(args.run_id),
+                trace_id=args.run_id,
+            )
+        else:
+            out = tool_call_latency_across_runs()
+        if args.format == "json":
+            sys.stdout.write(json.dumps(out, indent=2,
+                                         default=str) + "\n")
+        else:
+            lines = ["# Tool-call latency", "",
+                     f"_{out['n_rows']} call(s)._", ""]
+            for name, d in sorted(out["by_tool"].items(),
+                                   key=lambda kv: -kv[1]["mean_ms"]):
+                lines.append(
+                    f"- `{name}` n={d['n']} "
+                    f"errors={d['n_errors']} "
+                    f"mean={d['mean_ms']:.0f}ms "
+                    f"p50={d['p50_ms']}ms "
+                    f"p95={d['p95_ms']}ms "
+                    f"max={d['max_ms']}ms"
+                )
+            lines.append("")
+            sys.stdout.write("\n".join(lines))
+        return 0
     if args.stale_only:
         from lib.cache import run_db_path, runs_dir
         op = (
