@@ -11,6 +11,131 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.153 — schema v14 idea-tree columns + idea-tree-generator agent (2026-04-29)
+
+Upgrades `hypotheses` from a 1-level `parent_hyp_id` lineage into a
+proper rooted tree. Migration v14 (`lib/migrations_sql/v14.sql`) adds
+3 columns + 1 composite index — gated on `_table_exists(con,
+"hypotheses")` so it only fires on run DBs (not project DBs):
+
+- `tree_id TEXT` — root hypothesis groups all nodes in one tree
+  (`root.tree_id == root.hyp_id`)
+- `depth INTEGER NOT NULL DEFAULT 0` — root=0, children=1, ...
+- `branch_index INTEGER NOT NULL DEFAULT 0` — sibling order within parent
+- `idx_hypotheses_tree_depth ON hypotheses(tree_id, depth)` — fast
+  subtree/BFS walks
+
+`lib/idea_tree.py` — pure-stdlib helpers:
+
+- `record_root_hypothesis(run_db, hyp_id)` — stamps tree_id := hyp_id,
+  depth := 0. Returns tree_id.
+- `record_child_hypothesis(run_db, parent_hyp_id, hyp_id)` — looks up
+  parent's tree_id + depth, sets child's depth = parent.depth + 1,
+  branch_index = next sibling slot.
+- `get_tree(run_db, tree_id)` — all nodes ordered by (depth, branch_index).
+- `get_subtree(run_db, hyp_id)` — BFS subtree rooted at hyp_id.
+- `prune_subtree(run_db, hyp_id)` — delete subtree, return count.
+  Used by tree-aware ranker (v0.154/v0.155).
+
+New `idea-tree-generator` agent persona (`.claude/agents/`) — emits
+rooted trees (root → 2-4 branches → up to depth 3) for the tournament
+to evolve. The agent uses existing `record_hypothesis.py` for INSERTs
++ the new `lib.idea_tree` helpers for tree-shape stamping.
+`record_hypothesis.py` itself is **not** wired in this version —
+that's v0.154/v0.155 follow-up.
+
+Vendored copies (`plugin/coscientist-graph-query-mcp/lib/`) synced
++ checksums regenerated.
+
+18 tests covering migration application, column existence, ALL_VERSIONS
+membership, root + child stamping, sibling branch_index increment,
+grandchild depth, missing-parent error, get_tree ordering, get_subtree
+BFS, prune correctness, and agent frontmatter.
+
+## v0.151 — populate_concepts OpenAlex topics ingestion (2026-04-29)
+
+`.claude/skills/reference-agent/scripts/populate_concepts.py`
+gains `--source openalex` flag. Default `--source claims`
+behavior (derive concepts lazily from a deep-research run's
+`claims` table) is preserved verbatim.
+
+OpenAlex mode fetches topics for a paper via
+`OpenAlexClient.get_work(openalex_id|doi)` and ingests them
+as concept nodes. Each work has up to 4 levels of hierarchy:
+topic ⊂ subfield ⊂ field ⊂ domain. Each level becomes its own
+concept node (slug ref) connected by `depends-on` edges
+(child depends-on parent). The paper itself gets a
+`paper -[about]-> topic` edge with `weight = score` (0.0–1.0).
+
+Concept refs are slugified `display_name`, so cross-paper
+sharing dedupes naturally via `INSERT OR IGNORE`. Edges
+pre-check `(from, to, relation)` uniqueness — re-runs add
+zero new rows. Each node carries `source="openalex"` plus
+`external_ids = {openalex_id, wikidata_id?}` via v0.148
+schema-v13 columns.
+
+CLI: `--source claims | openalex`, `--paper-id <cid>` (single)
+or omit for batch over the project's `artifact_index` papers,
+`--min-score N` (default 0.5).
+
+All errors return dicts with `error` key — never raises. CLI
+exits 1 on error dict, 2 on argparse failure, 0 on success.
+
+13 tests covering: score filter behavior, hierarchy edge
+shapes, idempotent re-run, min-score override, missing
+manifest skipped, missing project returns error, external_ids
+persisted, batch-mode over multiple papers, no-id-in-manifest
+skipped, doi-lookup fallback, claims back-compat preserved,
+CLI help surface.
+
+2138 → 2151 (+13). Verified locally: full suite reports 2163
+passed (covers v0.150–v0.153 landings).
+
+## v0.150 — populate_citations OpenAlex + S2-influential backends (2026-04-29)
+
+`.claude/skills/reference-agent/scripts/populate_citations.py`
+gains `--source openalex | s2 | s2-influential` flag. Live mode
+fetches references + citers directly from a backend for one
+paper (`--paper-id <canonical_id>`); the paper artifact's
+manifest provides the upstream identifier (openalex_id, doi,
+arxiv_id, or s2_id).
+
+Backends:
+- **OpenAlex**: `client.get_work_references(oa_id)` →
+  `client.get_works_batch([...])` to materialize ref titles +
+  IDs, then `client.get_cited_by(oa_id)` for citers.
+- **S2**: `client.get_paper_references(s2_id)` and
+  `client.get_paper_citations(s2_id)`.
+- **S2-influential**: same S2 path with `fields` requesting
+  `influentialCitationCount` and post-filter dropping any row
+  with `influentialCitationCount <= 0`. Sharper signal than
+  raw citation count.
+
+New nodes are stamped with `source` (openalex / s2 /
+s2-influential) and the cross-source IDs (DOI, ArXiv, PMID,
+MAG, OpenAlex W-id, S2 paperId) the backend returned — flowing
+through `lib.graph.add_node`'s v0.148 `external_ids=` /
+`source=` kwargs and `merge_external_ids()` for existing nodes.
+
+Idempotent: re-running yields zero new edges. Pre-checks
+`(from, to, relation)` uniqueness against `graph_edges`.
+
+All errors return `{"error": str}` — never raises in the
+populate functions. CLI exits 1 on error dict, 2 on argparse
+mistakes, 0 on success.
+
+Legacy `--source file --input file.json` path preserved
+verbatim for backward compat with v0.149 and earlier.
+
+13 tests covering: file-mode back-compat, OpenAlex node
+sourcing, idempotent re-run on both backends, missing-manifest
+error, openalex_id → doi fallback, missing-both-IDs error,
+backend-error propagation, default S2 path, influential filter
+excludes zero-count and missing-field rows, CLI source choices,
+subprocess smoke.
+
+2122 → 2138 (+16).
+
 ## v0.149 — S2 enrichment client (2026-04-29)
 
 `lib/s2_enrichment.py` — pure-stdlib Semantic Scholar Graph API
