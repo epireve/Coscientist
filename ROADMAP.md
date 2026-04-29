@@ -789,7 +789,36 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.161
+## Shipped: v0.51 → v0.162
+
+### v0.162 — funding-graph skill ✅ (2026-04-29)
+
+Read-only aggregation skill that surfaces funding patterns from the
+project graph. Pure SQL over v0.148 schema v13 `kind=funder` +
+`kind=institution` nodes plus `relation=funded-by` /
+`relation=affiliated-with` edges. No LLM, no writes.
+
+CLI subcommands:
+- `papers-by-funder --project-id P` — papers per funder, sorted desc.
+- `papers-by-institution --project-id P` — distinct papers per
+  institution (counts via author affiliation join), sorted desc.
+- `for-funder --project-id P --funder-nid funder:X` — papers + authors
+  funded by X.
+- `for-institution --project-id P --institution-nid institution:Y` —
+  authors at Y plus their papers.
+- `dominant-funders --project-id P [--min-papers 5] [--threshold 0.6]`
+  — flags authors where one funder funds ≥ threshold of their papers.
+
+Sort order: paper-count DESC, label ASC tiebreak. All errors return
+`{error: ...}` dicts; never raises. `--format json|text`.
+
+Files:
+- `.claude/skills/funding-graph/SKILL.md`
+- `.claude/skills/funding-graph/scripts/funding.py`
+- `tests/test_v0_162_funding_graph.py` — 15 tests across
+  papers-by-funder / papers-by-institution / for-funder /
+  for-institution / dominant-funders / format / CLI / read-only
+  invariant.
 
 ### v0.161 — coauthor-network skill ✅ (2026-04-29)
 
