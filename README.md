@@ -2,6 +2,15 @@
 
 A personal academic-research-agent toolkit for Claude Code. Assembled Lego-style from atomic skills + existing MCP servers rather than a monolithic app.
 
+## Recent Highlights (v0.150–v0.173)
+
+- **OpenAlex Tier 1+2** — citations, concepts, ORCID, institution + funder enrichment via free API (v0.145, v0.149, v0.152).
+- **Source selector** — phase-aware paid-API budgeting (Consensus / OpenAlex / S2). See [`docs/SOURCE-SELECTOR-RUBRIC.md`](docs/SOURCE-SELECTOR-RUBRIC.md).
+- **Idea trees + tree-aware tournament** — Google Co-Scientist Generation→Reflection→Ranking→Evolution loop with auto-prune (v0.153, v0.155, v0.156, v0.158). See [`docs/IDEA-TREE-USAGE.md`](docs/IDEA-TREE-USAGE.md).
+- **Thinking traces** — verdict deliberation persisted + rendered (v0.154).
+- **Five new graph-analytics skills** — `replication-finder`, `coauthor-network`, `funding-graph`, `claim-cluster`, `citation-decay`.
+- **Observability extensions** — `/health` covers trees + thinking traces, `lib.tree_viz` mermaid renderer, quality drift detection, cost dashboard.
+
 ## What it does
 
 Given a research question, an agent works through it end-to-end:

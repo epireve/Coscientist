@@ -11,6 +11,42 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.178 — RESEARCHER cross-ref index (2026-04-29)
+
+`docs/RESEARCHER-CROSS-REF.md` — table mapping each RESEARCHER.md
+principle → agent personas naming it. Built by grepping
+`.claude/agents/*.md`. Highlights well-covered principles (2/5/7/8/11)
+and gaps (1/3/12). 3 regression tests.
+
+## v0.177 — README highlights v0.150–v0.173 (2026-04-29)
+
+New "Recent Highlights" section at top of `README.md` summarizing
+OpenAlex enrichment, source-selector, idea-trees, thinking-traces,
+five new graph-analytics skills, and observability extensions. Links
+to `docs/IDEA-TREE-USAGE.md` and `docs/SOURCE-SELECTOR-RUBRIC.md`.
+
+## v0.176 — source-selector operator guide (2026-04-29)
+
+`docs/SOURCE-SELECTOR-RUBRIC.md` — phase-driven model + rubric table
++ cost shape + seed/budget overrides + auto-resolve walk-through.
+References `populate_citations` + `populate_concepts` as canonical
+wiring examples.
+
+## v0.175 — idea-tree operator guide (2026-04-29)
+
+`docs/IDEA-TREE-USAGE.md` — what trees are, when to use, CLI
+examples for `record_hypothesis --tree-root --parent-hyp-id`,
+`record_match --auto-prune`, `tree_ranker leaderboard/pairs/prune`,
+`tree_viz` mermaid output, prune-policy thresholds, troubleshooting.
+
+## v0.174 — SKILLS.md regression net for new skills (2026-04-29)
+
+Regenerated `SKILLS.md` (70 entries). 6 regression tests asserting
+the five v0.16x graph-analytics skills (`replication-finder`,
+`coauthor-network`, `funding-graph`, `claim-cluster`,
+`citation-decay`) appear, descriptions/when-to-use exist,
+auto-discovery works, and `render_index` is idempotent.
+
 ## v0.173 — MCP cost dashboard (2026-04-29)
 
 `lib/cost_dashboard.py` aggregates `tool-call` spans across run DBs and
