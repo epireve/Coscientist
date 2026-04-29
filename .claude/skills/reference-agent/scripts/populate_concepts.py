@@ -417,10 +417,39 @@ def populate(run_id: str, project_id: str) -> dict:
 # CLI
 # =====================================================================
 
+_CONCEPT_SOURCES = {"claims", "openalex"}
+
+
+def _resolve_auto_source() -> tuple[str, str]:
+    """Resolve --source auto via lib.source_selector. Returns (chosen, reason).
+
+    Concept ingestion phase = "ingestion" (graph backbone). Selector picks
+    openalex. Anything else (defensive) → fallback to openalex with warning.
+    Note: 'claims' is *not* a selector output — it's a coscientist-internal
+    derivation source, distinct from the source_selector's vocabulary.
+    """
+    try:
+        from lib.source_selector import select_source
+        rec = select_source(phase="ingestion")
+        primary = rec.primary
+        if primary == "openalex":
+            return "openalex", rec.reasoning
+        return (
+            "openalex",
+            f"selector returned {primary!r}; concepts only support "
+            f"openalex via auto — falling back to openalex",
+        )
+    except Exception as e:  # noqa: BLE001
+        return "openalex", f"selector failure: {e}; falling back to openalex"
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--source", choices=["claims", "openalex"], default="claims",
-                   help="claims = derive from run claims (default); "
+    p.add_argument("--source",
+                   choices=["auto", "claims", "openalex"], default="auto",
+                   help="auto = phase-aware via lib.source_selector "
+                        "(default, ingestion → openalex); "
+                        "claims = derive from run claims; "
                         "openalex = ingest OpenAlex topics")
     p.add_argument("--run-id", help="run id (required for --source claims)")
     p.add_argument("--project-id", required=True)
@@ -430,6 +459,15 @@ def main() -> None:
     p.add_argument("--min-score", type=float, default=0.5,
                    help="min OpenAlex topic score to ingest (0.0–1.0)")
     args = p.parse_args()
+
+    if args.source == "auto":
+        chosen, reason = _resolve_auto_source()
+        print(
+            f"[source-selector] populate_concepts resolved auto -> "
+            f"{chosen} (reason: {reason})",
+            file=sys.stderr,
+        )
+        args.source = chosen
 
     if args.source == "claims":
         if not args.run_id:

@@ -315,7 +315,8 @@ class PopulateCitationsTests(TestCase):
             }]
             inp = cache_dir / "citations.json"
             inp.write_text(json.dumps(records))
-            r = _run(POPULATE_CITATIONS, "--input", str(inp), "--project-id", pid)
+            r = _run(POPULATE_CITATIONS, "--source", "file",
+                     "--input", str(inp), "--project-id", pid)
             assert r.returncode == 0, f"stderr={r.stderr}"
             result = json.loads(r.stdout)
             self.assertEqual(result["edges_added"], 4)  # 2 cites + 2 cited-by
@@ -343,8 +344,10 @@ class PopulateCitationsTests(TestCase):
             }]
             inp = cache_dir / "cits.json"
             inp.write_text(json.dumps(records))
-            _run(POPULATE_CITATIONS, "--input", str(inp), "--project-id", pid)
-            r = _run(POPULATE_CITATIONS, "--input", str(inp), "--project-id", pid)
+            _run(POPULATE_CITATIONS, "--source", "file",
+                 "--input", str(inp), "--project-id", pid)
+            r = _run(POPULATE_CITATIONS, "--source", "file",
+                     "--input", str(inp), "--project-id", pid)
             assert r.returncode == 0
             result = json.loads(r.stdout)
             self.assertEqual(result["edges_added"], 0)  # no new edges on re-run
@@ -360,7 +363,8 @@ class PopulateCitationsTests(TestCase):
             ]
             inp = cache_dir / "cits.json"
             inp.write_text(json.dumps(records))
-            r = _run(POPULATE_CITATIONS, "--input", str(inp), "--project-id", pid)
+            r = _run(POPULATE_CITATIONS, "--source", "file",
+                     "--input", str(inp), "--project-id", pid)
             result = json.loads(r.stdout)
             self.assertEqual(result["skipped"], 1)
 
@@ -413,7 +417,8 @@ class PopulateConceptsTests(TestCase):
         with isolated_cache() as cache_dir:
             pid = _seed_project(cache_dir)
             run_id = _seed_run_with_claims(cache_dir)
-            r = _run(POPULATE_CONCEPTS, "--run-id", run_id, "--project-id", pid)
+            r = _run(POPULATE_CONCEPTS, "--source", "claims",
+                     "--run-id", run_id, "--project-id", pid)
             assert r.returncode == 0, f"stderr={r.stderr}"
             result = json.loads(r.stdout)
             self.assertEqual(result["claims_processed"], 3)
@@ -451,7 +456,8 @@ class PopulateConceptsTests(TestCase):
             con.commit()
             con.close()
 
-            r = _run(POPULATE_CONCEPTS, "--run-id", "empty", "--project-id", pid)
+            r = _run(POPULATE_CONCEPTS, "--source", "claims",
+                     "--run-id", "empty", "--project-id", pid)
             assert r.returncode == 0
             result = json.loads(r.stdout)
             self.assertEqual(result["claims_processed"], 0)
@@ -462,8 +468,10 @@ class PopulateConceptsTests(TestCase):
         with isolated_cache() as cache_dir:
             pid = _seed_project(cache_dir)
             run_id = _seed_run_with_claims(cache_dir)
-            _run(POPULATE_CONCEPTS, "--run-id", run_id, "--project-id", pid)
-            r = _run(POPULATE_CONCEPTS, "--run-id", run_id, "--project-id", pid)
+            _run(POPULATE_CONCEPTS, "--source", "claims",
+                 "--run-id", run_id, "--project-id", pid)
+            r = _run(POPULATE_CONCEPTS, "--source", "claims",
+                     "--run-id", run_id, "--project-id", pid)
             assert r.returncode == 0
             result = json.loads(r.stdout)
             self.assertEqual(result["concepts_added"], 0)

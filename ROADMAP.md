@@ -789,7 +789,47 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.155
+## Shipped: v0.51 → v0.159
+
+### v0.159 — wire source_selector into populate_citations + populate_concepts ✅ (2026-04-29)
+
+Both reference-agent populate scripts gain `--source auto` (NEW
+default) which delegates the source pick to
+`lib.source_selector.select_source(phase="ingestion", ...)`.
+Existing explicit values (`openalex`, `s2`, `s2-influential`,
+`file` for citations; `openalex`, `claims` for concepts) still
+work and override.
+
+Heuristic per v0.147 source_selector rules: ingestion phase
+deterministically picks `openalex`. Wiring benefit: (a) consistent
+provenance across the codebase (one source-of-truth function for
+"which backend?"), (b) when seed/budget hints land in future they
+propagate automatically without script-level changes.
+
+Each script's `_resolve_auto_source()` helper:
+
+- Calls `select_source(phase="ingestion")` inside try/except.
+- Returns `(chosen, reason)` tuple.
+- Falls back to `"openalex"` with a warning string when the
+  selector returns a value not in the script's live dispatch
+  (defensive — won't trigger today, but future-proofs against
+  selector vocabulary expansion).
+- Logs the choice once to stderr:
+  `[source-selector] populate_{citations,concepts} resolved auto -> openalex (reason: ...)`.
+
+Tests: `tests/test_v0_159_source_auto.py` — 12 tests across both
+scripts: resolver returns openalex for ingestion, argparse accepts
+`auto` and rejects unknown values, stderr log line emitted on
+auto, no log line on explicit source, explicit values
+(`file`/`openalex`/`s2`/`claims`) preserve v0.150/v0.151 behavior,
+end-to-end happy paths via the StubOpenAlexClient pattern from
+v0.150 + the `_StubClient` pattern from v0.151.
+
+Migrated existing CLI tests in `tests/test_reference_agent.py`
+(3 citations + 3 concepts) to pass `--source file` /
+`--source claims` explicitly now that the default flipped to
+`auto`. v0.150 + v0.151 in-process tests untouched. Full suite
+2252 passing.
 
 ### v0.155 — tree-aware ranker with subtree pruning ✅ (2026-04-29)
 

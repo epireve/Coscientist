@@ -513,12 +513,38 @@ def populate_from_s2(
 # ---------------------------------------------------------------------- CLI
 
 
+_LIVE_SOURCES = {"openalex", "s2", "s2-influential"}
+
+
+def _resolve_auto_source() -> tuple[str, str]:
+    """Resolve --source auto via lib.source_selector. Returns (chosen, reason).
+
+    Falls back to ('openalex', '<warning>') when selector returns a value
+    not supported by this script's live dispatch.
+    """
+    try:
+        from lib.source_selector import select_source
+        rec = select_source(phase="ingestion")
+        primary = rec.primary
+        if primary not in _LIVE_SOURCES:
+            return (
+                "openalex",
+                f"selector returned {primary!r}; not in live dispatch — "
+                f"falling back to openalex",
+            )
+        return primary, rec.reasoning
+    except Exception as e:  # noqa: BLE001
+        return "openalex", f"selector failure: {e}; falling back to openalex"
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument(
-        "--source", default="file",
-        choices=["file", "openalex", "s2", "s2-influential"],
-        help="file = legacy JSON ingest; others fetch live from backend.",
+        "--source", default="auto",
+        choices=["auto", "file", "openalex", "s2", "s2-influential"],
+        help="auto = phase-aware via lib.source_selector (default, "
+             "ingestion → openalex); file = legacy JSON ingest; "
+             "others fetch live from backend.",
     )
     p.add_argument(
         "--input", help="JSON file (file mode only)",
@@ -529,6 +555,15 @@ def main() -> None:
     )
     p.add_argument("--project-id", required=True)
     args = p.parse_args()
+
+    if args.source == "auto":
+        chosen, reason = _resolve_auto_source()
+        print(
+            f"[source-selector] populate_citations resolved auto -> "
+            f"{chosen} (reason: {reason})",
+            file=sys.stderr,
+        )
+        args.source = chosen
 
     if args.source == "file":
         if not args.input:
