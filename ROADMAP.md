@@ -789,7 +789,34 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.162
+## Shipped: v0.51 → v0.163
+
+### v0.163 — claim-cluster skill ✅ (2026-04-29)
+
+Read-only Jaccard clustering of claims across project papers. Pure
+stdlib heuristic — no embeddings, no LLM. Walks every paper artifact
+registered in a project's `artifact_index` (kind=paper), tokenizes
+`metadata.json:claims[].text` (lowercase, drop short tokens + stop-
+words), and clusters by all-pairs token-Jaccard ≥ threshold using
+single-link union-find.
+
+Per cluster: papers, top-K most-common content tokens (heat),
+representative claim (longest in cluster). Singletons are surfaced
+as outliers. Hard cap at 200 papers (O(n²)).
+
+CLI: `--project-id P [--min-jaccard 0.4] [--min-cluster-size 2]
+[--top-n 50] [--format json|text]`. All errors return `{error: ...}`
+dicts; never raises. Read-only — never writes the project DB or any
+paper artifact file.
+
+Files:
+- `.claude/skills/claim-cluster/SKILL.md`
+- `.claude/skills/claim-cluster/scripts/cluster_claims.py`
+- `tests/test_v0_163_claim_cluster.py` — 14 tests covering
+  cluster formation, min-jaccard / min-cluster-size thresholds,
+  top-tokens heat, representative-claim selection, outliers, empty
+  project, 200-paper cap, JSON vs text output, --help, top-n cap,
+  stop-word exclusion, read-only invariant.
 
 ### v0.162 — funding-graph skill ✅ (2026-04-29)
 
