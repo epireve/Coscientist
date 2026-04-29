@@ -121,6 +121,16 @@ class AgentFrontmatterTests(TestCase):
         unexpected = found - EXPECTED_AGENTS
         self.assertFalse(unexpected, f"unexpected agents: {unexpected}")
 
+    def test_idea_tree_generator_cites_name_five(self):
+        # v0.165 — defensive: idea-tree-generator MUST reference both
+        # RESEARCHER.md and the "Name Five" principle (#6) so the
+        # cross-ref doesn't silently rot away on future edits.
+        body = (AGENT_DIR / "idea-tree-generator.md").read_text()
+        self.assertIn("RESEARCHER.md", body,
+                      "idea-tree-generator: missing RESEARCHER.md reference")
+        self.assertIn("Name Five", body,
+                      "idea-tree-generator: missing 'Name Five' principle ref")
+
 
 if __name__ == "__main__":
     import sys

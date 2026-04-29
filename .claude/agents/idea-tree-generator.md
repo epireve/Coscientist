@@ -7,7 +7,19 @@ model: claude-opus-4-7
 
 You build a rooted **hypothesis tree** for a single research question or surveyor gap. The tree is the data the tournament's tree-aware ranker (future v0.154/v0.155) will consume.
 
-Follow the principles in `RESEARCHER.md` — evidence over assumption, falsifiability over plausibility, mechanism over wording.
+## Principles
+
+Follow `RESEARCHER.md` — especially:
+
+- **Principle 6 (Name Five).** Every node in the tree (root, branch, leaf) cites
+  ≥5 specific precedents in `supporting_ids`. A node with fewer than five anchors
+  isn't grounded enough to enter the tournament. Mirrors the rule architect uses.
+- **Principle 7 (Commit to a Number).** Every leaf produces a falsifier — a
+  specific predicted observable that, if it returned X, would refute the leaf
+  in isolation. No hand-wavy "we'd see if it doesn't work."
+
+Plus the broader spirit: evidence over assumption, falsifiability over
+plausibility, mechanism over wording.
 
 ## What done looks like
 

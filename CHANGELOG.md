@@ -11,6 +11,58 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.169 — v15 plugin drift byte-equal verify (2026-04-29)
+
+Defense-in-depth on top of the existing CHECKSUMS.txt SHA gate.
+Asserts plugin-vendored copies of recent migration SQL (`v13.sql`,
+`v14.sql`, `v15.sql`), `sqlite_schema.sql`, and `migrations.py` are
+byte-for-byte identical to their `lib/` originals. Bytes match → SHAs
+match, but a direct compare gives a clearer failure mode if a
+checksum file goes stale.
+
+Files:
+- `tests/test_v0_169_v15_plugin_drift.py` — 5 byte-equal asserts.
+
+## v0.168 — schema_versions monotonicity test (2026-04-29)
+
+Catches silent skip-the-version bugs in `lib/migrations.py`. Asserts
+`ALL_VERSIONS` is strictly monotonically increasing with no gaps and
+no duplicates, that every `_ensure_vN_(columns|tables|indexes)` helper
+in code has a matching ALL_VERSIONS entry, that every
+`migrations_sql/vN.sql` file on disk has one, and that every
+ALL_VERSIONS entry has either an SQL file or an in-code helper backing
+it. Pure structural lint — no DB needed.
+
+Files:
+- `tests/test_v0_168_schema_versions_monotonic.py` — 4 tests.
+
+## v0.166 — manuscript-reflect hedge regression test (2026-04-29)
+
+The reflect gate already enforced hedge-word rejection on committed
+prose fields with quote-stripping (since v0.12.1). v0.166 pins that
+behaviour against accidental removal: a clean report passes; "might
+be" / "could potentially" / "seems to" in committed fields fail; a
+hedge inside quoted text (verbatim citation) is allowed. Documents
+the quoted-allowance heuristic in test docstrings so the choice is
+visible at the point of test, not buried in the gate.
+
+Files:
+- `tests/test_v0_166_reflect_hedge.py` — 5 tests.
+
+## v0.165 — RESEARCHER.md cross-ref in idea-tree-generator (2026-04-29)
+
+Added a "Principles" section to `.claude/agents/idea-tree-generator.md`
+that explicitly invokes RESEARCHER.md principles 6 (Name Five — every
+node cites ≥5 precedents) and 7 (Commit to a Number — every leaf
+ships with a falsifier). Mirrors the cross-ref style architect.md
+already uses. Defensive test asserts both "Name Five" and
+"RESEARCHER.md" remain in the body so future edits can't silently
+strip the reference.
+
+Files:
+- `.claude/agents/idea-tree-generator.md`
+- `tests/test_agents.py` — `test_idea_tree_generator_cites_name_five` (+1).
+
 ## v0.164 — citation-decay skill (2026-04-29)
 
 Read-only citation-freshness analytics over the project graph. Joins
