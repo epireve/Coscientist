@@ -32,6 +32,8 @@ DEFAULT_THRESHOLDS = {
     "max_active_runs": 10,          # parallel runs >10 = alert
     "max_quality_decline": -0.10,   # v0.127: drift delta below this = alert
     "drift_window": 5,              # v0.127: window size for drift check
+    "min_thinking_coverage": 0.50,  # v0.170: per-table thinking-log coverage
+    "thinking_min_rows": 5,         # v0.170: only alert when n_total > this
 }
 
 
@@ -184,6 +186,26 @@ def evaluate_alerts(
                 "threshold": t["min_quality_score"],
             })
 
+    # v0.170: thinking-trace coverage alerts (per-table)
+    thinking = report.get("thinking", {}) or {}
+    for tbl, d in (thinking.get("by_table") or {}).items():
+        n_total = d.get("n_total", 0) or 0
+        if n_total <= t["thinking_min_rows"]:
+            continue
+        cov = d.get("coverage", 0.0) or 0.0
+        if cov < t["min_thinking_coverage"]:
+            alerts.append({
+                "severity": "warn",
+                "code": "thinking_coverage_low",
+                "message": (
+                    f"{tbl} thinking-log coverage "
+                    f"{cov:.0%} ({d.get('n_with_trace', 0)}/"
+                    f"{n_total})"
+                ),
+                "value": round(cov, 3),
+                "threshold": t["min_thinking_coverage"],
+            })
+
     # v0.127: drift alerts
     drift = report.get("drift", {}) or {}
     for agent, d in (drift.get("by_agent") or {}).items():
@@ -203,6 +225,165 @@ def evaluate_alerts(
                 })
 
     return alerts
+
+
+# v0.170 — tables that carry a `thinking_log_json` column.
+_THINKING_TABLES = (
+    "hypotheses",
+    "attack_findings",
+    "novelty_assessments",
+    "publishability_verdicts",
+)
+
+
+def _tree_summary_for_db(db: Path) -> dict[str, Any]:
+    """v0.170 — per-DB tree-tournament summary.
+
+    Returns: {n_trees, top_per_tree: [{tree_id, top_hyp_id, top_elo}],
+              n_pruned}. n_pruned counts distinct hyp ids that appear
+    in tournament_matches.{hyp_a,hyp_b} but no longer exist in
+    hypotheses (i.e. the row was deleted via subtree pruning).
+    """
+    out: dict[str, Any] = {
+        "n_trees": 0, "top_per_tree": [], "n_pruned": 0,
+    }
+    if not db.exists():
+        return out
+    try:
+        con = sqlite3.connect(db)
+        con.row_factory = sqlite3.Row
+        try:
+            tree_rows = list(con.execute(
+                "SELECT tree_id, hyp_id, elo FROM hypotheses "
+                "WHERE tree_id IS NOT NULL "
+                "ORDER BY tree_id ASC, elo DESC, hyp_id ASC",
+            ))
+        except sqlite3.OperationalError:
+            con.close()
+            return out
+        seen_trees: set[str] = set()
+        for r in tree_rows:
+            tid = r["tree_id"]
+            if tid in seen_trees:
+                continue
+            seen_trees.add(tid)
+            out["top_per_tree"].append({
+                "tree_id": tid,
+                "top_hyp_id": r["hyp_id"],
+                "top_elo": float(r["elo"] or 0.0),
+            })
+        out["n_trees"] = len(seen_trees)
+        # Pruned-id detection — hyp_a/hyp_b rows that no longer exist
+        # in `hypotheses`.
+        try:
+            pruned = con.execute(
+                "SELECT COUNT(*) FROM ("
+                "  SELECT hyp_a AS h FROM tournament_matches "
+                "  UNION SELECT hyp_b FROM tournament_matches"
+                ") WHERE h NOT IN (SELECT hyp_id FROM hypotheses)",
+            ).fetchone()[0]
+            out["n_pruned"] = int(pruned or 0)
+        except sqlite3.OperationalError:
+            pass
+        con.close()
+    except Exception:
+        pass
+    return out
+
+
+def _thinking_coverage_for_db(db: Path) -> dict[str, Any]:
+    """v0.170 — per-table thinking-log coverage for a single run DB."""
+    by_table: dict[str, dict] = {}
+    if not db.exists():
+        return {"by_table": by_table}
+    try:
+        con = sqlite3.connect(db)
+    except Exception:
+        return {"by_table": by_table}
+    try:
+        for tbl in _THINKING_TABLES:
+            try:
+                total = con.execute(
+                    f"SELECT COUNT(*) FROM {tbl}",
+                ).fetchone()[0]
+                covered = con.execute(
+                    f"SELECT COUNT(*) FROM {tbl} "
+                    f"WHERE thinking_log_json IS NOT NULL",
+                ).fetchone()[0]
+            except sqlite3.OperationalError:
+                continue
+            if total == 0 and covered == 0:
+                # Skip tables that don't exist or are empty here.
+                if tbl not in by_table:
+                    by_table[tbl] = {
+                        "n_total": 0, "n_with_trace": 0,
+                        "coverage": 0.0,
+                    }
+                continue
+            d = by_table.setdefault(tbl, {
+                "n_total": 0, "n_with_trace": 0, "coverage": 0.0,
+            })
+            d["n_total"] += int(total or 0)
+            d["n_with_trace"] += int(covered or 0)
+    finally:
+        con.close()
+    return {"by_table": by_table}
+
+
+def trees_summary_across_runs(
+    roots: list[Path] | None = None,
+) -> dict[str, Any]:
+    """v0.170 — aggregate tree-tournament summary across run DBs."""
+    from lib.cache import runs_dir
+    root = roots[0] if roots else runs_dir()
+    out: dict[str, Any] = {
+        "n_trees_total": 0, "n_pruned_total": 0,
+        "by_run": [],
+    }
+    if not root.exists():
+        return out
+    for db in sorted(root.glob("run-*.db")):
+        s = _tree_summary_for_db(db)
+        if s["n_trees"] == 0 and s["n_pruned"] == 0:
+            continue
+        out["n_trees_total"] += s["n_trees"]
+        out["n_pruned_total"] += s["n_pruned"]
+        out["by_run"].append({
+            "db_path": str(db),
+            "n_trees": s["n_trees"],
+            "n_pruned": s["n_pruned"],
+            "top_per_tree": s["top_per_tree"],
+        })
+    return out
+
+
+def thinking_coverage_across_runs(
+    roots: list[Path] | None = None,
+) -> dict[str, Any]:
+    """v0.170 — aggregate thinking-log coverage per table across runs."""
+    from lib.cache import runs_dir
+    root = roots[0] if roots else runs_dir()
+    by_table: dict[str, dict] = {
+        t: {"n_total": 0, "n_with_trace": 0, "coverage": 0.0}
+        for t in _THINKING_TABLES
+    }
+    if not root.exists():
+        return {"by_table": by_table}
+    for db in sorted(root.glob("run-*.db")):
+        s = _thinking_coverage_for_db(db)
+        for tbl, d in (s.get("by_table") or {}).items():
+            agg = by_table.setdefault(tbl, {
+                "n_total": 0, "n_with_trace": 0, "coverage": 0.0,
+            })
+            agg["n_total"] += d["n_total"]
+            agg["n_with_trace"] += d["n_with_trace"]
+    for tbl, d in by_table.items():
+        d["coverage"] = (
+            d["n_with_trace"] / d["n_total"]
+            if d["n_total"] > 0 else 0.0
+        )
+        d["coverage"] = round(d["coverage"], 4)
+    return {"by_table": by_table}
 
 
 def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
@@ -288,6 +469,14 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
         drift = agent_quality.quality_drift()
     except Exception:
         drift = {"n_rows": 0, "by_agent": {}}
+    try:
+        trees = trees_summary_across_runs()
+    except Exception:
+        trees = {"n_trees_total": 0, "n_pruned_total": 0, "by_run": []}
+    try:
+        thinking = thinking_coverage_across_runs()
+    except Exception:
+        thinking = {"by_table": {}}
 
     return {
         "n_runs": n_runs,
@@ -298,6 +487,8 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
         "harvests": harvests,
         "gates": gates,
         "drift": drift,
+        "trees": trees,
+        "thinking": thinking,
         "failed_spans_total": failed_total,
     }
 
@@ -404,6 +595,41 @@ def render_md(report: dict[str, Any],
                 f"- **{agent}** mean={d['mean']:.2f} "
                 f"latest={d.get('latest_score', 0):.2f} "
                 f"(n={d['n']}, runs={d['n_runs']})"
+            )
+        lines.append("")
+
+    # v0.170 — tree summary
+    trees = report.get("trees") or {}
+    if trees.get("n_trees_total", 0) > 0 or trees.get("by_run"):
+        lines.append("## Tree tournaments")
+        lines.append("")
+        lines.append(
+            f"- Trees: {trees.get('n_trees_total', 0)}"
+        )
+        lines.append(
+            f"- Pruned hyp ids: {trees.get('n_pruned_total', 0)}"
+        )
+        for r in trees.get("by_run", [])[:5]:
+            for top in r.get("top_per_tree", [])[:3]:
+                lines.append(
+                    f"  - tree `{top['tree_id']}` top "
+                    f"`{top['top_hyp_id']}` "
+                    f"Elo {round(top['top_elo'])}"
+                )
+        lines.append("")
+
+    # v0.170 — thinking-trace coverage
+    thinking = report.get("thinking") or {}
+    by_table = thinking.get("by_table") or {}
+    if any(d.get("n_total", 0) for d in by_table.values()):
+        lines.append("## Thinking-trace coverage")
+        lines.append("")
+        for tbl, d in sorted(by_table.items()):
+            if not d.get("n_total"):
+                continue
+            lines.append(
+                f"- **{tbl}** {d['n_with_trace']}/{d['n_total']} "
+                f"({d['coverage']:.0%})"
             )
         lines.append("")
 

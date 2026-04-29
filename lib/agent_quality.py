@@ -781,6 +781,7 @@ def quality_drift(
     *,
     window: int = 5,
     roots: list[Path] | None = None,
+    threshold: float = 0.05,
 ) -> dict:
     """v0.127 — per-agent score drift over time.
 
@@ -853,9 +854,9 @@ def quality_drift(
         if (len(latest_scores) < window
                 or len(prior_scores) < window):
             direction = "insufficient"
-        elif delta > 0.05:
+        elif delta > threshold:
             direction = "improving"
-        elif delta < -0.05:
+        elif delta < -threshold:
             direction = "declining"
         else:
             direction = "stable"
@@ -903,19 +904,61 @@ def main(argv: list[str] | None = None) -> int:
              "Latest --window scores vs prior --window.",
     )
     dr.add_argument("--root", default=None)
-    dr.add_argument("--window", type=int, default=5,
-                     help="Window size (default 5)")
+    dr.add_argument("--window", type=int, default=10,
+                     help="Window size (default 10)")
+    dr.add_argument("--threshold", type=float, default=0.1,
+                     help="Drift delta threshold (default 0.1)")
+    dr.add_argument("--format", choices=("json", "text"),
+                     default="json")
     args = p.parse_args(argv)
     if args.cmd == "summary":
         out = summary(Path(args.db), run_id=args.run_id)
-    elif args.cmd == "leaderboard":
+        print(json.dumps(out, indent=2))
+        return 0
+    if args.cmd == "leaderboard":
         roots = [Path(args.root)] if args.root else None
         out = leaderboard(roots=roots)
-    else:  # drift
-        roots = [Path(args.root)] if args.root else None
-        out = quality_drift(window=args.window, roots=roots)
-    print(json.dumps(out, indent=2))
+        print(json.dumps(out, indent=2))
+        return 0
+    # drift
+    roots = [Path(args.root)] if args.root else None
+    out = quality_drift(
+        window=args.window, roots=roots,
+        threshold=args.threshold,
+    )
+    if args.format == "json":
+        print(json.dumps(out, indent=2))
+    else:
+        print(_render_drift_text(out))
     return 0
+
+
+def _render_drift_text(report: dict) -> str:
+    lines = [
+        f"# Agent quality drift (window={report.get('window', 0)})",
+        f"- DBs scanned: {report.get('n_dbs', 0)}",
+        f"- Rows: {report.get('n_rows', 0)}",
+        "",
+    ]
+    by_agent = report.get("by_agent") or {}
+    if not by_agent:
+        lines.append("_No quality data yet._")
+        return "\n".join(lines)
+    rows = sorted(by_agent.items(),
+                   key=lambda kv: kv[1].get("delta_mean", 0))
+    for agent, d in rows:
+        direction = d.get("direction", "?")
+        delta = d.get("delta_mean", 0)
+        latest = d.get("latest_window", {})
+        prior = d.get("prior_window", {})
+        lines.append(
+            f"- **{agent}** [{direction}] delta={delta:+.3f} "
+            f"latest={latest.get('mean', 0):.3f} "
+            f"(n={latest.get('n', 0)}) "
+            f"prior={prior.get('mean', 0):.3f} "
+            f"(n={prior.get('n', 0)})"
+        )
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":

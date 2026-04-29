@@ -789,7 +789,63 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.169
+## Shipped: v0.51 → v0.173
+
+### v0.173 — MCP cost dashboard ✅ (2026-04-29)
+
+`lib/cost_dashboard.py` aggregates `tool-call` spans across run DBs and
+maps them to MCP servers via substring match. Heuristic cost table —
+consensus $0.10/call, openalex/semantic-scholar/paper-search free —
+yields 7d / 30d / all-time call counts and estimated dollar cost per
+server plus totals. CLI `uv run python -m lib.cost_dashboard
+[--format json|text] [--window-days N] [--root P]`.
+
+Files:
+- `lib/cost_dashboard.py` — pure-stdlib aggregator + CLI.
+- `tests/test_v0_173_cost_dashboard.py` — 7 tests.
+
+### v0.172 — quality drift CLI extensions ✅ (2026-04-29)
+
+`lib.agent_quality.quality_drift` gains a configurable `threshold`
+parameter. The `drift` subcommand grows `--window` (default 10 per spec),
+`--threshold` (default 0.1), and `--format json|text` knobs. Text mode
+prints per-persona declining/improving/stable lines sorted by delta.
+Backward compatible — `evaluate_alerts` keeps its 0.05 default; existing
+tests untouched.
+
+Files:
+- `lib/agent_quality.py` — threshold kwarg + CLI flags + text renderer.
+- `tests/test_v0_172_quality_drift.py` — 6 tests.
+
+### v0.171 — tree-viz mermaid renderer ✅ (2026-04-29)
+
+`lib/tree_viz.py` mirrors `lib/graph_viz.py` for hypothesis trees. Reads
+`lib.idea_tree.get_tree`, emits a `graph TD` mermaid block with
+parent→child edges. Each node labeled `hyp_id<br/>Elo NNNN` and styled
+via mermaid `class`: green ≥1300, red <1100, default otherwise. CLI
+`uv run python -m lib.tree_viz --run-db <path> --tree-id <id>`.
+
+Files:
+- `lib/tree_viz.py` — pure-stdlib renderer + CLI.
+- `tests/test_v0_171_tree_viz.py` — 7 tests.
+
+### v0.170 — /health extended (trees + thinking-trace coverage) ✅ (2026-04-29)
+
+Two new sections in the health dump. **Tree-tournament summary** —
+counts trees per run DB (rows where `tree_id IS NOT NULL`), surfaces
+the top-Elo node per tree, and counts pruned hyp ids (distinct ids in
+`tournament_matches.hyp_a`/`hyp_b` no longer present in `hypotheses`).
+**Thinking-trace coverage** — per-table count of rows with non-null
+`thinking_log_json` vs total, surfaced as a percentage across the four
+verdict tables (hypotheses, attack_findings, novelty_assessments,
+publishability_verdicts). New alert `thinking_coverage_low` fires when
+coverage <50% on any table with >5 rows. Both sections appear in
+`render_md` and the JSON dump.
+
+Files:
+- `lib/health.py` — new helpers `trees_summary_across_runs`,
+  `thinking_coverage_across_runs`, alerts, render_md sections.
+- `tests/test_v0_170_health_extended.py` — 9 tests.
 
 ### v0.169 — v15 plugin drift byte-equal verify ✅ (2026-04-29)
 
