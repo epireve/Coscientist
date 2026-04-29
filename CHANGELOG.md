@@ -36,6 +36,20 @@ it. Pure structural lint — no DB needed.
 Files:
 - `tests/test_v0_168_schema_versions_monotonic.py` — 4 tests.
 
+## v0.167 — D3 architect→mutator→ranker→prune e2e integration (2026-04-29)
+
+End-to-end test class proving the v0.156→v0.158 chain works through
+real CLIs, not just library calls. Builds a 6-node tree via
+`record_hypothesis.py` (root + 3 branches via architect, 2 sub-branches
+under best via mutator), forces deterministic Elo state (one branch
+weak+mature, others strong+mature), then runs `record_match.py
+--auto-prune` and asserts the weak subtree was pruned, survivors form
+a connected tree, root survives, BFS ordering holds. The first
+integration test that exercises the full chain rather than the seams.
+
+Files:
+- `tests/test_v0_167_e2e_tree_tournament.py` — 6 tests.
+
 ## v0.166 — manuscript-reflect hedge regression test (2026-04-29)
 
 The reflect gate already enforced hedge-word rejection on committed
