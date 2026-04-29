@@ -231,6 +231,61 @@ def collect_for_run(run_db: Path, run_id: str | None) -> list[dict]:
     return out
 
 
+def _cli_record(argv: list[str]) -> int:
+    """v0.157 CLI subcommand: persist a thinking_log payload.
+
+    Usage:
+        python -m lib.thinking_trace record \\
+            --run-db <path> --table <name> \\
+            --row-id-col <col> --row-id <value> \\
+            --log-json '<json-object>'
+
+    Exits 1 on unknown table or invalid JSON; 0 on success.
+    """
+    import argparse
+
+    p = argparse.ArgumentParser(prog="lib.thinking_trace record")
+    p.add_argument("--run-db", required=True)
+    p.add_argument("--table", required=True)
+    p.add_argument("--row-id-col", required=True)
+    p.add_argument("--row-id", required=True)
+    p.add_argument("--log-json", required=True)
+    args = p.parse_args(argv)
+
+    try:
+        log = json.loads(args.log_json)
+    except (TypeError, ValueError) as e:
+        print(f"error: invalid --log-json ({e})")
+        return 1
+    if not isinstance(log, dict):
+        print("error: --log-json must decode to a JSON object")
+        return 1
+
+    try:
+        record_thinking(
+            Path(args.run_db),
+            args.table,
+            args.row_id_col,
+            args.row_id,
+            log,
+        )
+    except ValueError as e:
+        print(f"error: {e}")
+        return 1
+    return 0
+
+
+def _cli(argv: list[str]) -> int:
+    if not argv or argv[0] in ("-h", "--help"):
+        print("usage: python -m lib.thinking_trace record [...]")
+        return 0 if argv else 1
+    sub, rest = argv[0], argv[1:]
+    if sub == "record":
+        return _cli_record(rest)
+    print(f"error: unknown subcommand {sub!r}")
+    return 1
+
+
 def render_thinking_section(run_db: Path,
                             run_id: str | None) -> str:
     """Markdown section with thinking traces for a run. Empty string
@@ -250,3 +305,8 @@ def render_thinking_section(run_db: Path,
             lines.append(body.rstrip())
         lines.append("")
     return "\n".join(lines) + "\n"
+
+
+if __name__ == "__main__":
+    import sys
+    raise SystemExit(_cli(sys.argv[1:]))

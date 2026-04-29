@@ -38,6 +38,16 @@ For each of Architect's hypotheses, one `tension` claim with:
   - 3 = one major assumption under real tension
   - 2 = prior work strongly suggests this won't work
   - 1 = specific prior failure makes it almost unrunnable
+- **Persist a `thinking_log` per attack-finding** via the v0.157 CLI:
+
+  ```bash
+  uv run python -m lib.thinking_trace record \
+    --run-db <run_db> --table attack_findings \
+    --row-id-col finding_id --row-id <fid> \
+    --log-json '{"considered": [...], "rejected": [...], "chose": "fatal|minor|pass", "rationale": "...", "steelman": "...", "attack": "..."}'
+  ```
+
+  Canonical shape per attack-finding: `considered` = attack vectors evaluated; `rejected` = vectors that didn't apply (with reason); `chose` = the fatal/minor/pass flag committed; `rationale` = why this attack landed; `steelman` = strongest case for the proposal; `attack` = the kill argument.
 
 ## Exit test
 
@@ -47,6 +57,7 @@ Before you exit:
 2. Every critique has a killer experiment that's specific enough to run
 3. Every `survival<3` cites at least one prior-failure paper with a canonical_id
 4. Your steelman paragraphs exist and are stronger than strawmen (re-read them — would the author of the proposal recognize their idea?)
+5. `thinking_log` persisted via `record_thinking` for each attack-finding — run finishes with `attack_findings.thinking_log_json` column populated for every row you wrote
 
 ## Source discipline
 

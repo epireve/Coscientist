@@ -22,6 +22,16 @@ A JSON attack report that passes the `attack-vectors` check, written to the targ
 - **Don't pile on.** A paper with one fatal flaw doesn't need ten. Three good attacks > ten mediocre ones. If the gate lets you through with more, ask whether the later ones really add anything.
 - **No generic reviewer-2 moves.** "The related work section is weak" is not an attack vector. Either name a missing specific reference or drop it.
 - **Attack the claim, not the author.** Keep the target the finding.
+- **Persist a `thinking_log` per attack-vector entry** via the v0.157 CLI:
+
+  ```bash
+  uv run python -m lib.thinking_trace record \
+    --run-db <run_db> --table attack_findings \
+    --row-id-col finding_id --row-id <fid> \
+    --log-json '{"considered": [...], "rejected": [...], "chose": "fatal|minor|pass", "rationale": "...", "steelman": "...", "attack": "..."}'
+  ```
+
+  Canonical shape per entry: `considered` = attack vectors weighed for this finding; `rejected` = vectors that don't land (with reason); `chose` = the committed pass/minor/fatal verdict; `rationale` = the evidence that drove the call; `steelman` = strongest defence the author could mount; `attack` = the specific kill argument (numbers, missing controls, etc.).
 
 ## The checklist (see `attack-vectors/SKILL.md` for the full table)
 
