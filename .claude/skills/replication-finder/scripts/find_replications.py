@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -68,6 +69,38 @@ def _jaccard(a: set[str], b: set[str]) -> float:
     inter = len(a & b)
     union = len(a | b)
     return inter / union if union else 0.0
+
+
+def _weighted_jaccard(a: set[str], b: set[str], idf: dict[str, float]) -> float:
+    """v0.181 — IDF-weighted Jaccard.
+
+    Numerator: sum of idf for tokens in (a ∩ b).
+    Denominator: sum of idf for tokens in (a ∪ b).
+    Falls back to 0.0 when union is empty or has zero total IDF.
+    """
+    if not a or not b:
+        return 0.0
+    inter = a & b
+    union = a | b
+    num = sum(idf.get(t, 0.0) for t in inter)
+    den = sum(idf.get(t, 0.0) for t in union)
+    return num / den if den > 0 else 0.0
+
+
+def _build_idf(corpus_token_sets: list[set[str]]) -> dict[str, float]:
+    """Compute IDF over a corpus of token sets.
+
+    idf[t] = log(N / (1 + df[t])).  Common tokens (high df) → near 0.
+    Rare tokens (low df) → high.
+    """
+    n = len(corpus_token_sets)
+    if n == 0:
+        return {}
+    df: dict[str, int] = {}
+    for s in corpus_token_sets:
+        for t in s:
+            df[t] = df.get(t, 0) + 1
+    return {t: math.log(n / (1 + d)) for t, d in df.items()}
 
 
 def _claims_text(meta: dict) -> str:
@@ -195,8 +228,16 @@ def _score_text(text: str) -> dict:
 def _score_citer(
     citer_cid: str,
     target_tokens: set[str],
+    *,
+    weighting: str = "tfidf",
+    idf: dict[str, float] | None = None,
 ) -> dict | None:
-    """Score one citer. Returns row dict or None if metadata missing."""
+    """Score one citer. Returns row dict or None if metadata missing.
+
+    `weighting`: "jaccard" → plain set Jaccard (v0.160 baseline).
+                 "tfidf"   → IDF-weighted Jaccard (v0.181, default).
+    `idf`: corpus IDF map (required when weighting='tfidf').
+    """
     meta = _load_metadata(citer_cid)
     if meta is None:
         return None
@@ -207,7 +248,10 @@ def _score_citer(
     s = _score_text(full)
 
     citer_tokens = _tokens(claims_text)
-    overlap = _jaccard(target_tokens, citer_tokens)
+    if weighting == "tfidf" and idf is not None:
+        overlap = _weighted_jaccard(target_tokens, citer_tokens, idf)
+    else:
+        overlap = _jaccard(target_tokens, citer_tokens)
 
     reasons: list[str] = []
     score = 0.0
@@ -260,8 +304,13 @@ def find_replications(
     project_id: str,
     canonical_id: str,
     top_n: int | None = None,
+    *,
+    weighting: str = "tfidf",
 ) -> list[dict] | dict:
-    """Main entry. Returns list of scored citers, or {error: ...}."""
+    """Main entry. Returns list of scored citers, or {error: ...}.
+
+    `weighting`: "tfidf" (default, v0.181) or "jaccard" (v0.160 baseline).
+    """
     db = project_db_path(project_id)
     if not db.exists():
         return {"error": f"no project DB at {db}"}
@@ -273,9 +322,23 @@ def find_replications(
     target_tokens = _tokens(_claims_text(target_meta))
 
     citers = _citers(project_id, canonical_id)
+
+    # Build IDF once over target+citers corpus when using tfidf.
+    idf: dict[str, float] = {}
+    if weighting == "tfidf":
+        corpus_sets: list[set[str]] = [target_tokens]
+        for cid in citers:
+            cm = _load_metadata(cid)
+            if cm is None:
+                continue
+            corpus_sets.append(_tokens(_claims_text(cm)))
+        idf = _build_idf(corpus_sets)
+
     rows: list[dict] = []
     for cid in citers:
-        row = _score_citer(cid, target_tokens)
+        row = _score_citer(
+            cid, target_tokens, weighting=weighting, idf=idf,
+        )
         if row is not None:
             rows.append(row)
 
@@ -305,11 +368,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--canonical-id", required=True)
     p.add_argument("--top-n", type=int, default=None)
     p.add_argument("--format", choices=("json", "text"), default="json")
+    p.add_argument(
+        "--weighting", choices=("jaccard", "tfidf"), default="tfidf",
+        help="v0.181 — IDF-weighted Jaccard (default) or plain Jaccard",
+    )
     args = p.parse_args(argv)
 
     try:
         result = find_replications(
             args.project_id, args.canonical_id, top_n=args.top_n,
+            weighting=args.weighting,
         )
     except Exception as e:  # best-effort: never crash
         result = {"error": f"{type(e).__name__}: {e}"}

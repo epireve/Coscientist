@@ -276,6 +276,191 @@ def cliques(project_id: str, min_shared: int = 2) -> dict:
         con.close()
 
 
+def cliques_louvain(project_id: str) -> dict:
+    """v0.180 — Louvain Phase-1 modularity-optimization clustering.
+
+    Build a weighted author-author graph (weight = shared papers between
+    pair). Iteratively try moving each node to a neighbor's community
+    and accept moves that increase modularity. Repeat until no
+    improving move remains. Pure stdlib.
+
+    Returns dict {communities: [{community_id, authors, labels, size,
+    modularity_contribution}], modularity}.
+    """
+    con = _open(project_id)
+    if con is None:
+        return {"error": f"no project DB for {project_id}"}
+    try:
+        try:
+            rows = con.execute(
+                "SELECT from_node, to_node FROM graph_edges "
+                "WHERE relation='authored-by'"
+            ).fetchall()
+        except sqlite3.OperationalError:
+            rows = []
+        paper_authors: dict[str, list[str]] = {}
+        for r in rows:
+            paper_authors.setdefault(r[0], []).append(r[1])
+
+        # Pair weights = shared papers between author pair.
+        weight: dict[tuple[str, str], float] = {}
+        nodes_set: set[str] = set()
+        for authors in paper_authors.values():
+            uniq = sorted(set(authors))
+            for a in uniq:
+                nodes_set.add(a)
+            for i in range(len(uniq)):
+                for j in range(i + 1, len(uniq)):
+                    key = (uniq[i], uniq[j])
+                    weight[key] = weight.get(key, 0.0) + 1.0
+
+        nodes = sorted(nodes_set)
+        if not nodes:
+            return {
+                "project_id": project_id,
+                "communities": [],
+                "modularity": 0.0,
+            }
+
+        # Adjacency: for each node, dict of neighbor → weight.
+        adj: dict[str, dict[str, float]] = {n: {} for n in nodes}
+        for (a, b), w in weight.items():
+            adj[a][b] = w
+            adj[b][a] = w
+
+        # Node strength (sum of incident edge weights) and total m.
+        k: dict[str, float] = {n: sum(adj[n].values()) for n in nodes}
+        two_m = sum(k.values())  # = 2 * m
+        m = two_m / 2.0
+
+        # Each node starts in its own community.
+        comm: dict[str, int] = {n: i for i, n in enumerate(nodes)}
+        # community → sum of node strengths inside (ΣK)
+        comm_k: dict[int, float] = {i: k[nodes[i]] for i in range(len(nodes))}
+
+        if m == 0:
+            # All-disconnected — leave each in own community.
+            communities = _build_louvain_output(
+                project_id, con, nodes, comm, weight,
+            )
+            return {
+                "project_id": project_id,
+                "communities": communities,
+                "modularity": 0.0,
+            }
+
+        # Phase 1: iterate until stable.
+        changed = True
+        max_passes = 20
+        passes = 0
+        while changed and passes < max_passes:
+            changed = False
+            passes += 1
+            for n in nodes:
+                cn = comm[n]
+                kn = k[n]
+                # Sum of weights from n to each neighbor community.
+                w_to_comm: dict[int, float] = {}
+                for nb, w in adj[n].items():
+                    cb = comm[nb]
+                    w_to_comm[cb] = w_to_comm.get(cb, 0.0) + w
+                # Removing n from cn:
+                # delta of moving n from cn → cd = (k_in(d) - k_in(cn\\n))/m
+                #                     - kn*(ΣK_d - ΣK_cn + kn) / (2m^2)
+                # Compute current contribution: weight to own (excl self).
+                w_to_own = w_to_comm.get(cn, 0.0)
+                # Tentatively remove n from cn for delta calc.
+                comm_k_cn_no_n = comm_k[cn] - kn
+
+                best_delta = 0.0
+                best_c = cn
+                seen_c: set[int] = set()
+                for nb, w in adj[n].items():
+                    cd = comm[nb]
+                    if cd in seen_c:
+                        continue
+                    seen_c.add(cd)
+                    if cd == cn:
+                        continue
+                    w_to_d = w_to_comm.get(cd, 0.0)
+                    sum_k_d = comm_k[cd]
+                    # ΔQ for moving n from cn to cd:
+                    delta = (
+                        (w_to_d - w_to_own) / m
+                        - kn * (sum_k_d - comm_k_cn_no_n) / (2.0 * m * m)
+                    )
+                    if delta > best_delta + 1e-12:
+                        best_delta = delta
+                        best_c = cd
+                if best_c != cn:
+                    comm_k[cn] -= kn
+                    comm_k[best_c] = comm_k.get(best_c, 0.0) + kn
+                    comm[n] = best_c
+                    changed = True
+
+        # Final modularity Q = sum_c [ (Σ_in_c)/(2m) - (Σk_c/(2m))^2 ]
+        # Σ_in_c = sum of weights internal to community c (each pair once
+        # but in modularity formula we use 2*internal weight for undirected).
+        in_w: dict[int, float] = {}
+        for (a, b), w in weight.items():
+            if comm[a] == comm[b]:
+                in_w[comm[a]] = in_w.get(comm[a], 0.0) + 2.0 * w
+        modularity = 0.0
+        for c, sum_k_c in comm_k.items():
+            modularity += (
+                in_w.get(c, 0.0) / two_m
+                - (sum_k_c / two_m) ** 2
+            )
+
+        communities = _build_louvain_output(
+            project_id, con, nodes, comm, weight,
+        )
+        return {
+            "project_id": project_id,
+            "communities": communities,
+            "modularity": round(modularity, 6),
+        }
+    finally:
+        con.close()
+
+
+def _build_louvain_output(
+    project_id: str,
+    con: sqlite3.Connection,
+    nodes: list[str],
+    comm: dict[str, int],
+    weight: dict[tuple[str, str], float],
+) -> list[dict]:
+    """Build sorted-by-size list of community dicts."""
+    # Group nodes by community.
+    groups: dict[int, list[str]] = {}
+    for n in nodes:
+        groups.setdefault(comm[n], []).append(n)
+
+    out: list[dict] = []
+    next_id = 0
+    for _orig_c, members in sorted(
+        groups.items(), key=lambda kv: -len(kv[1]),
+    ):
+        members_sorted = sorted(members)
+        # Internal weight (sum of pair weights within community).
+        internal = 0.0
+        for i in range(len(members_sorted)):
+            for j in range(i + 1, len(members_sorted)):
+                a, b = members_sorted[i], members_sorted[j]
+                internal += weight.get((a, b), 0.0)
+        labels = [_author_label(con, a) or a for a in members_sorted]
+        out.append({
+            "community_id": next_id,
+            "authors": members_sorted,
+            "labels": labels,
+            "size": len(members_sorted),
+            "internal_weight": internal,
+        })
+        next_id += 1
+    return out
+
+
 def _format_text(payload: dict) -> str:
     if "error" in payload:
         return f"ERROR: {payload['error']}"
@@ -306,6 +491,20 @@ def _format_text(payload: dict) -> str:
                 lines.append(
                     f"      {c['shared_papers']:3d}  {c['label']}"
                 )
+    elif "communities" in payload:
+        lines.append(
+            f"Louvain communities "
+            f"(modularity={payload.get('modularity', 0):.4f}):"
+        )
+        for c in payload["communities"]:
+            lines.append(
+                f"  [{c['community_id']}] size={c['size']} "
+                f"internal={c['internal_weight']}: "
+                + " + ".join(c["labels"][:8])
+                + (" …" if len(c["labels"]) > 8 else "")
+            )
+        if not payload["communities"]:
+            lines.append("  (none)")
     elif "triangles" in payload:
         lines.append(
             f"Cliques (min_shared={payload['min_shared']}):"
@@ -344,6 +543,10 @@ def cmd_cliques(args: argparse.Namespace) -> None:
     _emit(cliques(args.project_id, args.min_shared), args.format)
 
 
+def cmd_cliques_louvain(args: argparse.Namespace) -> None:
+    _emit(cliques_louvain(args.project_id), args.format)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description="Read-only coauthor-network aggregation over project graph.",
@@ -371,6 +574,13 @@ def build_parser() -> argparse.ArgumentParser:
     pc.add_argument("--min-shared", type=int, default=2)
     pc.add_argument("--format", choices=["json", "text"], default="json")
     pc.set_defaults(func=cmd_cliques)
+
+    # v0.180 — Louvain Phase-1 modularity-optimization clustering.
+    pcl = sub.add_parser("cliques-louvain",
+                         help="Louvain modularity-optimized communities")
+    pcl.add_argument("--project-id", required=True)
+    pcl.add_argument("--format", choices=["json", "text"], default="json")
+    pcl.set_defaults(func=cmd_cliques_louvain)
 
     return p
 

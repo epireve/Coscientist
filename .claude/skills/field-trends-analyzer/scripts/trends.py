@@ -58,6 +58,7 @@ def cmd_concepts(args: argparse.Namespace) -> None:
 
 
 def cmd_papers(args: argparse.Namespace) -> None:
+    rank_by = getattr(args, "rank_by", "citations")
     con = _open(args.project_id)
     try:
         try:
@@ -69,18 +70,36 @@ def cmd_papers(args: argparse.Namespace) -> None:
                   ON e.to_node = n.node_id AND e.relation = 'cites'
                 WHERE n.kind = 'paper'
                 GROUP BY n.node_id, n.label
-                ORDER BY in_degree DESC
-                LIMIT ?
-            """, (args.top,)).fetchall()
+            """).fetchall()
         except sqlite3.OperationalError:
             rows = []
-        out = [{"label": r["label"], "node_id": r["node_id"],
-                "in_degree": r["in_degree"]} for r in rows]
     finally:
         con.close()
+
+    if rank_by == "pagerank":
+        # v0.179 — power-iteration PageRank ranking.
+        from lib.graph_advanced import pagerank
+        scores = pagerank(args.project_id, kind="paper", relation="cites")
+        out = []
+        for r in rows:
+            nid = r["node_id"]
+            out.append({
+                "label": r["label"],
+                "node_id": nid,
+                "in_degree": r["in_degree"],
+                "pagerank": round(scores.get(nid, 0.0), 6),
+            })
+        out.sort(key=lambda x: -x["pagerank"])
+    else:
+        out = [{"label": r["label"], "node_id": r["node_id"],
+                "in_degree": r["in_degree"]} for r in rows]
+        out.sort(key=lambda x: -x["in_degree"])
+    out = out[:args.top]
+
     print(json.dumps({
         "project_id": args.project_id,
         "top": args.top,
+        "rank_by": rank_by,
         "papers": out,
     }, indent=2))
 
@@ -309,6 +328,9 @@ def main() -> None:
     pp = sub.add_parser("papers")
     pp.add_argument("--project-id", required=True)
     pp.add_argument("--top", type=int, default=20)
+    pp.add_argument("--rank-by", choices=["citations", "pagerank"],
+                    default="citations",
+                    help="v0.179 — citations (in-degree) or PageRank")
     pp.set_defaults(func=cmd_papers)
 
     pa = sub.add_parser("authors")

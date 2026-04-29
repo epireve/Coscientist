@@ -789,7 +789,42 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.178
+## Shipped: v0.51 → v0.182
+
+### v0.182 — claim-cluster centroid representative ✅ (2026-04-29)
+
+Replaced longest-claim picker with centroid-density similarity. For each
+cluster, score = (sum of cluster centroid frequency over claim tokens) /
+|claim token set| — rewards claims dense in central tokens, penalizes
+claims padded with off-cluster vocabulary. Ties break on surface length.
+Outlier claims with extra rare tokens no longer hijack representative
+selection. `tests/test_v0_182_centroid_representative.py` — 5 tests.
+
+### v0.181 — replication-finder TF-IDF claim weighting ✅ (2026-04-29)
+
+Added IDF-weighted Jaccard to `find_replications.py`. Builds corpus IDF
+once per call (target + citers); rare-token co-occurrences score higher
+than common-token overlap. New `--weighting {jaccard|tfidf}` flag (default
+tfidf). v0.160 baseline preserved by passing `weighting='jaccard'`.
+`tests/test_v0_181_replication_tfidf.py` — 6 tests.
+
+### v0.180 — coauthor-network Louvain cliques ✅ (2026-04-29)
+
+New `cliques-louvain` subcommand on coauthor-network — pure-stdlib Louvain
+Phase-1 modularity-optimization community detection. Builds weighted
+author-author graph (weight = shared papers), iteratively moves nodes to
+neighbor communities when modularity gain is positive, terminates when no
+improving move remains. Sorted by community size desc, emits modularity
+score. Existing greedy `cliques` subcommand untouched.
+`tests/test_v0_180_louvain_cliques.py` — 7 tests.
+
+### v0.179 — lib/graph_advanced.py PageRank + field-trends rank-by ✅ (2026-04-29)
+
+New module `lib/graph_advanced.py` — pure-stdlib power-iteration PageRank
+over project `graph_nodes`/`graph_edges`. Damping 0.85, 50-iteration cap
+or convergence delta < 1e-6, dangling-node mass redistribution. Extended
+`field-trends-analyzer papers` with `--rank-by {citations|pagerank}`
+flag. `tests/test_v0_179_pagerank.py` — 7 tests.
 
 ### v0.178 — RESEARCHER cross-ref index ✅ (2026-04-29)
 

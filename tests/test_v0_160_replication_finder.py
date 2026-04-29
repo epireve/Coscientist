@@ -123,7 +123,8 @@ class V0160ReplicationFinder(TestCase):
             pid = _setup_project(
                 "t1", [("c_match", "cites"), ("c_unrelated", "cites")],
             )
-            rows = mod.find_replications(pid, "t1")
+            # v0.181: explicit weighting='jaccard' to match v0.160 baseline.
+            rows = mod.find_replications(pid, "t1", weighting="jaccard")
             by_cid = {r["cid"]: r for r in rows}
             self.assertGreater(
                 by_cid["c_match"]["score"],

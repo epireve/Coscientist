@@ -166,8 +166,11 @@ class ClaimClusterTests(TestCase):
     def test_representative_claim_is_longest(self):
         with isolated_cache():
             mod = _load_module()
+            # v0.182 — representative now picked by centroid-density.
+            # Use claims with IDENTICAL token sets but different surface
+            # length so length tiebreak still applies (centroid scores tie).
             short = "caffeine improves memory recall adults"
-            long_ = "caffeine improves memory recall adults significantly via mechanism"
+            long_ = short + " " + short  # repeated tokens — same set, longer
             pid = _setup_project([
                 ("a", [short]),
                 ("b", [long_]),

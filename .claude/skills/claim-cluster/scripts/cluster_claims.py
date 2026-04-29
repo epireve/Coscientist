@@ -188,15 +188,39 @@ def cluster_claims(
         # Aggregate tokens for heat + pick rep claim.
         all_tokens: list[str] = []
         all_claims: list[str] = []
+        # Keep per-claim token bags for centroid scoring.
+        per_claim_tokens: list[set[str]] = []
         for i in idxs:
             all_tokens.extend(bags[i])
-            all_claims.extend(claims[i])
+            for ct in claims[i]:
+                all_claims.append(ct)
+                per_claim_tokens.append(_tokens(ct))
         counts = Counter(all_tokens)
         top_tokens = [
             {"token": tok, "count": c}
             for tok, c in counts.most_common(10)
         ]
-        rep = max(all_claims, key=len) if all_claims else ""
+        # v0.182 — centroid representative. Centroid = cluster token-freq
+        # vector. Each claim scored as cosine-like similarity:
+        #   score = (sum of centroid freq over claim tokens) / |claim|
+        # This rewards claims dense in central tokens and penalizes
+        # claims padded with off-cluster vocabulary. Ties → longest.
+        rep = ""
+        if all_claims:
+            best_score = -1.0
+            best_len = -1
+            for claim, ctoks in zip(all_claims, per_claim_tokens):
+                if ctoks:
+                    s = sum(counts.get(t, 0) for t in ctoks) / len(ctoks)
+                else:
+                    s = 0.0
+                ln = len(claim)
+                if s > best_score + 1e-9 or (
+                    abs(s - best_score) <= 1e-9 and ln > best_len
+                ):
+                    best_score = s
+                    best_len = ln
+                    rep = claim
         clusters.append({
             "cluster_id": next_id,
             "papers": sorted(kept[i] for i in idxs),
