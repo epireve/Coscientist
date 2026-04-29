@@ -789,7 +789,32 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.160
+## Shipped: v0.51 → v0.161
+
+### v0.161 — coauthor-network skill ✅ (2026-04-29)
+
+Read-only aggregation skill that surfaces coauthor structure in the
+project graph. Pure SQL over `graph_nodes (kind=author)` +
+`graph_edges (relation=authored-by)` — no LLM, no writes.
+
+CLI subcommands:
+- `for-author --project-id P --author-nid author:X` — coauthors of X
+  with shared paper counts, paper_ids, and year range pulled from
+  per-paper `metadata.json["year"]` (best-effort).
+- `for-paper --project-id P --canonical-id CID` — authors of the
+  target paper, each expanded by their other coauthors (1-hop).
+- `cliques --project-id P [--min-shared 2]` — qualifying author pairs
+  + greedy triangle expansion (a-b, b-c, a-c all qualifying).
+
+Sort order: `shared_papers DESC, label ASC` tiebreak. All errors
+return `{error: ...}` dicts; never raises. `--format json|text`.
+
+Files:
+- `.claude/skills/coauthor-network/SKILL.md`
+- `.claude/skills/coauthor-network/scripts/coauthor.py`
+- `tests/test_v0_161_coauthor_network.py` — 14 tests across
+  for-author / for-paper / cliques / format / CLI / read-only
+  invariant.
 
 ### v0.160 — replication-finder skill ✅ (2026-04-29)
 
