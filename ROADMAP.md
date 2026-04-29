@@ -789,7 +789,36 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.163
+## Shipped: v0.51 → v0.164
+
+### v0.164 — citation-decay skill ✅ (2026-04-29)
+
+Read-only citation-freshness analytics over the project graph. Joins
+`cites` edges (citer → target) with each paper's `metadata.json["year"]`
+to surface citation recency, velocity, and stale-paper detection.
+Pure SQL + per-paper year heuristic — no LLM, no writes.
+
+CLI subcommands:
+- `for-paper --project-id P --canonical-id CID [--decay-years 5]
+  [--current-year 2026]` — year-bucketed citers, most-recent citer
+  year, total citations, count in last decay-years window.
+- `velocity --project-id P [--top-n 20]` — papers ranked by
+  citations / max(1, current_year - paper_year).
+- `stale --project-id P [--min-citations 5] [--decay-years 5]` —
+  papers with ≥ min citations and zero citers in the last
+  decay-years window.
+
+Year defaults to 2026 (override via `--current-year` for testability).
+Papers without `metadata.json["year"]` are silently skipped from
+velocity / stale; `for-paper` returns an error dict for them. All
+errors return `{error: ...}` dicts; never raises. `--format json|text`.
+
+Files:
+- `.claude/skills/citation-decay/SKILL.md`
+- `.claude/skills/citation-decay/scripts/citation_decay.py`
+- `tests/test_v0_164_citation_decay.py` — 17 tests across
+  for-paper / velocity / stale / format / current-year override /
+  CLI / read-only invariant.
 
 ### v0.163 — claim-cluster skill ✅ (2026-04-29)
 
