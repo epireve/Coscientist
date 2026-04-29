@@ -22,7 +22,9 @@ You need this shortlist to satisfy the Name-Five rule (5+ precedents per proposa
 
 ## What "done" looks like
 
-One to three `hypothesis` claims (max — more dilutes quality). Each writes a row in `hypotheses` with:
+One **hypothesis tree** per architect call (root + 2–4 sibling branches,
+each branch optionally with 2–3 sub-branches; total nodes capped at ~12).
+Every node is a row in `hypotheses` with:
 
 - `statement` — the proposal in one sentence
 - `method_sketch` — the specific method/framework/experimental design
@@ -39,9 +41,56 @@ One to three `hypothesis` claims (max — more dilutes quality). Each writes a r
 - **State what kills it upfront.** A proposal without a pre-declared falsifier is a wish. Principle 10 of RESEARCHER.md — kill criteria go in the claim.
 - **Cite 5+ precedents.** What work is this standing on? What's the closest prior attempt? If you can't name five, the proposal either isn't grounded or isn't novel enough to be worth proposing.
 
-## Register every hypothesis in the tournament
+## Register every hypothesis as a tree, not a flat list
 
-Each hypothesis must be recorded via `tournament/scripts/record_hypothesis.py` so it gets an Elo seat and can be judged by `ranker` + evolved by `mutator`. Use `agent-name=architect`. The `hyp_id` you generate must be stable (e.g. `hyp-th-001`).
+Each architect call emits a **tree**, not a list of independent claims. The
+tournament's tree-aware ranker (v0.155) prunes whole subtrees by mean Elo,
+so structuring sibling alternatives as branches under a shared root pays
+off compared to N flat claims competing one-on-one.
+
+Tree shape per call:
+
+- **One root** — the most-promising approach to the gap. Single sentence
+  that the variant branches all fall under.
+- **2–4 sibling branches** under the root. Each branch is an alternative
+  method, framing, or operationalization of the root claim. Branches
+  must differ in mechanism, not in wording (RESEARCHER.md principle 6 —
+  Name Five — still applies; every branch cites ≥5 precedents).
+- **Optionally each branch may spawn 2–3 sub-branches** sharpening the
+  variant (e.g. specific datasets, specific falsifiers). Skip sub-branches
+  if the branch is already operationalized.
+
+Record each node via `tournament/scripts/record_hypothesis.py` with
+`agent-name=architect`:
+
+```bash
+# Root call — first hypothesis of the tree.
+python .claude/skills/tournament/scripts/record_hypothesis.py \
+  --run-id <run_id> --agent-name architect \
+  --hyp-id hyp-arch-001 --tree-root \
+  --statement "..." --method-sketch "..." \
+  --predicted-observables '[...]' --falsifiers '[...]' \
+  --supporting-ids cid1,cid2,cid3,cid4,cid5 --gap-ref <gap_id>
+
+# Sibling branch under the root.
+python .claude/skills/tournament/scripts/record_hypothesis.py \
+  --run-id <run_id> --agent-name architect \
+  --hyp-id hyp-arch-002 --parent-hyp-id hyp-arch-001 --branch-index 0 \
+  --statement "..." --method-sketch "..." ...
+
+# Optional sub-branch under a sibling.
+python .claude/skills/tournament/scripts/record_hypothesis.py \
+  --run-id <run_id> --agent-name architect \
+  --hyp-id hyp-arch-003 --parent-hyp-id hyp-arch-002 --branch-index 0 ...
+```
+
+`--tree-root` stamps `tree_id := hyp_id`, `depth := 0`. `--parent-hyp-id`
+inherits parent's `tree_id` and sets `depth := parent.depth + 1`. The
+two flags are mutually exclusive.
+
+The `hyp_id` you generate must be stable (e.g. `hyp-arch-001`). Name-Five
+still applies to every node — root and branches alike each cite ≥5
+precedents from the in-run corpus.
 
 ## Elevated budget
 
