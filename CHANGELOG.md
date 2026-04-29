@@ -11,6 +11,45 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.160 — replication-finder skill (2026-04-29)
+
+Read-only heuristic skill that, given a target paper canonical_id and
+project, ranks citing papers by replication / refutation / follow-up
+signal. No LLM, no writes — pure stdlib stem matching + claim Jaccard
+over the project graph.
+
+Pipeline:
+
+1. Walk `graph_edges WHERE relation='cites' AND to_node='paper:<cid>'`
+   to enumerate citers.
+2. For each citer, read its `metadata.json` `claims[].text` and
+   `content.md` (best-effort — missing artifacts skipped).
+3. Stem score the combined text:
+   - refute stems (`fail to replicate`, `did not replicate`,
+     `contradict`, `refute`, `inconsistent with`, ...) checked first
+     and weighted x2; their spans suppress overlapping `replicate`
+     hits so "fail to replicate" is correctly classified as a
+     refutation, not a replication.
+   - replicate stems (`replicate`, `reproduce`, `confirm`,
+     `corroborate`).
+   - follow-up stems (`extend`, `build on`, `follow-up`).
+4. Compute Jaccard between target claim tokens and citer claim
+   tokens. Overlap >0.4 → 1.5×overlap boost; >0.2 → 0.5×overlap.
+5. Final signal label: refutes / replicates / follow-up / weak.
+6. Sort by score desc; optional `--top-n` cap.
+
+CLI: `--project-id`, `--canonical-id`, `--top-n`, `--format json|text`.
+Errors return `{error: ...}` dicts; never crashes.
+
+Files:
+- `.claude/skills/replication-finder/SKILL.md`
+- `.claude/skills/replication-finder/scripts/find_replications.py`
+- `tests/test_v0_160_replication_finder.py` — 13 tests covering stem
+  detection, refute-overrides-replicate, follow-up, Jaccard boost,
+  empty/missing inputs, sort order, top-n cap, json/text output, CLI
+  --help, case-insensitive matching, multi-stem combination, missing
+  metadata skip.
+
 ## v0.159 — wire source_selector into populate_citations + populate_concepts (2026-04-29)
 
 Both reference-agent populate scripts gain `--source auto` (NEW
