@@ -789,7 +789,20 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.182
+## Shipped: v0.51 → v0.183
+
+### v0.183 — polish batch (residual drift sweep) ✅ (2026-04-29)
+
+Closed 10 residual drift items after the v0.156–v0.182 marathon:
+- v0.160 test class renamed `V0160ReplicationFinder` → `V0160ReplicationFinderTests` (auto-discovery fix — silent regression risk).
+- `claim-cluster/SKILL.md`: longest-claim → centroid-density (catches up to v0.182).
+- `field-trends-analyzer/SKILL.md`: documents `--rank-by pagerank` (v0.179).
+- `coauthor-network/SKILL.md`: documents `cliques-louvain` subcommand (v0.180).
+- `replication-finder/SKILL.md`: documents `--weighting tfidf|jaccard` flag (v0.181 default = tfidf).
+- `ROADMAP.md` Parked section: E1 graphqlite eval (defer adoption — pure-stdlib violation, premature for ~1k-node graphs; verdict + better-path notes).
+- New `tests/test_v0_183_skill_md_drift.py` — 2 tests guarding against future SKILL.md vs CLI flag drift across the 4 graph-analytics skills.
+
+2396 → 2411 passing.
 
 ### v0.182 — claim-cluster centroid representative ✅ (2026-04-29)
 
@@ -4003,6 +4016,7 @@ All open questions resolved as of 2026-04-28.
 ## Parked (considered, deferred, not dropped)
 
 - Graph backend upgrade — Kuzu was the leading candidate but Kuzu Inc shut down March 2025; repo archived. Alternatives to evaluate when SQLite-adjacency hits >1s query latency: **graphqlite** (colliery-io, SQLite-backed, similar approach to current), **DuckDB** (columnar, has graph extensions), **TigerGraph community edition**, or just push SQLite further with recursive CTE optimization. No urgency; current volume small.
+- **graphqlite eval (E1, 2026-04-29 → defer adoption)**: SQLite C extension w/ Cypher + PageRank/Louvain/Dijkstra. Active (v0.4.4, 322⭐, MIT, released 10 days ago). Pure-stdlib `lib/` policy violation — ships C `.so/.dylib`. Plugin distribution would require platform binary wheels. Cypher lock-in once 3+ skills emit it. **Verdict: not now.** Better path = opt-in `lib/graph_advanced.py` IFF wheel installed (try-import), with pure-stdlib fallback (v0.179 PageRank already shipped that way). Revisit when project graphs exceed ~50k nodes (today: ~1k).
 - Neo4j integration — overkill for a personal tool
 - Distributed/cloud agent deployment — keep local-first
 - Non-English corpus support — out of scope for now

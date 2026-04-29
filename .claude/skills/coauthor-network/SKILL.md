@@ -14,7 +14,7 @@ papers per author pair.
 
 | Script | Subcommands | Purpose |
 |---|---|---|
-| `coauthor.py` | `for-author`, `for-paper`, `cliques` | Coauthor aggregation |
+| `coauthor.py` | `for-author`, `for-paper`, `cliques`, `cliques-louvain` | Coauthor aggregation |
 
 ## Subcommands
 
@@ -22,6 +22,7 @@ papers per author pair.
 coauthor.py for-author --project-id P --author-nid author:X [--format json|text]
 coauthor.py for-paper  --project-id P --canonical-id CID  [--format json|text]
 coauthor.py cliques    --project-id P [--min-shared 2]    [--format json|text]
+coauthor.py cliques-louvain --project-id P [--format json|text]   # v0.180 modularity
 ```
 
 ## Algorithm

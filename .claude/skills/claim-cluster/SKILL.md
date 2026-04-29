@@ -12,8 +12,9 @@ in a project's `artifact_index` (kind=paper), reads
 case, drop short tokens + stop-words), and clusters by all-pairs
 token-Jaccard ≥ threshold using single-link union-find.
 
-Per cluster: papers, top-K most-common content tokens (heat), and
-the longest claim as a representative.
+Per cluster: papers, top-K most-common content tokens (heat), and a
+representative claim — picked by cosine-similarity to cluster's
+token-frequency centroid (v0.182). Ties break on length.
 
 Hard cap at 200 papers — all-pairs Jaccard is O(n²); larger projects
 should pass a representative subset (`--top-n` won't help; the cap is

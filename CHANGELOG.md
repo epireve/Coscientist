@@ -11,6 +11,19 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.183 — polish batch (residual drift sweep) (2026-04-29)
+
+Closed 10 residual drift items after the v0.156–v0.182 marathon:
+- v0.160 test class renamed `V0160ReplicationFinder` → `V0160ReplicationFinderTests` (auto-discovery fix — silent regression risk).
+- `claim-cluster/SKILL.md`: longest-claim → centroid-density (catches up to v0.182).
+- `field-trends-analyzer/SKILL.md`: documents `--rank-by pagerank` (v0.179).
+- `coauthor-network/SKILL.md`: documents `cliques-louvain` subcommand (v0.180).
+- `replication-finder/SKILL.md`: documents `--weighting tfidf|jaccard` flag (v0.181 default = tfidf).
+- `ROADMAP.md` Parked section: E1 graphqlite eval (defer adoption — pure-stdlib violation, premature for ~1k-node graphs; verdict + better-path notes).
+- New `tests/test_v0_183_skill_md_drift.py` — 2 tests guarding against future SKILL.md vs CLI flag drift across the 4 graph-analytics skills.
+
+2396 → 2411 passing.
+
 ## v0.182 — claim-cluster centroid representative (2026-04-29)
 
 Replaced longest-claim picker with centroid-density similarity. For each

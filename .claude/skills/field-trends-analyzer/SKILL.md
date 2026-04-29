@@ -18,7 +18,7 @@ Read-only over the project graph. No writes. Surfaces trends by comparing two ti
 
 ```
 trends.py concepts --project-id P [--top 20]
-trends.py papers --project-id P [--top 20]
+trends.py papers --project-id P [--top 20] [--rank-by citations|pagerank]
 trends.py authors --project-id P [--top 20]
 trends.py momentum --project-id P [--window-recent 90] [--window-past 365] [--top 20]
 trends.py summary --project-id P
@@ -28,7 +28,7 @@ trends.py summary --project-id P
 
 **concepts** — top-N concept nodes by `about` edge count (papers tagged with that concept).
 
-**papers** — top-N paper nodes by `cites` in-degree (most-cited within this project's graph).
+**papers** — top-N paper nodes ranked by `--rank-by`: `citations` (default — `cites` in-degree) or `pagerank` (v0.179 — power-iteration over the citation graph; surfaces influence-weighted ranking even when raw cite count is low).
 
 **authors** — top-N author nodes by `authored-by` count.
 

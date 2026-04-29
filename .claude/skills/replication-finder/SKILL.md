@@ -28,7 +28,9 @@ Output: ranked JSON list of
 ```bash
 uv run python .claude/skills/replication-finder/scripts/find_replications.py \
   --project-id <pid> --canonical-id <target_cid> \
-  [--top-n 20] [--format json|text]
+  [--top-n 20] [--weighting tfidf|jaccard] [--format json|text]
+# v0.181: --weighting defaults to tfidf (IDF-weighted Jaccard).
+# Pass jaccard for plain-Jaccard back-compat.
 ```
 
 ## What "done" looks like

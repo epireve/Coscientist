@@ -63,7 +63,7 @@ def _setup_project(target_cid: str, citers: list[tuple[str, str]]) -> str:
 
 # -------------------------------------------------------------- tests
 
-class V0160ReplicationFinder(TestCase):
+class V0160ReplicationFinderTests(TestCase):
 
     def test_detects_replicate_stem(self):
         with isolated_cache():
@@ -274,4 +274,4 @@ class V0160ReplicationFinder(TestCase):
 
 
 if __name__ == "__main__":
-    sys.exit(run_tests(V0160ReplicationFinder))
+    sys.exit(run_tests(V0160ReplicationFinderTests))
