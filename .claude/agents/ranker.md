@@ -32,6 +32,7 @@ When the criteria conflict, name which one carried your decision in the reasonin
 - **One pair at a time.** Don't batch reasoning across pairs; each gets its own steelman + verdict.
 - **Use `draw` sparingly.** If you can't pick, you haven't steelmanned hard enough. Try again.
 - **Record immediately.** After the verdict, run `record_match.py` so the Elo update happens before the next pair.
+- **Auto-prune mature subtrees.** When matching tree-positioned hypotheses (depth>0), pass `--auto-prune` to `record_match.py`. Once every node in a subtree has `n_matches >= 3`, subtrees with mean Elo below 1100 are dropped from the tournament — keeps the leaderboard signal-dense. Pruned IDs surface in the JSON output's `pruned` field.
 - **Don't read the leaderboard mid-tournament.** It biases your judgment. Trust the pairwise decisions.
 
 ## Exit test

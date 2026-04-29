@@ -60,6 +60,14 @@ def main() -> None:
     p.add_argument("--winner", required=True,
                    help="hyp_id of winner, or 'draw'")
     p.add_argument("--judge-reasoning", default=None)
+    p.add_argument("--auto-prune", action="store_true",
+                   help="v0.158: after Elo update, if either hypothesis "
+                        "lives in a tree, run prune_low_elo_subtrees on "
+                        "that tree. Only prunes mature subtrees.")
+    p.add_argument("--prune-threshold", type=float, default=1100.0,
+                   help="auto-prune Elo cutoff (default 1100.0)")
+    p.add_argument("--prune-min-matches", type=int, default=3,
+                   help="auto-prune min n_matches per node (default 3)")
     args = p.parse_args()
 
     if args.hyp_a == args.hyp_b:
@@ -124,13 +132,40 @@ def main() -> None:
         )
     con.close()
 
-    print(json.dumps({
+    out = {
         "hyp_a": args.hyp_a, "elo_a": round(new_a, 2),
         "hyp_b": args.hyp_b, "elo_b": round(new_b, 2),
         "winner": args.winner,
         "delta_a": round(new_a - elo_a, 2),
         "delta_b": round(new_b - elo_b, 2),
-    }))
+    }
+
+    if args.auto_prune:
+        # v0.158: collect tree_ids of either hypothesis (if any),
+        # then run pruning on each unique tree.
+        from lib.tree_ranker import prune_low_elo_subtrees
+        con2 = sqlite3.connect(db)
+        try:
+            rows2 = con2.execute(
+                "SELECT DISTINCT tree_id FROM hypotheses "
+                "WHERE hyp_id IN (?, ?) AND tree_id IS NOT NULL",
+                (args.hyp_a, args.hyp_b),
+            ).fetchall()
+        finally:
+            con2.close()
+        pruned_all: list[str] = []
+        for (tid,) in rows2:
+            try:
+                pruned_all.extend(prune_low_elo_subtrees(
+                    db, tid,
+                    threshold=args.prune_threshold,
+                    min_matches=args.prune_min_matches,
+                ))
+            except Exception as e:
+                out["prune_error"] = f"{tid}: {e}"
+        if pruned_all:
+            out["pruned"] = pruned_all
+    print(json.dumps(out))
 
 
 if __name__ == "__main__":
