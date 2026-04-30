@@ -5,7 +5,7 @@
 **Date**: 2026-04-30
 **Mode**: deep
 **Phases completed**: scout (Phase 0) + Break 0 resolved
-**Status**: paused mid-Phase-1 (cartographer/chronicler/surveyor batch dispatched but not consumed)
+**Status**: 6 of 10 phases complete (scout, cartographer, chronicler, surveyor, synthesist, architect). 27 claims, 4 hypotheses (1 tree-root + 3 siblings via v0.156). Pending: inquisitor, weaver, Break 2, visionary, steward.
 
 ## Why paused
 
@@ -80,6 +80,45 @@ Every consensus query returns top-3 + sign-up nag. 60% of typical search budget 
 **v0.190** — phase-name canonicalization + migration v16 (cleanest at low volume)
 **v0.192** — scout thin-harvest semantics (smallest, fix when touching scout next)
 **v0.193** — consensus auth-aware budgeting (smallest, drop into source_selector)
+
+## Phase 1 + 2 findings (post-fix resumption)
+
+After v0.188-v0.193 shipped, run resumed. Phases cartographer + chronicler + surveyor dispatched parallel; synthesist + architect sequential.
+
+### New bugs surfaced (Phase 1)
+
+### #8 — Paper artifacts have no references.json / abstracts / TLDRs — CARTOGRAPHER blocker
+
+Scout writes manifest stubs only. No content for downstream personas. Cartographer reported:
+> "In-run paper artifacts have NO references.json files, NO abstracts, NO TLDRs — Cite-What-You've-Read principle is unenforceable from the corpus. Had to fall back to live Semantic Scholar HTTP queries."
+
+**Severity**: High (downstream personas can't ground claims in actual paper content)
+**Proposed fix v0.194**: scout's record path should fetch + persist abstracts at minimum. OpenAlex provides them; cheap call.
+
+### #9 — `db.py` lacks `list-papers` subcommand
+
+Cartographer had to query SQLite directly:
+```
+sqlite3 .../run-X.db "SELECT canonical_id, title FROM papers_in_run"
+```
+
+**Severity**: Low (CLI ergonomics)
+**Proposed fix v0.195**: add `db.py list-papers --run-id X [--phase Y]` subcommand.
+
+### #10 — Cartographer/surveyor write claims with synthesized canonical_ids that don't exist as paper artifacts
+
+Surveyor noted: "supporting_ids use synthesized canonical_ids matching the project slug convention; the 3 gap-papers are not yet present as local paper artifacts." Cartographer same — invented IDs for ReAct, MetaGPT, Voyager, etc. that aren't in the run.
+
+Foreign-key integrity broken — claims reference nonexistent papers. Manuscript-audit gate would flag these as dangling.
+
+**Severity**: Medium (claim attribution principle violated; dangling refs in run output)
+**Proposed fix v0.196**: claims gate validates supporting_ids exist as papers_in_run rows OR queue them for scout-style stub registration before claim accepted.
+
+## Phase 2 progress (synthesist + architect — clean)
+
+Synthesist produced 7 strong cross-claim implications + 1 tension. No bugs.
+
+Architect produced rooted hypothesis tree via v0.156 (--tree-root + --parent-hyp-id flags worked first try). 1 root + 3 siblings at depth 1. tree_id=hyp-arch-001. All 4 hypotheses targeted gap g4 (disentangling isolation-boundary from handoff-fidelity) with three orthogonal methods: factorial benchmark (root), MI instrument, causal counterfactual replay, failure-mode forensics. ≥6 supporting precedents per node, multiple falsifiers each. **v0.156 + v0.153 + v0.158 confirmed working end-to-end in real run.**
 
 ## Run artifacts
 
