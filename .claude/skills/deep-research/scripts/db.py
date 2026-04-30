@@ -1049,6 +1049,151 @@ def cmd_record_subagent(args: argparse.Namespace) -> None:
         return
 
 
+def cmd_list_papers(args: argparse.Namespace) -> None:
+    """v0.195 — list rows from papers_in_run for a run.
+
+    Replaces raw `sqlite3 ... SELECT canonical_id, ... FROM papers_in_run`
+    that cartographer was running directly. Sort: phase ordinal then
+    canonical_id (stable). Output JSON or plain text.
+    """
+    if not run_db_path(args.run_id).exists():
+        raise SystemExit(f"unknown run_id {args.run_id!r}")
+    con = _connect(args.run_id)
+    try:
+        # Phase ordinal lookup so sort is by Expedition order, not alpha.
+        ordinals = {n: i for i, n in enumerate(PHASES_IN_ORDER)}
+        # Special phase aliases used outside the 10-phase list (e.g.
+        # 'seed-from-wide' for cross-run handoff). Sort them after canon.
+        sql = (
+            "SELECT canonical_id, role, added_in_phase, harvest_count, "
+            "cites_per_year, disagreement_score "
+            "FROM papers_in_run WHERE run_id=?"
+        )
+        params: list[Any] = [args.run_id]
+        if args.phase:
+            sql += " AND added_in_phase=?"
+            params.append(args.phase)
+        rows = con.execute(sql, params).fetchall()
+    finally:
+        con.close()
+
+    items = []
+    for r in rows:
+        items.append({
+            "canonical_id": r["canonical_id"],
+            "role": r["role"],
+            "added_in_phase": r["added_in_phase"],
+            "harvest_count": r["harvest_count"],
+            "cites_per_year": r["cites_per_year"],
+            "disagreement_score": r["disagreement_score"],
+        })
+    items.sort(key=lambda x: (
+        ordinals.get(x["added_in_phase"], len(PHASES_IN_ORDER) + 1),
+        x["canonical_id"],
+    ))
+
+    if args.format == "json":
+        sys.stdout.write(json.dumps(items, indent=2) + "\n")
+    else:
+        if not items:
+            sys.stdout.write("(no papers)\n")
+            return
+        for it in items:
+            sys.stdout.write(
+                f"{it['added_in_phase']}\t{it['role'] or ''}\t"
+                f"hc={it['harvest_count']}\t{it['canonical_id']}\n"
+            )
+
+
+def cmd_list_claims(args: argparse.Namespace) -> None:
+    """v0.195 — list rows from claims for a run.
+
+    Same shape as list-papers — replaces raw sqlite that weaver/eval was
+    using to inspect claim records.
+    """
+    if not run_db_path(args.run_id).exists():
+        raise SystemExit(f"unknown run_id {args.run_id!r}")
+    con = _connect(args.run_id)
+    try:
+        sql = (
+            "SELECT claim_id, canonical_id, agent_name, text, kind, "
+            "confidence, supporting_ids "
+            "FROM claims WHERE run_id=?"
+        )
+        params: list[Any] = [args.run_id]
+        if args.agent:
+            sql += " AND agent_name=?"
+            params.append(args.agent)
+        if args.kind:
+            sql += " AND kind=?"
+            params.append(args.kind)
+        sql += " ORDER BY claim_id"
+        rows = con.execute(sql, params).fetchall()
+    finally:
+        con.close()
+
+    items = []
+    for r in rows:
+        supporting: list[str] = []
+        if r["supporting_ids"]:
+            try:
+                supporting = json.loads(r["supporting_ids"]) or []
+            except json.JSONDecodeError:
+                supporting = []
+        items.append({
+            "claim_id": r["claim_id"],
+            "canonical_id": r["canonical_id"],
+            "agent_name": r["agent_name"],
+            "text": r["text"],
+            "kind": r["kind"],
+            "confidence": r["confidence"],
+            "supporting_ids": supporting,
+        })
+
+    if args.format == "json":
+        sys.stdout.write(json.dumps(items, indent=2) + "\n")
+    else:
+        if not items:
+            sys.stdout.write("(no claims)\n")
+            return
+        for it in items:
+            sys.stdout.write(
+                f"#{it['claim_id']}\t{it['agent_name']}\t"
+                f"{it['kind'] or ''}\t{it['text'][:80]}\n"
+            )
+
+
+def cmd_record_note(args: argparse.Namespace) -> None:
+    """v0.197 — insert a row into the notes table.
+
+    Replaces raw SQL inserts that weaver was running. Supports stdin
+    via --text -.
+    """
+    if not run_db_path(args.run_id).exists():
+        raise SystemExit(f"unknown run_id {args.run_id!r}")
+    text = args.text
+    if text == "-":
+        text = sys.stdin.read()
+    if not text or not text.strip():
+        raise SystemExit("--text: empty (multi-line via '-' reads stdin)")
+    con = _connect(args.run_id)
+    try:
+        with con:
+            con.execute(
+                "INSERT INTO notes (run_id, phase_id, author, text, at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (
+                    args.run_id,
+                    args.phase_id,
+                    args.author,
+                    text,
+                    datetime.now(UTC).isoformat(),
+                ),
+            )
+    finally:
+        con.close()
+
+
 def cmd_score_quality(args: argparse.Namespace) -> None:
     """v0.93d — score a persona's output via the v0.92 auto-rubric.
 
@@ -1166,6 +1311,43 @@ def main() -> None:
     pcv.add_argument("--top-k", type=int, default=15)
     pcv.add_argument("--format", choices=["json", "md"], default="json")
     pcv.set_defaults(func=cmd_compute_velocity)
+
+    # v0.195 — list-papers / list-claims (replace raw SQL).
+    plp = sub.add_parser(
+        "list-papers",
+        help="List papers_in_run rows for a run",
+    )
+    plp.add_argument("--run-id", required=True)
+    plp.add_argument("--phase", default=None,
+                      help="Filter by added_in_phase (canonical name)")
+    plp.add_argument("--format", choices=["json", "text"], default="json")
+    plp.set_defaults(func=cmd_list_papers)
+
+    plc = sub.add_parser(
+        "list-claims",
+        help="List claims rows for a run",
+    )
+    plc.add_argument("--run-id", required=True)
+    plc.add_argument("--agent", default=None,
+                      help="Filter by agent_name")
+    plc.add_argument("--kind", default=None,
+                      help="Filter by kind (finding|hypothesis|gap|tension|dead_end)")
+    plc.add_argument("--format", choices=["json", "text"], default="json")
+    plc.set_defaults(func=cmd_list_claims)
+
+    # v0.197 — record-note replaces raw SQL note insertion.
+    prn = sub.add_parser(
+        "record-note",
+        help="Insert a row into the notes table",
+    )
+    prn.add_argument("--run-id", required=True)
+    prn.add_argument("--author", required=True,
+                      help="agent name or 'user'")
+    prn.add_argument("--text", required=True,
+                      help="Note text. Use '-' to read from stdin.")
+    prn.add_argument("--phase-id", type=int, default=None,
+                      help="Optional phase_id (matches phases.phase_id)")
+    prn.set_defaults(func=cmd_record_note)
 
     # v0.93d — auto-quality scoring after a persona finishes.
     psq = sub.add_parser("score-quality",

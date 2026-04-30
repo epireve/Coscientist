@@ -57,17 +57,39 @@ def _key(entry: dict) -> tuple[str, str]:
 
 
 def merge_entries(entries: list[dict]) -> list[dict]:
-    """Merge by DOI → arXiv → normalized title."""
+    """Merge by DOI → arXiv → normalized title.
+
+    v0.194: cross-source merge captures all metadata + ID fields so
+    downstream personas (cartographer, surveyor) can ground claims in
+    persisted abstracts/TLDRs without falling back to live MCP queries.
+    """
     by_key: dict[tuple[str, str], dict] = {}
     for e in entries:
         k = _key(e)
         if k in by_key:
             cur = by_key[k]
             cur.setdefault("discovered_via", []).append(e["source"])
-            # Prefer richer fields
-            for field in ("abstract", "tldr", "doi", "arxiv_id", "pmid", "s2_id", "venue"):
+            # Prefer richer fields. v0.194: expanded to cover pmcid +
+            # openalex_id (manifest IDs) and reference_count (metadata).
+            for field in (
+                "abstract", "tldr", "doi", "arxiv_id", "pmid", "pmcid",
+                "s2_id", "openalex_id", "venue", "year", "title",
+                "reference_count",
+            ):
                 if not cur.get(field) and e.get(field):
                     cur[field] = e[field]
+            # Authors — keep longest list (most complete attribution).
+            cur_authors = cur.get("authors") or []
+            new_authors = e.get("authors") or []
+            if len(new_authors) > len(cur_authors):
+                cur["authors"] = new_authors
+            # Keywords — set-union by string match.
+            cur_kw = cur.get("keywords") or []
+            for kw in (e.get("keywords") or []):
+                if kw not in cur_kw:
+                    cur_kw.append(kw)
+            if cur_kw:
+                cur["keywords"] = cur_kw
             if (e.get("citation_count") or 0) > (cur.get("citation_count") or 0):
                 cur["citation_count"] = e["citation_count"]
             # Merge claims
@@ -104,10 +126,15 @@ def write_stubs(entries: list[dict], run_id: str | None) -> list[str]:
         art = PaperArtifact(cid)
 
         manifest = art.load_manifest()
+        # v0.194 — full ID coverage. Existing manifest values never
+        # overwritten (idempotent re-run from a sparse re-harvest must
+        # not erase fields filled by an earlier richer harvest).
         manifest.doi = manifest.doi or e.get("doi")
         manifest.arxiv_id = manifest.arxiv_id or e.get("arxiv_id")
         manifest.pmid = manifest.pmid or e.get("pmid")
+        manifest.pmcid = manifest.pmcid or e.get("pmcid")
         manifest.s2_id = manifest.s2_id or e.get("s2_id")
+        manifest.openalex_id = manifest.openalex_id or e.get("openalex_id")
         art.save_manifest(manifest)
 
         existing = art.load_metadata()
@@ -118,6 +145,17 @@ def write_stubs(entries: list[dict], run_id: str | None) -> list[str]:
                 + e.get("discovered_via", [])
             )
         )
+        # v0.194 — keywords merged as set-union; reference_count uses
+        # max-wins so a later richer harvest can refine. Abstract/tldr
+        # use new-or-existing so a sparse re-run preserves filled fields.
+        existing_kw = existing.keywords if existing else []
+        merged_kw = list(dict.fromkeys(existing_kw + (e.get("keywords") or [])))
+        existing_refct = existing.reference_count if existing else None
+        new_refct = e.get("reference_count")
+        merged_refct = max(
+            (n for n in (existing_refct, new_refct) if n is not None),
+            default=None,
+        )
         art.save_metadata(
             Metadata(
                 title=e.get("title") or (existing.title if existing else "untitled"),
@@ -126,9 +164,11 @@ def write_stubs(entries: list[dict], run_id: str | None) -> list[str]:
                 year=e.get("year") or (existing.year if existing else None),
                 abstract=e.get("abstract") or (existing.abstract if existing else None),
                 tldr=e.get("tldr") or (existing.tldr if existing else None),
+                keywords=merged_kw,
                 claims=merged_claims,
                 citation_count=e.get("citation_count")
                 or (existing.citation_count if existing else None),
+                reference_count=merged_refct,
                 discovered_via=merged_sources,
             )
         )

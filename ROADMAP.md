@@ -789,7 +789,49 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.193
+## Shipped: v0.51 → v0.197
+
+### v0.197 — db.py record-note CLI ✅ (2026-04-30)
+
+Closes dogfood finding #11. Weaver no longer inserts notes via raw SQL —
+new `db.py record-note --run-id X --author A --text T [--phase-id N]`
+handles the contract. Multi-line input via `--text -` reads stdin.
+Empty text + missing required args rejected.
+
+`tests/test_v0_197_record_note.py` — 5 tests covering happy path, empty
+rejection, missing required arg rejection, stdin multi-line, and
+optional --phase-id.
+
+### v0.195 — db.py list-papers + list-claims subcommands ✅ (2026-04-30)
+
+Closes dogfood finding #9. Cartographer/weaver/eval no longer query the
+run DB via raw `sqlite3 ... SELECT ...`. New `db.py list-papers
+--run-id X [--phase Y] [--format json|text]` and `list-claims --run-id
+X [--agent A] [--kind K] [--format json|text]` provide the primitives.
+Sort: phase ordinal then canonical_id (stable). Empty runs return `[]`.
+Unknown run_id errors cleanly.
+
+`tests/test_v0_195_list_papers.py` — 6 tests covering JSON/text output,
+phase filter, empty run, unknown run, and the parallel list-claims
+shape with kind filter.
+
+### v0.194 — scout fetches abstracts ✅ (2026-04-30)
+
+Closes dogfood finding #8. `paper-discovery/scripts/merge.py` now
+captures every metadata field MCPs expose (abstract, tldr, venue, year,
+authors, keywords, reference_count) and every ID (DOI, arXiv, PMID,
+PMCID, S2, OpenAlex). Idempotent re-runs MERGE rather than overwrite —
+sparse second harvest cannot erase abstract filled by an earlier rich
+harvest. Cross-source merge — DOI from OpenAlex + TLDR from S2 — both
+land in the artifact. Authors use longest-list wins; keywords are
+set-union. Closes the cartographer-blocker where in-run paper
+artifacts had no abstracts and downstream personas fell back to live
+Semantic Scholar HTTP.
+
+`tests/test_v0_194_scout_metadata.py` — 6 tests covering abstract
+persistence, tldr persistence, idempotent rerun preserves filled
+fields, missing-abstract no-fake-field, cross-source merge, and empty
+input no-op.
 
 ### v0.193 — consensus auth-aware budgeting ✅ (2026-04-30)
 
