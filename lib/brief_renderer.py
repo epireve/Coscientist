@@ -21,25 +21,64 @@ from collections.abc import Iterable
 
 # ---------- hypothesis cards ----------
 
+UNCALIBRATED_TAG = (
+    "## Hypothesis cards (uncalibrated — no tournament run)"
+)
+
+
 def render_hypothesis_cards(
     hypothesis_rows: Iterable[dict], top_k: int = 5,
 ) -> str:
-    """Render top-K hypotheses (by Elo) as inline markdown cards.
+    """Render top-K hypotheses as inline markdown cards.
 
     Each row is a dict with keys: hyp_id, agent_name, statement,
     method_sketch, predicted_observables, falsifiers, supporting_ids,
-    elo, n_matches, n_wins, n_losses.
+    elo, n_matches, n_wins, n_losses, created_at.
     JSON columns may arrive as JSON strings or already-parsed lists.
+
+    v0.199 — fallback for n_matches=0:
+      - If every row carries `n_matches` and ALL are 0, render in
+        `created_at` order, prepend the uncalibrated heading, never
+        drop. Tournament didn't run; preserve the section.
+      - If SOME rows have matches and others don't, drop the zero-
+        match rows (preserves the original "uncalibrated = unranked"
+        invariant for mixed runs).
+      - If every row has matches, sort by Elo (legacy behaviour).
+      - If no row carries `n_matches` at all, sort by Elo (legacy
+        behaviour for callers not yet plumbing tournament data).
     """
-    rows = sorted(
-        hypothesis_rows,
-        key=lambda r: r.get("elo", 0.0) or 0.0,
-        reverse=True,
-    )[:top_k]
-    if not rows:
+    all_rows = list(hypothesis_rows)
+    if not all_rows:
         return "_(no hypotheses recorded)_"
 
+    has_nm = [r for r in all_rows if "n_matches" in r]
+    uncalibrated = False
+    if has_nm and len(has_nm) == len(all_rows):
+        nms = [(r.get("n_matches") or 0) for r in all_rows]
+        if all(n == 0 for n in nms):
+            uncalibrated = True
+        else:
+            # Mixed: drop zero-match rows (preserve current behaviour).
+            all_rows = [r for r in all_rows if (r.get("n_matches") or 0) > 0]
+            if not all_rows:
+                return "_(no hypotheses recorded)_"
+
+    if uncalibrated:
+        rows = sorted(
+            all_rows,
+            key=lambda r: r.get("created_at") or "",
+        )[:top_k]
+    else:
+        rows = sorted(
+            all_rows,
+            key=lambda r: r.get("elo", 0.0) or 0.0,
+            reverse=True,
+        )[:top_k]
+
     out: list[str] = []
+    if uncalibrated:
+        out.append(UNCALIBRATED_TAG)
+        out.append("")
     for i, r in enumerate(rows, 1):
         observables = _coerce_list(r.get("predicted_observables"))
         falsifiers = _coerce_list(r.get("falsifiers"))

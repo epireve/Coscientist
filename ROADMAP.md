@@ -789,7 +789,55 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.200
+## Shipped: v0.51 → v0.202
+
+### v0.202 — eval_references inline-prose citation regex ✅ (2026-04-30)
+
+Closes dogfood finding #16. `eval_references.py` only counted papers
+appearing in the run-DB `citations` table as "cited" — but a
+canonical_id mentioned inline inside `brief.md` prose (steward's
+weave) was never recorded as a citation, producing 10 false-positive
+orphans on the dogfood run. v0.202 adds `extract_cited_from_brief()`
+in the script (pure regex, two patterns: naked-line bullet
+``- `cid` `` and inline backtick ``... `cid` ...``) and unions the
+result into `cited_to` before computing orphans. CID shape is
+strict (`[a-z]+_\d{4}_[a-z0-9-]+_[a-f0-9]{6}`) so URL slugs and
+prose-with-underscores don't false-positive.
+
+`tests/test_v0_202_eval_references_inline.py` — 5 tests covering
+inline mid-prose, naked-line back-compat, both-forms de-duped,
+unbacked-id false-positive guard, and a dogfood-shaped fixture (10
+inline cids → 0 orphans).
+
+### v0.201 — weaver claims commit to numeric confidence ✅ (2026-04-30)
+
+Closes dogfood finding #15. Weaver consensus + tension claims used
+to land in the brief without a `confidence` value, rendering as `—`
+and breaking calibration parity with synthesist. v0.201 updates the
+weaver persona prompt: every consensus entry and every tension
+entry now requires a `confidence` float in (0, 1) — same "commit to
+a number" pattern synthesist uses. Forward-only; existing weaver
+claims in older DBs are not retroactively invalidated.
+
+`tests/test_v0_201_weaver_confidence.py` — 3 tests on the persona
+prompt body (confidence in consensus block, confidence in tensions
+block, synthesist-pattern reference).
+
+### v0.199 — brief hypothesis-cards uncalibrated fallback ✅ (2026-04-30)
+
+Closes dogfood finding #13. When the tournament hadn't run, every
+hypothesis carried `n_matches=0` and steward's "drop unranked
+hypotheses" rule wiped the brief's marquee section. v0.199 adds an
+intelligent fallback to `lib.brief_renderer.render_hypothesis_cards`:
+if EVERY row carries `n_matches` AND every value is 0, render in
+`created_at` order with a leading uncalibrated heading
+(`## Hypothesis cards (uncalibrated — no tournament run)`). Mixed
+runs preserve the drop-zero behaviour; legacy callers without
+`n_matches` plumbing still sort by Elo.
+
+`tests/test_v0_199_brief_uncalibrated.py` — 5 tests covering
+all-zero, mixed back-compat, all-matched normal Elo sort, empty
+input, and exact-tag-string defensive match.
 
 ### v0.196 — claims gate validates supporting_ids exist ✅ (2026-04-30)
 

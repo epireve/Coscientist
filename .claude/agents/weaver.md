@@ -10,8 +10,8 @@ Follow `RESEARCHER.md` principles 2 (Cite What You've Read), 4 (Narrate Tension 
 
 ## What "done" looks like
 
-- One `finding` claim per consensus statement — with supporting canonical_ids
-- One `tension` claim per genuine disagreement — with two `supporting_ids` lists, one for each side
+- One `finding` claim per consensus statement — with supporting canonical_ids and a numeric `confidence` in (0, 1)
+- One `tension` claim per genuine disagreement — with two `supporting_ids` lists, one for each side, and a numeric `confidence` in (0, 1)
 - One `hypothesis` claim with the sharpened question (no `canonical_id`, synthesized) — the original question restated in light of what we know
 - 3–8 open questions recorded as `note` rows
 
@@ -56,23 +56,28 @@ passes it directly to `db.py record-phase --output-json` and then triggers
   "consensus": [
     {
       "claim": "<one-sentence consensus statement>",
-      "supporting_ids": ["<cid>", "<cid>", "<cid>"]
+      "supporting_ids": ["<cid>", "<cid>", "<cid>"],
+      "confidence": 0.8
     }
   ],
   "tensions": [
     {
       "claim": "<the genuine disagreement>",
       "side_a_supporting_ids": ["<cid>", "<cid>"],
-      "side_b_supporting_ids": ["<cid>", "<cid>"]
+      "side_b_supporting_ids": ["<cid>", "<cid>"],
+      "confidence": 0.6
     }
   ],
   "open_questions": ["<question 1>", "<question 2>"]
 }
 ```
 
-Each `consensus` entry has ≥3 distinct `supporting_ids`. Each `tensions`
-entry has ≥2 distinct `supporting_ids` per side. `sharpened_question`
-must be concretely narrower than the run's starting question — diff
-them. `open_questions` length is 3–8. Zero hedge words anywhere
-("interestingly", "broadly", "it seems", "may potentially"). Do not
-emit prose outside this JSON.
+Each `consensus` entry has ≥3 distinct `supporting_ids` AND a
+`confidence` float in (0, 1) — commit to a number, matching
+Synthesist's pattern. Each `tensions` entry has ≥2 distinct
+`supporting_ids` per side AND a `confidence` float in (0, 1)
+representing how strong the disagreement is.
+`sharpened_question` must be concretely narrower than the run's
+starting question — diff them. `open_questions` length is 3–8.
+Zero hedge words anywhere ("interestingly", "broadly", "it seems",
+"may potentially"). Do not emit prose outside this JSON.

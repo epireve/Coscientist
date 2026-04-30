@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sqlite3
 import sys
 from collections import Counter
@@ -21,6 +22,40 @@ if str(_REPO_ROOT) not in sys.path:
 
 from lib.cache import cache_root, run_db_path  # noqa: E402
 from lib.paper_artifact import PaperArtifact  # noqa: E402
+
+# v0.202 — inline-citation extraction for brief.md.
+# Canonical-id shape: <slug>_<year>_<short>_<6hex>.
+# Pattern is intentionally tight: prefix MUST be lowercase letters,
+# year is 4 digits, short slug is lowercase alnum/hyphen, suffix is
+# exactly 6 lowercase hex chars. Anchored by backticks on both sides.
+_CID = r"[a-z]+_\d{4}_[a-z0-9-]+_[a-f0-9]{6}"
+
+# Naked-line: `- \`<cid>\`` at start of a markdown bullet (back-compat).
+_NAKED_LINE_RE = re.compile(rf"^[\s\-\*]*`({_CID})`", re.MULTILINE)
+
+# Inline: \`<cid>\` anywhere in prose. Anchored by backticks; we don't
+# require word-boundary outside since backticks already delimit.
+_INLINE_RE = re.compile(rf"`({_CID})`")
+
+
+def extract_cited_from_brief(brief_text: str) -> set[str]:
+    r"""Return the set of canonical_ids cited in a brief markdown.
+
+    Recognises both naked-line anchors (``- `cid` ``) and inline-prose
+    citations (``... `cid` ...``). De-duplicates. Strings outside
+    backticks are NEVER matched — the backtick fence is the gate.
+
+    v0.202 closes #16: previous behaviour matched only naked lines,
+    producing false-positive orphans for papers cited in prose.
+    """
+    if not brief_text:
+        return set()
+    found: set[str] = set()
+    for m in _NAKED_LINE_RE.finditer(brief_text):
+        found.add(m.group(1))
+    for m in _INLINE_RE.finditer(brief_text):
+        found.add(m.group(1))
+    return found
 
 
 def audit(run_id: str) -> dict:
@@ -40,6 +75,16 @@ def audit(run_id: str) -> dict:
 
     papers_set = set(papers)
     cited_to = {c["to_canonical"] for c in citations if c["to_canonical"]}
+
+    # v0.202 — also count cids cited inline in brief.md as "cited".
+    # Closes #16: false-positive orphans for prose-only citations.
+    brief_path = cache_root() / "runs" / f"run-{run_id}" / "brief.md"
+    if brief_path.exists():
+        try:
+            brief_cited = extract_cited_from_brief(brief_path.read_text())
+            cited_to = cited_to | brief_cited
+        except OSError:
+            pass
 
     orphans = sorted(papers_set - cited_to)
     dangling = sorted({c["to_canonical"] for c in citations} - papers_set - {None})
