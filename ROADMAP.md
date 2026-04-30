@@ -789,7 +789,28 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.183
+## Shipped: v0.51 → v0.185
+
+### v0.185 — universal SKILL.md drift detector ✅ (2026-04-30)
+
+Replaced v0.183's curated 4-skill drift list with auto-discovery.
+`lib/skill_drift.py` walks every `.claude/skills/*/scripts/*.py`, runs
+`--help` (recurses into argparse subcommands when usage shows
+`{a,b,c}`), extracts `--flag` patterns, audits SKILL.md mentions.
+Trivial flags (`--help`, `--format`, `--project-id`, etc.) excluded;
+per-skill `.drift-allowlist.json` silences intentionally-undocumented
+flags. Best-effort — broken scripts never crash the audit. CLI:
+`uv run python -m lib.skill_drift [--format json|text]`.
+
+`tests/test_v0_185_universal_drift.py` — 6 tests (warnings-only;
+asserts the audit completes, not "0 drift"). First snapshot in
+`docs/SKILL-MD-DRIFT-REPORT.md`: 121 (skill, script) pairs audited,
+50 with drift. Top offenders: `deep-research/db.py` (21 flags),
+`statistics/effect_size.py` (14), `wide-research/wide.py` (13).
+Fixing those is separate work — v0.185 just surfaces them so the next
+drift sweep can target real gaps instead of curated guesses.
+
+2411 → 2421 passing.
 
 ### v0.183 — polish batch (residual drift sweep) ✅ (2026-04-29)
 
