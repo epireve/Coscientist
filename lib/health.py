@@ -394,7 +394,9 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
     root = runs_dir()
     if not root.exists():
         return {
-            "n_runs": 0, "active": [], "stale": [],
+            "n_runs": 0, "n_uninstrumented": 0,
+            "uninstrumented_paths": [],
+            "active": [], "stale": [],
             "tool_latency": {}, "quality": {},
             "failed_spans_total": 0,
         }
@@ -403,6 +405,8 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
     stale: list[dict[str, Any]] = []
     failed_total = 0
     n_runs = 0
+    n_uninstrumented = 0  # v0.184 — DBs lacking traces table (pre-v0.89)
+    uninstrumented_paths: list[str] = []
 
     for db in sorted(root.glob("run-*.db")):
         try:
@@ -414,6 +418,10 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
                     "FROM traces",
                 ))
             except sqlite3.OperationalError:
+                # v0.184 — distinguish "no traces table" from generic
+                # error so the dump can surface migration-needed DBs.
+                n_uninstrumented += 1
+                uninstrumented_paths.append(str(db))
                 con.close()
                 continue
             n_runs += 1
@@ -480,6 +488,8 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
 
     return {
         "n_runs": n_runs,
+        "n_uninstrumented": n_uninstrumented,
+        "uninstrumented_paths": uninstrumented_paths,
         "active": active,
         "stale": stale,
         "tool_latency": tool_latency,
@@ -508,6 +518,11 @@ def render_md(report: dict[str, Any],
             )
         lines.append("")
     lines.append(f"- **Runs scanned**: {report['n_runs']}")
+    n_unin = report.get("n_uninstrumented", 0)
+    if n_unin:
+        lines.append(
+            f"- **Uninstrumented (pre-v0.89, no traces table)**: {n_unin}"
+        )
     lines.append(f"- **Active**: {len(report['active'])}")
     lines.append(f"- **Stale spans**: {len(report['stale'])}")
     lines.append(

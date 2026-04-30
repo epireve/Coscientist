@@ -3989,9 +3989,7 @@ finishes inside the stream-idle window.
       sub-agent isolation but is robust to runtimes without MCP
       propagation. ≈1–2 hours of persona refactoring (social, grounder,
       historian, gaper, theorist, thinker — every persona that searches).
-- [ ] **Re-run on `aa41d0cb`** — the run is intentionally left in
-      `started_at`-only state on social so resume picks up at the same
-      phase. Or start a fresh run; nothing valuable was persisted.
+- [x] **Re-run on `aa41d0cb`** — closed v0.184: DB inspected (empty, no `runs` row), nothing valuable to resume. File dropped from `~/.cache/coscientist/runs/`.
 - [x] **Fix the two cracks the per-paper harness found** (separate from
       the smoke-test pause): paper-acquire silently skips audit log on
       integrity rejection (fixed v0.17 — `action=rejected` audit line
