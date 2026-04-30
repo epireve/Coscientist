@@ -789,7 +789,25 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.185
+## Shipped: v0.51 → v0.186
+
+### v0.186 — sub-agent MCP-inheritance closure ✅ (2026-04-29)
+
+Closed the long-open `[ ]` from the smoke-test pause. Decision: **adopt
+orchestrator-harvests pattern** (already de-facto shipped) rather than
+chase MCP inheritance. Orchestrator calls MCPs, writes JSON shortlist
+to `runs/run-<id>/harvests/<persona>-<phase>.json` via
+`lib.persona_input` + `harvest.py write`. Personas read via
+`harvest.py show` instead of MCP tool calls. 6 search-using personas
+wired (scout, cartographer, chronicler, surveyor, architect,
+visionary).
+
+Verification: `tests/test_harvest.py` (14) + `tests/test_persona_input.py`
+(15) — both green. `lib.health` surfaces harvest counts per run.
+
+No code change in v0.186 — pure architectural-decision closure + ROADMAP
+cleanup. Trade-off accepted: sub-agents lose some isolation, but
+pipeline is robust to runtimes without MCP propagation.
 
 ### v0.185 — universal SKILL.md drift detector ✅ (2026-04-30)
 
@@ -4003,13 +4021,12 @@ finishes inside the stream-idle window.
       not in its tool set. So in this runtime, sub-agents do **not** inherit
       MCP access from the parent. Confirms the architectural pivot (next
       item) is required.
-- [ ] **If sub-agent MCP inheritance is unfixable**, refactor to
-      orchestrator-calls-MCPs: the parent agent invokes MCP tools, writes
-      results to disk via `merge.py`, and spawns sub-agents with paths to
-      the shortlist files instead of MCP tool names. This loses some
-      sub-agent isolation but is robust to runtimes without MCP
-      propagation. ≈1–2 hours of persona refactoring (social, grounder,
-      historian, gaper, theorist, thinker — every persona that searches).
+- [x] **Sub-agent MCP inheritance closure (v0.186, 2026-04-29)**: pattern adopted is **orchestrator-harvests + persona-reads-shortlist-from-disk**. Already implemented across the Expedition pipeline:
+      - `lib.persona_input` (`harvest.py write` / `harvest.py show`) — orchestrator calls MCPs, writes JSON shortlist to `~/.cache/coscientist/runs/run-<id>/harvests/<persona>-<phase>.json`. Persona reads via `harvest.py show` rather than MCP tool calls.
+      - 6 personas wired this way: scout, cartographer, chronicler, surveyor, architect, visionary (per CLAUDE.md). The other 4 (synthesist, inquisitor, weaver, steward) operate purely over in-run artifacts and need no harvest.
+      - Trade-off accepted: sub-agents lose some isolation (orchestrator carries MCP-call state) but pipeline is robust to runtimes without MCP propagation.
+      - Verification: `tests/test_persona_input.py` + harvest-roundtrip tests pin the pattern. `lib.health` surfaces harvest counts per run.
+      Refactor cost was paid down across v0.46 → v0.51 (Plan 5 stages) and the deep-research orchestrator section in CLAUDE.md.
 - [x] **Re-run on `aa41d0cb`** — closed v0.184: DB inspected (empty, no `runs` row), nothing valuable to resume. File dropped from `~/.cache/coscientist/runs/`.
 - [x] **Fix the two cracks the per-paper harness found** (separate from
       the smoke-test pause): paper-acquire silently skips audit log on

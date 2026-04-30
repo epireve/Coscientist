@@ -11,6 +11,24 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.186 — sub-agent MCP-inheritance closure (2026-04-29)
+
+Closed the long-open `[ ]` from the smoke-test pause. Decision: **adopt
+orchestrator-harvests pattern** (already de-facto shipped) rather than
+chase MCP inheritance. Orchestrator calls MCPs, writes JSON shortlist
+to `runs/run-<id>/harvests/<persona>-<phase>.json` via
+`lib.persona_input` + `harvest.py write`. Personas read via
+`harvest.py show` instead of MCP tool calls. 6 search-using personas
+wired (scout, cartographer, chronicler, surveyor, architect,
+visionary).
+
+Verification: `tests/test_harvest.py` (14) + `tests/test_persona_input.py`
+(15) — both green. `lib.health` surfaces harvest counts per run.
+
+No code change in v0.186 — pure architectural-decision closure + ROADMAP
+cleanup. Trade-off accepted: sub-agents lose some isolation, but
+pipeline is robust to runtimes without MCP propagation.
+
 ## v0.185 — universal SKILL.md drift detector (2026-04-30)
 
 Replaced v0.183's curated 4-skill drift list with auto-discovery.
