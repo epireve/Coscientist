@@ -92,7 +92,9 @@ CREATE TABLE IF NOT EXISTS schema_versions (
 # v9..v10 add tables via `_ensure_vN_tables`). Kept as a single list
 # so the monotonicity test can assert no version is silently skipped
 # between the SQL-based MIGRATIONS list and the in-code migrations.
-ALL_VERSIONS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+ALL_VERSIONS: tuple[int, ...] = (
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+)
 
 
 def _table_exists(con: sqlite3.Connection, name: str) -> bool:
@@ -320,9 +322,63 @@ def ensure_current(db_path: Path,
                     (16, "v0.190_papers_in_run_phase_canonical", now),
                 )
             newly_applied.append(16)
+
+        # v0.198 + v0.200 — claims dual-side tension support +
+        # decoupled supporting_ids / targets_hyp_id / references_claim_ids.
+        # Run-DB only: gate on claims table existence.
+        if 17 not in applied and _table_exists(con, "claims"):
+            _ensure_v17_columns(con)
+            with con:
+                con.execute(
+                    "INSERT INTO schema_versions (version, name, applied_at) "
+                    "VALUES (?, ?, ?)",
+                    (17, "v0.198_v0.200_claims_tension_and_decoupled_ids", now),
+                )
+            newly_applied.append(17)
     finally:
         con.close()
     return newly_applied
+
+
+def _ensure_v17_columns(con: sqlite3.Connection) -> None:
+    """v0.198 + v0.200 — add 4 columns to claims:
+
+    - side TEXT (NULL | 'a' | 'b') — paired tension support (v0.198).
+    - paired_claim_id INTEGER REFERENCES claims(claim_id) — Side A row
+      points to its Side B counterpart (v0.198).
+    - targets_hyp_id TEXT — inquisitor tensions targeting a specific
+      hypothesis (v0.200). Decoupled from supporting_ids.
+    - references_claim_ids TEXT — JSON array of claim_id integers
+      for visionary cross-claim refs (v0.200). Decoupled from
+      supporting_ids.
+
+    After v0.200, supporting_ids is paper canonical_ids ONLY.
+    Idempotent: each ALTER guarded by PRAGMA table_info.
+    """
+    if not _table_exists(con, "claims"):
+        return
+    cols = {row[1] for row in con.execute("PRAGMA table_info(claims)")}
+    with con:
+        if "side" not in cols:
+            con.execute("ALTER TABLE claims ADD COLUMN side TEXT")
+        if "paired_claim_id" not in cols:
+            con.execute(
+                "ALTER TABLE claims ADD COLUMN paired_claim_id INTEGER "
+                "REFERENCES claims(claim_id)"
+            )
+        if "targets_hyp_id" not in cols:
+            con.execute(
+                "ALTER TABLE claims ADD COLUMN targets_hyp_id TEXT"
+            )
+        if "references_claim_ids" not in cols:
+            con.execute(
+                "ALTER TABLE claims ADD COLUMN references_claim_ids TEXT"
+            )
+        # Best-effort: load v17.sql for any future index DDL.
+        try:
+            con.executescript(_read_migration_sql(17))
+        except FileNotFoundError:
+            pass
 
 
 def _ensure_v16_columns(con: sqlite3.Connection) -> None:

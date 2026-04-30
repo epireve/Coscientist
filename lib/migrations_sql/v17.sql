@@ -1,0 +1,24 @@
+-- v0.198 + v0.200 — claims table dual-side tension support + decoupled ID fields.
+--
+-- Adds 4 columns to claims (idempotent in code via _ensure_v17_columns):
+--   side                   TEXT — NULL by default; "a" or "b" when row is one
+--                          half of a paired tension claim (v0.198).
+--   paired_claim_id        INTEGER REFERENCES claims(claim_id) — Side A row
+--                          points to its Side B counterpart and vice versa
+--                          (v0.198).
+--   targets_hyp_id         TEXT — for inquisitor tensions targeting a specific
+--                          hypothesis (v0.200). Was previously overloaded into
+--                          supporting_ids; now decoupled.
+--   references_claim_ids   TEXT — JSON array of claim_id integers, for
+--                          visionary cross-claim references (v0.200). Was
+--                          previously overloaded into supporting_ids; now
+--                          decoupled.
+--
+-- IMPORTANT: After v0.200, claims.supporting_ids is paper canonical_ids ONLY.
+-- Hyp-prefixed strings or claim-ID integers belong in the new columns.
+--
+-- ALTER TABLE statements live in lib.migrations._ensure_v17_columns
+-- (SQLite has no IF NOT EXISTS for ALTER TABLE ADD COLUMN). The .sql below
+-- is the index/no-op portion only.
+
+SELECT 1;

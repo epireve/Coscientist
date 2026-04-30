@@ -73,7 +73,13 @@ CREATE TABLE IF NOT EXISTS claims (
     text           TEXT NOT NULL,
     kind           TEXT,                                -- finding|hypothesis|gap|tension|dead_end
     confidence     REAL,
-    supporting_ids TEXT                                 -- JSON array of canonical_ids
+    supporting_ids TEXT,                                -- JSON array of paper canonical_ids ONLY (v0.200)
+    -- v0.198 — paired tension dual-side support
+    side                  TEXT,                         -- NULL | 'a' | 'b'
+    paired_claim_id       INTEGER REFERENCES claims(claim_id),
+    -- v0.200 — decoupled non-paper ID fields
+    targets_hyp_id        TEXT,                         -- single hyp_id (inquisitor tensions)
+    references_claim_ids  TEXT                          -- JSON array of claim_id integers (visionary)
 );
 
 CREATE TABLE IF NOT EXISTS citations (

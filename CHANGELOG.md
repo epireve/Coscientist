@@ -11,6 +11,36 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.200 — supporting_ids decoupled from non-paper IDs (2026-04-30)
+
+Closes dogfood finding #14. `claims.supporting_ids` was overloaded —
+inquisitor wrote `hyp_ids`, visionary wrote claim-ids-as-strings,
+schema said paper canonical_ids. v0.200 splits into three explicit
+columns: `supporting_ids` (paper canonical_ids ONLY),
+`targets_hyp_id` (single hyp_id for inquisitor tensions),
+`references_claim_ids` (JSON array of claim_id ints for visionary
+cross-refs). `db.py record-claim` validates hyp-prefixed strings out
+of `--supporting-ids` and accepts `--targets-hyp-id` +
+`--references-claim-ids` (CSV of integers).
+
+`tests/test_v0_200_supporting_ids_decoupled.py` — 10 tests covering
+each new field, validation, plugin schema mirror, and the v17
+migration (idempotent on legacy DBs without these columns).
+
+## v0.198 — claims tension dual-side support (2026-04-30)
+
+Closes dogfood finding #12. Tensions used to require splitting Side A
+and Side B into two unrelated rows. v0.198 adds `claims.side`
+(NULL | 'a' | 'b') and `claims.paired_claim_id` (FK back to claims),
+so weaver can record a tension as two paired rows that resolve to
+each other. `db.py record-claim` accepts `--side a|b` and
+`--paired-claim-id N`.
+
+Combined with v0.200 in migration v17 (single migration adds 4
+columns to claims). `tests/test_v0_198_claims_tension_sides.py` —
+6 tests covering paired-side insert, paired_claim_id lookup, invalid
+side rejection, NULL-side back-compat, and migration idempotency.
+
 ## v0.197 — db.py record-note CLI (2026-04-30)
 
 Closes dogfood finding #11. Weaver no longer inserts notes via raw SQL —

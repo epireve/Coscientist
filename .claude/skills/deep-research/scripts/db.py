@@ -552,11 +552,53 @@ def cmd_record_break(args: argparse.Namespace) -> None:
 
 def cmd_record_claim(args: argparse.Namespace) -> None:
     con = _connect(args.run_id)
-    supporting = json.dumps(args.supporting_ids.split(",")) if args.supporting_ids else None
+    # v0.200 — supporting_ids is paper canonical_ids ONLY. Reject hyp- or
+    # claim-id-prefixed strings; they belong in --targets-hyp-id or
+    # --references-claim-ids.
+    supporting_list: list[str] = []
+    if args.supporting_ids:
+        supporting_list = [
+            s.strip() for s in args.supporting_ids.split(",") if s.strip()
+        ]
+        for s in supporting_list:
+            if s.startswith("hyp-") or s.startswith("hyp_"):
+                raise SystemExit(
+                    f"--supporting-ids must contain paper canonical_ids "
+                    f"only; got hyp-prefixed {s!r}. Use --targets-hyp-id "
+                    f"for hypothesis targets."
+                )
+    supporting = json.dumps(supporting_list) if supporting_list else None
+
+    # v0.198 — validate side
+    side = getattr(args, "side", None)
+    if side is not None and side not in ("a", "b"):
+        raise SystemExit(
+            f"--side must be 'a' or 'b' (got {side!r})"
+        )
+
+    paired = getattr(args, "paired_claim_id", None)
+
+    targets_hyp_id = getattr(args, "targets_hyp_id", None)
+
+    refs_claim_ids: str | None = None
+    raw_refs = getattr(args, "references_claim_ids", None)
+    if raw_refs:
+        try:
+            ids = [int(s.strip()) for s in raw_refs.split(",") if s.strip()]
+        except ValueError:
+            raise SystemExit(
+                f"--references-claim-ids must be a CSV of integers "
+                f"(got {raw_refs!r})"
+            )
+        refs_claim_ids = json.dumps(ids)
+
     with con:
-        con.execute(
-            "INSERT INTO claims (run_id, canonical_id, agent_name, text, kind, confidence, supporting_ids) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        cur = con.execute(
+            "INSERT INTO claims "
+            "(run_id, canonical_id, agent_name, text, kind, confidence, "
+            "supporting_ids, side, paired_claim_id, targets_hyp_id, "
+            "references_claim_ids) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 args.run_id,
                 args.canonical_id,
@@ -565,9 +607,15 @@ def cmd_record_claim(args: argparse.Namespace) -> None:
                 args.kind,
                 args.confidence,
                 supporting,
+                side,
+                paired,
+                targets_hyp_id,
+                refs_claim_ids,
             ),
         )
+        new_id = cur.lastrowid
     con.close()
+    sys.stdout.write(json.dumps({"claim_id": new_id}) + "\n")
 
 
 def cmd_next_phase(args: argparse.Namespace) -> None:
@@ -1248,7 +1296,18 @@ def main() -> None:
     pc.add_argument("--run-id", required=True); pc.add_argument("--agent-name", required=True)
     pc.add_argument("--text", required=True); pc.add_argument("--kind", default="finding")
     pc.add_argument("--canonical-id", default=None); pc.add_argument("--confidence", type=float, default=None)
-    pc.add_argument("--supporting-ids", default="")
+    pc.add_argument("--supporting-ids", default="",
+                    help="CSV of paper canonical_ids ONLY (v0.200)")
+    # v0.198 — paired tension dual-side support
+    pc.add_argument("--side", default=None, choices=("a", "b"),
+                    help="Side label for paired tension claims (v0.198)")
+    pc.add_argument("--paired-claim-id", type=int, default=None,
+                    help="claim_id of the paired Side B/A counterpart (v0.198)")
+    # v0.200 — decoupled non-paper ID fields
+    pc.add_argument("--targets-hyp-id", default=None,
+                    help="Single hyp_id this claim targets (inquisitor; v0.200)")
+    pc.add_argument("--references-claim-ids", default=None,
+                    help="CSV of claim_id integers (visionary cross-refs; v0.200)")
     pc.set_defaults(func=cmd_record_claim)
 
     pn = sub.add_parser("next-phase"); pn.add_argument("--run-id", required=True)
