@@ -143,3 +143,11 @@ section above; this output is the orchestrator's structured record:
 `hypotheses` length is 1–3 (max — more dilutes quality). Each entry has
 ≥5 distinct `supporting_ids` and ≥1 `falsifier`. `hyp_id` matches the
 id you registered in the tournament. Do not emit prose outside this JSON.
+
+v0.203: hypotheses you stamp into a tree (via `idea_tree`) become
+candidates for the auto-tournament hook that fires when the
+orchestrator runs `db.py record-phase --phase inquisitor --complete
+--auto-tournament` (or with `COSCIENTIST_AUTO_TOURNAMENT=1`).
+Pairwise heuristic-judge matches run across siblings/round-robin
+within each tree, Elo updates, and low-Elo subtrees prune once.
+Off by default — flat hypotheses without `tree_id` are unaffected.

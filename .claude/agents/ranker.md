@@ -52,3 +52,12 @@ Before handing back:
 ## Output
 
 A single JSON object per pair: `{hyp_a, hyp_b, winner, reasoning_a_steelman, reasoning_b_steelman, reasoning_pick}`. The orchestrator pipes it to `record_match.py`.
+
+v0.203 note: when the orchestrator does NOT dispatch `ranker` between
+inquisitor and weaver, an auto-tournament hook (`lib.auto_tournament`)
+runs a placeholder heuristic judge (Elo > falsifier-len > supporting-
+count > alpha hyp_id) over each hypothesis tree to populate
+`tournament_matches`. This is a back-stop, not a replacement —
+`ranker` produces qualitatively better matches when invoked.
+The auto-hook fires only when `--auto-tournament` is passed to
+`record-phase` or `COSCIENTIST_AUTO_TOURNAMENT=1` is set.

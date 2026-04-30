@@ -408,6 +408,34 @@ def cmd_record_phase(args: argparse.Namespace) -> None:
                                    str(resolved))
             except SystemExit:
                 pass
+        # v0.203 — auto-tournament hook between inquisitor and weaver.
+        # Fires only on inquisitor --complete and only when either the
+        # --auto-tournament flag is passed OR COSCIENTIST_AUTO_TOURNAMENT=1.
+        # Runs deterministic heuristic-judge pairwise matches across every
+        # hypothesis tree in the run, then prunes low-Elo subtrees once.
+        # Best-effort: errors surfaced in returned dict but never abort
+        # the parent record-phase call.
+        if (args.phase == "inquisitor" and
+                (getattr(args, "auto_tournament", False) or
+                 os.environ.get("COSCIENTIST_AUTO_TOURNAMENT") == "1")):
+            try:
+                from lib import auto_tournament
+                from lib.cache import run_db_path
+                run_db = run_db_path(args.run_id)
+                # Honour the env-var gate inside should_auto_tournament
+                # only when the explicit flag wasn't passed; the flag
+                # itself is sufficient permission.
+                ok = (getattr(args, "auto_tournament", False)
+                      or auto_tournament.should_auto_tournament(run_db))
+                if ok:
+                    result = auto_tournament.run_auto_tournament(run_db)
+                    print(json.dumps({
+                        "auto_tournament": result,
+                    }))
+            except Exception as e:
+                # Surface to stderr but don't fail the phase.
+                print(f"auto-tournament hook error: {e}",
+                      file=sys.stderr)
 
 
 def _maybe_validate_schema(run_id: str, phase: str,
@@ -1355,6 +1383,14 @@ def main() -> None:
         help="v0.103: separate richer artifact for auto-rubric "
              "scoring (e.g. /tmp/scout-shortlist.json). Falls "
              "back to --output-json if omitted.",
+    )
+    pp.add_argument(
+        "--auto-tournament", action="store_true",
+        help="v0.203: when phase=='inquisitor' and --complete, "
+             "auto-dispatch a heuristic-judge pairwise tournament "
+             "across every hypothesis tree in the run, then prune "
+             "low-Elo subtrees once. Off by default — back-compat. "
+             "Also activated by COSCIENTIST_AUTO_TOURNAMENT=1.",
     )
     pp.set_defaults(func=cmd_record_phase)
 

@@ -96,3 +96,11 @@ Exactly one entry per Architect hypothesis (no pile-ons, no gaps).
 For any entry with `survival < 3`, `supporting_ids` must contain ≥1
 prior-failure canonical_id. `steelman` is a real paragraph, not a
 sentence. Do not emit prose outside this JSON.
+
+v0.203: when the orchestrator passes `--auto-tournament` to
+`db.py record-phase --phase inquisitor --complete` (or env var
+`COSCIENTIST_AUTO_TOURNAMENT=1` is set), an auto-tournament hook
+fires after this phase commits — pairwise heuristic-judge matches
+across every Architect tree, Elo updates, and one prune pass per
+tree. Populates `tournament_matches` so the brief's hypothesis
+cards render with calibrated Elo. Off by default (back-compat).

@@ -789,7 +789,44 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.202
+## Shipped: v0.51 → v0.203
+
+### v0.203 — auto-tournament wiring into deep-research pipeline ✅ (2026-04-30)
+
+Closes the architectural gap from dogfood run 86926630. Architect
+produced a 4-hypothesis tree (`hyp-arch-001`), inquisitor attacked
+it, but `ranker` never dispatched — `tournament_matches` stayed
+empty, every hypothesis carried `n_matches=0`, and steward's brief
+fell through to the v0.199 uncalibrated fallback. v0.155 (tree
+ranker) + v0.158 (auto-prune) sat dormant.
+
+v0.203 adds an **optional auto-dispatch hook** that runs WITHIN
+the inquisitor → weaver transition rather than as a new phase row
+(back-compat hazard avoided). When `db.py record-phase --phase
+inquisitor --complete --auto-tournament` is called (or env var
+`COSCIENTIST_AUTO_TOURNAMENT=1`):
+
+1. `lib.auto_tournament.should_auto_tournament` checks for any
+   hypothesis with non-NULL `tree_id` (≥2 nodes required).
+2. `run_auto_tournament` sweeps every unique tree, dispatches
+   `tree_ranker.tree_pairs` (round-robin default), and runs each
+   pair through a deterministic heuristic judge (`_judge_pair`).
+3. Tie-break: higher Elo > longer falsifier text > more
+   `supporting_ids` > alphabetical `hyp_id`. No randomness.
+4. After matches commit, `prune_low_elo_subtrees` runs once per
+   tree with default thresholds (1100 / min 3 matches).
+
+The judge is a **placeholder** — true sub-agent ranking (`ranker`
+persona) produces qualitatively better matches when invoked. The
+point of the hook is to populate `tournament_matches` so the
+brief renders calibrated Elo instead of falling through to v0.199.
+
+`tests/test_v0_203_auto_tournament.py` — 13 tests covering
+should_auto_tournament gating (env var + tree presence + flat-
+hyps rejection), `_judge_pair` determinism + tiebreak order,
+`run_auto_tournament` matches/Elo/prune end-to-end, and the
+record-phase CLI hook (fires only on inquisitor + flag, leaves
+tournament_matches empty otherwise — full back-compat).
 
 ### v0.202 — eval_references inline-prose citation regex ✅ (2026-04-30)
 

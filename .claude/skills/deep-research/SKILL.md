@@ -180,6 +180,16 @@ When you (the calling Claude agent) run this skill:
    ```
 
    Skip this step when fewer than 2 hypotheses exist (no point ranking 1).
+
+4b. **(Optional, v0.203) Auto-tournament between inquisitor and weaver.**
+   When the explicit `ranker` dispatch above is skipped (e.g. cost or
+   time pressure), pass `--auto-tournament` to `record-phase` for the
+   inquisitor `--complete` call (or set `COSCIENTIST_AUTO_TOURNAMENT=1`
+   in the run env). The hook in `lib.auto_tournament` runs pairwise
+   heuristic-judge matches across every hypothesis tree (round-robin
+   by default), updates Elo, then runs one `prune_low_elo_subtrees`
+   pass per tree. This is a back-stop — `ranker` produces better
+   matches when invoked. Off by default (full back-compat).
 5. **At break points**, stop the pipeline. Use `AskUserQuestion` to prompt the user. Record their input via `db.py record-break`. Do not proceed until resolved.
 6. **If any agent errors or returns low-confidence output**, record the error and prompt the user — do not silently skip a phase.
 7. **On completion**, the final Scribe phase produces the artifacts; the orchestrator runs `/research-eval` automatically before marking the run complete.
