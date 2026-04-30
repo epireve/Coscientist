@@ -26,7 +26,7 @@ mcp__semantic-scholar__search_papers(query="multi-agent LLM context isolation ta
 **Severity**: Medium (we have OpenAlex + Consensus as fallbacks)
 **Proposed fix v0.188**: `lib.health` flags MCPs returning >X% errors over rolling window. `lib.source_selector` consults health and auto-skips degraded sources from harvest plan.
 
-### #2 — arXiv MCP relevance ranking broken
+### #2 — arXiv MCP relevance ranking broken — CLOSED v0.189
 
 Query `multi-agent LLM context isolation reliability` returned 10 papers, all dated 2026-04-29, all unrelated:
 1. "Turning the TIDE: Cross-Architecture Distillation for Diffusion Large Language Models"
@@ -39,7 +39,7 @@ Looks date-sorted, not relevance-sorted. None of the obvious relevant papers (Au
 **Severity**: High (paper-search MCP is one of 4 search sources; broken sort = 25% capacity loss)
 **Proposed fix v0.189**: `mcp__paper-search__search_arxiv` wrapper needs `sort=relevance` default. If unfixable, route relevant queries to OpenAlex/Consensus instead.
 
-### #3 — `papers_in_run.added_in_phase` uses legacy alias
+### #3 — `papers_in_run.added_in_phase` uses legacy alias — CLOSED v0.190
 
 Scout sub-agent wrote rows with `added_in_phase='social'` instead of `'scout'`. Aliasing layer works but DB persists pre-rebrand name. Inconsistent with v0.46.4 SEEKER → Expedition rename.
 
@@ -58,14 +58,14 @@ Treats argument as file path. Inline JSON literal rejected. Forces user to write
 **Severity**: High (developer-facing, caught in active dogfood, not edge case)
 **Proposed fix v0.191**: argparse heuristic — try parse as JSON first, fall back to file path. OR rename to `--output-json-file` + add `--output-json-inline`. OR document the file-only behavior loudly in `--help`.
 
-### #5 — Scout `thin_harvest` threshold ignores orchestrator intent
+### #5 — Scout `thin_harvest` threshold ignores orchestrator intent — CLOSED v0.192
 
 Scout reports `stopped_because: thin_harvest` when papers_seeded (6) < hard threshold (50). But orchestrator deliberately supplied 6 (the curated MCP results). No path to say "I know it's thin, that's fine."
 
 **Severity**: Medium (sub-agent self-classifies as failure when orchestrator says it's complete)
 **Proposed fix v0.192**: scout SKILL.md gains `--allow-thin` flag or reads per-harvest threshold from `harvest.py status`. Don't fail-classify when orchestrator's harvest budget was deliberately small.
 
-### #6 — Consensus 3-result cap without auth
+### #6 — Consensus 3-result cap without auth — CLOSED v0.193
 
 Every consensus query returns top-3 + sign-up nag. 60% of typical search budget (10 results) wasted.
 

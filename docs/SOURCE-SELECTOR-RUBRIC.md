@@ -98,6 +98,21 @@ uv run python -m lib.source_selector \
 # {"primary":"consensus","fallbacks":["s2","openalex"],"reasoning":"..."}
 ```
 
+## Consensus auth-aware budgeting (v0.193)
+
+Consensus caps the free tier at **3 results per call** (vs 10 for authed
+callers). `lib.source_selector.call_budget(mode=, consensus_authed=)`
+exposes this:
+
+- `consensus_authed=True` → `consensus_results_per_call=10`, `consensus=2` deep calls
+- `consensus_authed=False` (default) → `consensus_results_per_call=3`, `consensus=3` deep calls (one extra to partly compensate for the cap)
+- `consensus_authed=None` → auto-detect via `CONSENSUS_API_KEY` env var
+
+Orchestrators should multiply `consensus * consensus_results_per_call` to
+compute realistic harvest size. The 3-result cap means an unauthed deep-mode
+budget yields ~9 Consensus papers, not the 30 a naive `consensus * 10` math
+would suggest.
+
 ## See also
 
 - `lib/source_selector.py` — implementation + 21 tests in `tests/test_source_selector.py`

@@ -11,6 +11,31 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.193 — consensus auth-aware budgeting (2026-04-30)
+
+Closes dogfood finding #6. `lib.source_selector.call_budget` now takes
+`consensus_authed: bool | None` and exposes `consensus_results_per_call`
+in the returned dict (3 unauthed, 10 authed). Auto-detects auth via
+`CONSENSUS_API_KEY` env var when `consensus_authed=None`. Deep mode
+unauthed bumps `consensus` calls from 2 → 3 to partly compensate for
+the 3-result cap. `docs/SOURCE-SELECTOR-RUBRIC.md` documents the cap.
+
+`tests/test_v0_193_consensus_auth_budget.py` — 6 tests covering
+default unauthed budget, authed budget, env-var auto-detect, deep-mode
+extra-call compensation, signature back-compat, and rubric doc parity.
+
+## v0.192 — scout thin-harvest semantics (2026-04-30)
+
+Closes dogfood finding #5. Scout's exit test no longer fails-classifies
+a deliberately-curated 5–49-paper harvest. New buckets: 1–4 →
+`thin_harvest` (truly thin, ask for re-harvest); 5–49 → `narrow_harvest`
+(orchestrator-supplied, informational); ≥50 → `ok`. Output enum extended
+with `narrow_harvest`.
+
+`tests/test_v0_192_scout_thin_threshold.py` — 4 tests covering persona
+mentions narrow_harvest, removed 50-paper failure language, 5-paper
+truly-thin threshold present, and output enum updated.
+
 ## v0.191 — db.py record-phase --output-json inline-vs-file heuristic (2026-04-30)
 
 Closes dogfood finding #4. `--output-json` (and `--quality-artifact`)
@@ -29,6 +54,44 @@ contract).
 inline object, inline array, file path back-compat, leading
 whitespace, garbage rejection, empty-string rejection, and
 `--quality-artifact` parity.
+
+## v0.190 — phase-name canonicalization + migration v16 (2026-04-30)
+
+Closes dogfood finding #3. `paper-discovery/scripts/merge.py` no longer
+hardcodes the legacy `'social'` phase name when writing to
+`papers_in_run.added_in_phase`; writes canonical `'scout'`. Migration
+v16 (`lib/migrations_sql/v16.sql` + `_ensure_v16_columns` in
+`lib/migrations.py`) sweeps existing rows from all 10 legacy aliases to
+their canonical Expedition names (social→scout, grounder→cartographer,
+historian→chronicler, gaper→surveyor, vision→synthesist,
+theorist→architect, rude→inquisitor, synthesizer→weaver,
+thinker→visionary, scribe→steward). `ALL_VERSIONS` extended to 16.
+Vendored to `plugin/coscientist-graph-query-mcp/lib/`; checksums
+regenerated.
+
+`tests/test_v0_190_phase_canonicalization.py` — 10 tests covering
+ALL_VERSIONS membership, single-alias migration, all-9-alias migration,
+idempotence, schema_versions recording, fresh-DB no-op, missing-table
+gate, merge.py source check, v16.sql existence, and plugin vendored
+parity.
+
+## v0.189 — arXiv relevance fix (documentation + demote) (2026-04-30)
+
+Closes dogfood finding #2. The `mcp__paper-search__search_arxiv` MCP is
+third-party and date-sorted; we don't own it. Two-pronged fix:
+(a) `paper-discovery/SKILL.md` documents the date-bias caveat and points
+relevance-sensitive queries at OpenAlex/Consensus; (b)
+`lib.source_selector` gains `_is_arxiv_relevance_query(query)` helper
+(returns False for arXiv-ID-shaped queries, True for topical) and
+`select_source(..., query=...)` demotes `paper-search` to last-position
+fallback when phase=='discovery' AND query is topical. Pure arXiv-ID
+lookups unaffected.
+
+`tests/test_v0_189_arxiv_relevance.py` — 6 tests covering SKILL.md
+documentation, demote firing for open-ended queries, demote skipping
+arXiv-ID queries, no-query back-compat, arXiv-ID heuristic positive
+cases (5 patterns), and arXiv-ID heuristic negative cases (3 topical
+strings + empty/None).
 
 ## v0.188 — degraded-source health flag (2026-04-30)
 

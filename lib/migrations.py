@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS schema_versions (
 # v9..v10 add tables via `_ensure_vN_tables`). Kept as a single list
 # so the monotonicity test can assert no version is silently skipped
 # between the SQL-based MIGRATIONS list and the in-code migrations.
-ALL_VERSIONS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+ALL_VERSIONS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
 
 
 def _table_exists(con: sqlite3.Connection, name: str) -> bool:
@@ -307,9 +307,34 @@ def ensure_current(db_path: Path,
                     (15, "v0.154_thinking_log_json", now),
                 )
             newly_applied.append(15)
+
+        # v0.190 — canonicalize legacy phase aliases in
+        # papers_in_run.added_in_phase. Run-DB only: gate on
+        # papers_in_run table existence.
+        if 16 not in applied and _table_exists(con, "papers_in_run"):
+            _ensure_v16_columns(con)
+            with con:
+                con.execute(
+                    "INSERT INTO schema_versions (version, name, applied_at) "
+                    "VALUES (?, ?, ?)",
+                    (16, "v0.190_papers_in_run_phase_canonical", now),
+                )
+            newly_applied.append(16)
     finally:
         con.close()
     return newly_applied
+
+
+def _ensure_v16_columns(con: sqlite3.Connection) -> None:
+    """v0.190 — UPDATE papers_in_run.added_in_phase legacy aliases to
+    canonical Expedition phase names. DDL in migrations_sql/v16.sql.
+    Idempotent: re-run is a no-op since canonical rows don't match
+    the WHERE legacy-name predicates.
+    """
+    if not _table_exists(con, "papers_in_run"):
+        return
+    with con:
+        con.executescript(_read_migration_sql(16))
 
 
 _MIG_SQL_DIR = Path(__file__).resolve().parent / "migrations_sql"

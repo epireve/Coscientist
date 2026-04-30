@@ -74,6 +74,23 @@ def is_source_degraded(source_name: str) -> bool:
     )
 
 
+_ARXIV_ID_RE = __import__("re").compile(r"\b\d{4}\.\d{4,5}\b")
+
+
+def _is_arxiv_relevance_query(query: str | None) -> bool:
+    """v0.189 — heuristic: True iff query is a topical (relevance-sensitive)
+    discovery query that the date-sorted arxiv backend would mishandle.
+
+    Returns False when query is None/empty (no opinion) or contains an arXiv
+    ID like `2401.00123` (caller wants that exact paper, not topical hits).
+    """
+    if not query or not query.strip():
+        return False
+    if _ARXIV_ID_RE.search(query):
+        return False
+    return True
+
+
 def _source_to_mcp_key(src: Source) -> str:
     """Map source-selector source name to lib.health MCP key."""
     if src == "s2":
@@ -199,17 +216,40 @@ def select_source(
     budget_tier: BudgetTier | None = None,
     open_question: bool = True,
     skip_degraded: bool = False,
+    query: str | None = None,
 ) -> SourceRecommendation:
     """Pick the optimal source for a phase.
 
     v0.188 — `skip_degraded=True` consults `lib.health.mcp_error_rates`
     and falls through to the first healthy fallback if the primary
     is degraded. Default False preserves v0.147 behaviour exactly.
+
+    v0.189 — when `query` is supplied AND phase=='discovery' AND query
+    is a topical (non-arXiv-ID) string, demote `paper-search` from the
+    fallback list because its arxiv backend returns date-sorted (not
+    relevance-sorted) results. Pure arXiv-ID queries are unaffected.
     """
     rec = _select_source_pure(
         phase=phase, mode=mode, has_seed=has_seed,
         budget_tier=budget_tier, open_question=open_question,
     )
+    if (
+        phase == "discovery"
+        and query is not None
+        and _is_arxiv_relevance_query(query)
+        and "paper-search" in rec.fallbacks
+    ):
+        new_fallbacks = [s for s in rec.fallbacks if s != "paper-search"]
+        new_fallbacks.append("paper-search")
+        rec = SourceRecommendation(
+            primary=rec.primary,
+            fallbacks=new_fallbacks,
+            reasoning=(
+                f"{rec.reasoning} [v0.189: paper-search demoted "
+                f"— arxiv backend date-sorts open-ended queries]"
+            ),
+            phase=rec.phase, mode=rec.mode, budget_tier=rec.budget_tier,
+        )
     if not skip_degraded:
         return rec
     chain: list[Source] = [rec.primary, *rec.fallbacks]
@@ -232,17 +272,50 @@ def select_source(
     )
 
 
-def call_budget(*, mode: Mode, n_candidates: int = 0) -> dict:
+_CONSENSUS_RESULTS_AUTHED = 10
+_CONSENSUS_RESULTS_UNAUTHED = 3  # v0.193 — Consensus caps free tier at 3
+
+
+def _consensus_authed_default() -> bool:
+    """v0.193 — auto-detect Consensus auth from env var.
+
+    Returns True iff `CONSENSUS_API_KEY` is set and non-empty.
+    Mirrors how OpenAlex/S2 detect auth elsewhere.
+    """
+    import os
+    return bool(os.environ.get("CONSENSUS_API_KEY", "").strip())
+
+
+def call_budget(
+    *,
+    mode: Mode,
+    n_candidates: int = 0,
+    consensus_authed: bool | None = None,
+) -> dict:
     """Recommended call budget per mode for a discovery+ingestion cycle.
 
     Returns target counts per source. Used by orchestrators to cap calls.
+
+    v0.193 — `consensus_authed` flag accounts for Consensus's 3-result
+    free-tier cap. When False (default for unauthed callers), each
+    `consensus` call yields 3 results, not 10. The dict gains
+    `consensus_results_per_call` so orchestrators can plan accordingly.
+    Pass `consensus_authed=None` to auto-detect via `CONSENSUS_API_KEY`.
     """
+    if consensus_authed is None:
+        consensus_authed = _consensus_authed_default()
+    cons_per_call = (
+        _CONSENSUS_RESULTS_AUTHED if consensus_authed
+        else _CONSENSUS_RESULTS_UNAUTHED
+    )
     if mode == "quick":
         return {
             "consensus": 0,
             "s2": 1,           # one batch search
             "openalex": 1,     # ingestion of selected
             "total_paid": 0,
+            "consensus_results_per_call": cons_per_call,
+            "consensus_authed": consensus_authed,
         }
     if mode == "wide":
         # N items processed identically; metadata-only fan-out
@@ -251,13 +324,19 @@ def call_budget(*, mode: Mode, n_candidates: int = 0) -> dict:
             "s2": max(1, (n_candidates + 499) // 500),
             "openalex": max(1, (n_candidates + 49) // 50),
             "total_paid": 0,
+            "consensus_results_per_call": cons_per_call,
+            "consensus_authed": consensus_authed,
         }
-    # deep
+    # deep — extra consensus call when unauthed (3-result cap shrinks
+    # effective harvest; bump call count to compensate up to a cap)
+    cons_calls = 2 if consensus_authed else 3
     return {
-        "consensus": 2,        # discovery + 1 deep-claim follow-up
-        "s2": 2,               # batch enrichment of triaged set
-        "openalex": 5,         # ingestion + graph walks
-        "total_paid": 2,
+        "consensus": cons_calls,  # discovery + deep-claim follow-up(s)
+        "s2": 2,                  # batch enrichment of triaged set
+        "openalex": 5,            # ingestion + graph walks
+        "total_paid": cons_calls,
+        "consensus_results_per_call": cons_per_call,
+        "consensus_authed": consensus_authed,
     }
 
 

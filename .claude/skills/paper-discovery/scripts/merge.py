@@ -177,7 +177,7 @@ def write_stubs(entries: list[dict], run_id: str | None) -> list[str]:
                         "  harvest_count = harvest_count + 1, "
                         "  cites_per_year = COALESCE(excluded.cites_per_year, "
                         "                            cites_per_year)",
-                        (run_id, cid, "social", "seed", cpy),
+                        (run_id, cid, "scout", "seed", cpy),
                     )
             con.close()
 

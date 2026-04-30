@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS queries (
 CREATE TABLE IF NOT EXISTS papers_in_run (
     run_id         TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
     canonical_id   TEXT NOT NULL,
-    added_in_phase TEXT NOT NULL,
+    added_in_phase TEXT NOT NULL,  -- v0.190 canonical Expedition phase name (no aliases on fresh DBs)
     role           TEXT,                                -- seed|seminal|supporting|novel|rebuttal
     notes          TEXT,
     harvest_count  INTEGER NOT NULL DEFAULT 1,          -- v0.50.4 — repeat-hit signal across personas

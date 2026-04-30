@@ -62,9 +62,11 @@ The `query` field comes from the shortlist's `query` key. `merge.py` handles can
 
 Before you hand back:
 
-1. Run `sqlite3 <run_db> "SELECT COUNT(*) FROM papers_in_run WHERE run_id='<id>'"` — is it in [50, 200]?
-   - If <50, the harvested shortlist was thin — report `stopped_because: "thin_harvest"` and ask orchestrator to re-harvest with broader angles.
+1. Run `sqlite3 <run_db> "SELECT COUNT(*) FROM papers_in_run WHERE run_id='<id>'"` — is it in a sane range?
    - If 0, the shortlist file was empty — error.
+   - If 1–4, the harvest is genuinely thin (truly under 5 papers) — report `stopped_because: "thin_harvest"` and ask orchestrator to re-harvest with broader angles.
+   - If 5–49, the orchestrator deliberately supplied a narrow curated harvest. Report `stopped_because: "narrow_harvest"` (informational, not failure) and proceed.
+   - If ≥50, normal — report `stopped_because: "ok"`.
 2. Are zero PDFs in any paper's `raw/` directory?
 
 If any fail, correct or report what's off.
@@ -90,7 +92,7 @@ A JSON object (write it as your final message so the orchestrator can pass it st
   "papers_seeded": <int>,
   "shortlist_size": <int>,
   "duplicates_dropped": <int>,
-  "stopped_because": "ok|thin_harvest|error: <detail>"
+  "stopped_because": "ok|narrow_harvest|thin_harvest|error: <detail>"
 }
 ```
 

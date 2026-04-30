@@ -8,6 +8,16 @@ when_to_use: Starting a new research thread, or explicitly asked to "find papers
 
 Orchestrates the five discovery sources in parallel, merges results on DOI/arXiv-ID/OpenAlex-ID/normalized-title, and writes a stub artifact per paper. Output is a ranked shortlist; no PDFs are fetched.
 
+## Known caveats
+
+**arxiv backend date-bias** (v0.189): `mcp__paper-search__search_arxiv` returns
+date-sorted results, NOT relevance-sorted. Open-ended topical queries get
+recent-but-irrelevant papers. Use OpenAlex or Consensus for relevance-sensitive
+discovery; reserve `paper-search` arxiv for **exact arXiv-ID lookups** (pattern
+`\d{4}\.\d{4,5}`) or recency-sorted needs (latest preprints in domain). The
+`lib.source_selector` demote rule (v0.189) auto-handles this — leave routing to
+the helper unless you have a specific reason to override.
+
 ## Source selection heuristics
 
 Always run Consensus first — its claim-extraction is the best input for `paper-triage`. Then run others in parallel. Use all five unless the query strongly matches one domain:
