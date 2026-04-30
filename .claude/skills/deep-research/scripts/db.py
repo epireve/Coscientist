@@ -581,16 +581,88 @@ def cmd_record_claim(args: argparse.Namespace) -> None:
     targets_hyp_id = getattr(args, "targets_hyp_id", None)
 
     refs_claim_ids: str | None = None
+    refs_id_list: list[int] = []
     raw_refs = getattr(args, "references_claim_ids", None)
     if raw_refs:
         try:
-            ids = [int(s.strip()) for s in raw_refs.split(",") if s.strip()]
+            refs_id_list = [
+                int(s.strip()) for s in raw_refs.split(",") if s.strip()
+            ]
         except ValueError:
             raise SystemExit(
                 f"--references-claim-ids must be a CSV of integers "
                 f"(got {raw_refs!r})"
             )
-        refs_claim_ids = json.dumps(ids)
+        refs_claim_ids = json.dumps(refs_id_list)
+
+    # v0.196 — claims gate: validate referenced IDs exist in run DB.
+    # Default mode = warn + accept (back-compat); --strict-supporting-ids
+    # rejects on any missing.
+    strict = bool(getattr(args, "strict_supporting_ids", False))
+
+    if supporting_list:
+        cur = con.cursor()
+        placeholders = ",".join(["?"] * len(supporting_list))
+        found = {
+            row[0] for row in cur.execute(
+                "SELECT canonical_id FROM papers_in_run "
+                "WHERE run_id=? AND canonical_id IN (" + placeholders + ")",
+                (args.run_id, *supporting_list),
+            )
+        }
+        missing = [c for c in supporting_list if c not in found]
+        if missing:
+            if strict:
+                con.close()
+                raise SystemExit(
+                    f"--supporting-ids: {len(missing)} missing from "
+                    f"papers_in_run: {missing}"
+                )
+            sys.stderr.write(
+                f"warning: {len(missing)} supporting_ids not in "
+                f"papers_in_run: {missing}\n"
+            )
+
+    if refs_id_list:
+        cur = con.cursor()
+        placeholders = ",".join(["?"] * len(refs_id_list))
+        found_ids = {
+            row[0] for row in cur.execute(
+                "SELECT claim_id FROM claims "
+                "WHERE run_id=? AND claim_id IN (" + placeholders + ")",
+                (args.run_id, *refs_id_list),
+            )
+        }
+        missing_refs = [c for c in refs_id_list if c not in found_ids]
+        if missing_refs:
+            if strict:
+                con.close()
+                raise SystemExit(
+                    f"--references-claim-ids: {len(missing_refs)} missing "
+                    f"from claims: {missing_refs}"
+                )
+            sys.stderr.write(
+                f"warning: {len(missing_refs)} references_claim_ids not "
+                f"in claims: {missing_refs}\n"
+            )
+
+    if targets_hyp_id:
+        cur = con.cursor()
+        hyp_row = cur.execute(
+            "SELECT hyp_id FROM hypotheses WHERE run_id=? AND hyp_id=?",
+            (args.run_id, targets_hyp_id),
+        ).fetchone()
+        if hyp_row is None:
+            if strict:
+                con.close()
+                raise SystemExit(
+                    f"--targets-hyp-id: {targets_hyp_id!r} missing from "
+                    f"hypotheses"
+                )
+            sys.stderr.write(
+                f"warning: targets_hyp_id {targets_hyp_id!r} not in "
+                f"hypotheses\n"
+            )
 
     with con:
         cur = con.execute(
@@ -1308,6 +1380,11 @@ def main() -> None:
                     help="Single hyp_id this claim targets (inquisitor; v0.200)")
     pc.add_argument("--references-claim-ids", default=None,
                     help="CSV of claim_id integers (visionary cross-refs; v0.200)")
+    # v0.196 — claims gate: enforce referenced IDs exist in run DB
+    pc.add_argument("--strict-supporting-ids", action="store_true",
+                    help="Reject claim if any --supporting-ids, "
+                         "--references-claim-ids, or --targets-hyp-id is "
+                         "missing from the run DB (v0.196). Default = warn.")
     pc.set_defaults(func=cmd_record_claim)
 
     pn = sub.add_parser("next-phase"); pn.add_argument("--run-id", required=True)

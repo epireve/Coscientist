@@ -791,6 +791,22 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 
 ## Shipped: v0.51 → v0.200
 
+### v0.196 — claims gate validates supporting_ids exist ✅ (2026-04-30)
+
+Closes dogfood finding #10. `db.py record-claim` now validates that
+every `--supporting-ids` cid exists in `papers_in_run` for the same
+run, every `--references-claim-ids` int exists in `claims`, and every
+`--targets-hyp-id` exists in `hypotheses`. Default mode = warn to
+stderr + accept (back-compat); new `--strict-supporting-ids` flag
+upgrades the warning to a hard rejection (no row inserted, run-DB
+integrity preserved). Catches the orphaned-reference class of bug
+where a sub-agent emits `cid_x` but `cid_x` was never harvested.
+
+`tests/test_v0_196_claims_gate.py` — 8 tests covering valid/missing
+supporting_ids in lax + strict mode, missing references_claim_ids,
+missing targets_hyp_id, integrity-preservation under strict
+rejection, and clean-no-warn for empty / valid inputs.
+
 ### v0.200 — supporting_ids decoupled from non-paper IDs ✅ (2026-04-30)
 
 Closes dogfood finding #14. `claims.supporting_ids` was overloaded —
