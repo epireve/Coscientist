@@ -5,7 +5,7 @@
 **Date**: 2026-04-30
 **Mode**: deep
 **Phases completed**: scout (Phase 0) + Break 0 resolved
-**Status**: 6 of 10 phases complete (scout, cartographer, chronicler, surveyor, synthesist, architect). 27 claims, 4 hypotheses (1 tree-root + 3 siblings via v0.156). Pending: inquisitor, weaver, Break 2, visionary, steward.
+**Status**: COMPLETED — all 10 phases shipped. 43 claims, 7 hypotheses (4 architect tree + 3 visionary cross-field), 4 attack_findings with thinking_logs, brief.md (23K) + understanding_map.md (16K) + RUN-RECOVERY.md.
 
 ## Why paused
 
@@ -120,9 +120,38 @@ Synthesist produced 7 strong cross-claim implications + 1 tension. No bugs.
 
 Architect produced rooted hypothesis tree via v0.156 (--tree-root + --parent-hyp-id flags worked first try). 1 root + 3 siblings at depth 1. tree_id=hyp-arch-001. All 4 hypotheses targeted gap g4 (disentangling isolation-boundary from handoff-fidelity) with three orthogonal methods: factorial benchmark (root), MI instrument, causal counterfactual replay, failure-mode forensics. ≥6 supporting precedents per node, multiple falsifiers each. **v0.156 + v0.153 + v0.158 confirmed working end-to-end in real run.**
 
+## Phase 2-3 findings (post-architect)
+
+### #11 (LOW) — db.py lacks record-note CLI
+Weaver inserted notes rows via raw SQL.
+
+### #12 (MED) — record-claim tension dual-side support
+Single supporting_ids array can't hold both sides of a tension. Weaver split each into Side A / Side B as separate rows.
+
+### #13 (MED) — n_matches=0 bricks brief hypothesis-cards section
+Tournament didn't run; steward directive drops zero-match hyps; brief's marquee section ends up empty.
+
+### #14 (MED) — supporting_ids field overloaded for non-paper IDs
+Inquisitor uses hyp_ids; visionary uses claim_ids-as-strings; schema says paper canonical_ids. eval_claims flags as broken.
+
+### #15 (LOW) — weaver confidence=NULL
+Inconsistent with other personas. Brief renders '—'.
+
+### #16 (LOW) — eval_references.py false-positive orphans
+Parses naked-line anchors only; misses inline-prose citations. 10 false orphans this run.
+
+### Major architectural gap surfaced
+**Tournament / Phase E never wired into deep-research pipeline.** Architect tree exists in DB (4 hypotheses, 3 siblings under root). Inquisitor attacked them. But ranker never dispatched — no pairwise matches, no Elo updates, no auto-prune fired. v0.155 + v0.158 features dormant in the live pipeline.
+
+Fix scope: orchestrator should dispatch ranker between inquisitor and weaver phases. Probably v0.197+.
+
+## Final brief artifact
+
+`~/.cache/coscientist/runs/run-86926630/brief.md` (23K, 10 papers cited, 34 claim refs, 0 hedge words). Real research output, not synthetic.
+
 ## Run artifacts
 
-- `~/.cache/coscientist/runs/run-86926630.db` — paused at Phase 1 entry
+- `~/.cache/coscientist/runs/run-86926630.db` — status=completed
 - `~/.cache/coscientist/runs/run-86926630/inputs/scout-phase0.json` — 6 harvested papers
 - 6 `papers_in_run` rows (state=`seed`)
 - 6 paper artifact stubs under `~/.cache/coscientist/papers/`
