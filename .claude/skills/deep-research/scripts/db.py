@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import secrets
 import sqlite3
 import sys
@@ -46,6 +47,65 @@ from lib.search_framework import (  # noqa: E402
 )
 
 SCHEMA_PATH = _REPO_ROOT / "lib" / "sqlite_schema.sql"
+
+
+def _resolve_json_arg(flag: str, val: str) -> str:
+    """v0.191 — accept inline JSON literal OR file path.
+
+    Heuristic: leading `{` or `[` (after stripping whitespace)
+    means inline JSON. Otherwise treat as a file path. Inline
+    literal is validated via `json.loads` and the original text
+    returned. File paths are read into text.
+    """
+    if not val or not val.strip():
+        raise SystemExit(
+            f"{flag}: empty value",
+        )
+    stripped = val.lstrip()
+    if stripped.startswith(("{", "[")):
+        try:
+            json.loads(val)
+        except json.JSONDecodeError as e:
+            raise SystemExit(
+                f"{flag}: invalid inline JSON: {e}",
+            ) from None
+        return val
+    if os.path.isfile(val):
+        return Path(val).read_text()
+    raise SystemExit(
+        f"{flag}: not valid JSON literal and not a file path: "
+        f"{val[:60]}",
+    )
+
+
+def _resolve_json_arg_path(flag: str, val: str) -> Path:
+    """v0.191 — resolve to a real file path.
+
+    For helpers (schema validator, rubric scorer) that need a
+    Path. Inline JSON is materialized to a NamedTemporaryFile
+    and the temp path returned. File paths returned as-is.
+    """
+    if not val or not val.strip():
+        raise SystemExit(f"{flag}: empty value")
+    stripped = val.lstrip()
+    if stripped.startswith(("{", "[")):
+        try:
+            json.loads(val)
+        except json.JSONDecodeError as e:
+            raise SystemExit(
+                f"{flag}: invalid inline JSON: {e}",
+            ) from None
+        import tempfile
+        fd, path = tempfile.mkstemp(suffix=".json", prefix="coscientist-")
+        with os.fdopen(fd, "w") as f:
+            f.write(val)
+        return Path(path)
+    if os.path.isfile(val):
+        return Path(val)
+    raise SystemExit(
+        f"{flag}: not valid JSON literal and not a file path: "
+        f"{val[:60]}",
+    )
 
 # v0.46.4: Expedition rebrand. Old SEEKER names retained as aliases below
 # for old run DBs (phases.name is TEXT — old rows survive untouched).
@@ -296,7 +356,10 @@ def cmd_record_phase(args: argparse.Namespace) -> None:
             "did you call init?"
         )
     now = datetime.now(UTC).isoformat()
-    output = Path(args.output_json).read_text() if args.output_json else None
+    output = (
+        _resolve_json_arg("--output-json", args.output_json)
+        if args.output_json else None
+    )
     with con:
         if args.start:
             con.execute(
@@ -326,11 +389,25 @@ def cmd_record_phase(args: argparse.Namespace) -> None:
     # not record-phase summary JSON.
     if args.complete:
         if args.output_json:
-            _maybe_validate_schema(args.run_id, args.phase,
-                                    args.output_json)
+            try:
+                resolved = _resolve_json_arg_path(
+                    "--output-json", args.output_json,
+                )
+                _maybe_validate_schema(args.run_id, args.phase,
+                                        str(resolved))
+            except SystemExit:
+                # already raised earlier; defensive — never reached
+                pass
         rubric_target = getattr(args, "quality_artifact", None)
         if rubric_target:
-            _maybe_auto_score(args.run_id, args.phase, rubric_target)
+            try:
+                resolved = _resolve_json_arg_path(
+                    "--quality-artifact", rubric_target,
+                )
+                _maybe_auto_score(args.run_id, args.phase,
+                                   str(resolved))
+            except SystemExit:
+                pass
 
 
 def _maybe_validate_schema(run_id: str, phase: str,

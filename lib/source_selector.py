@@ -52,7 +52,36 @@ class SourceRecommendation:
     budget_tier: BudgetTier | None = None
 
 
-def select_source(
+def is_source_degraded(source_name: str) -> bool:
+    """v0.188 — consult `lib.health.mcp_error_rates`.
+
+    Returns True iff the named source has error_rate > 0.5 with
+    n_calls >= 5 in the rolling window. Fail-open: any exception
+    or missing data → False so the picker still works when the
+    health stack is unreachable.
+    """
+    try:
+        from lib import health
+        rates = health.mcp_error_rates()
+    except Exception:
+        return False
+    d = rates.get(source_name)
+    if not d:
+        return False
+    return (
+        d.get("n_calls", 0) >= 5
+        and d.get("error_rate", 0.0) > 0.5
+    )
+
+
+def _source_to_mcp_key(src: Source) -> str:
+    """Map source-selector source name to lib.health MCP key."""
+    if src == "s2":
+        return "semantic-scholar"
+    return src
+
+
+def _select_source_pure(
     *,
     phase: Phase,
     mode: Mode | None = None,
@@ -159,6 +188,47 @@ def select_source(
         fallbacks=["s2", "consensus"],
         reasoning="default — OpenAlex safe baseline",
         phase=phase, mode=mode, budget_tier=budget_tier,
+    )
+
+
+def select_source(
+    *,
+    phase: Phase,
+    mode: Mode | None = None,
+    has_seed: bool = False,
+    budget_tier: BudgetTier | None = None,
+    open_question: bool = True,
+    skip_degraded: bool = False,
+) -> SourceRecommendation:
+    """Pick the optimal source for a phase.
+
+    v0.188 — `skip_degraded=True` consults `lib.health.mcp_error_rates`
+    and falls through to the first healthy fallback if the primary
+    is degraded. Default False preserves v0.147 behaviour exactly.
+    """
+    rec = _select_source_pure(
+        phase=phase, mode=mode, has_seed=has_seed,
+        budget_tier=budget_tier, open_question=open_question,
+    )
+    if not skip_degraded:
+        return rec
+    chain: list[Source] = [rec.primary, *rec.fallbacks]
+    healthy: list[Source] = [
+        s for s in chain
+        if not is_source_degraded(_source_to_mcp_key(s))
+    ]
+    if not healthy or healthy[0] == rec.primary:
+        return rec
+    new_primary = healthy[0]
+    new_fallbacks = [s for s in chain if s != new_primary]
+    return SourceRecommendation(
+        primary=new_primary,
+        fallbacks=new_fallbacks,
+        reasoning=(
+            f"{rec.reasoning} [v0.188: primary {rec.primary!r} "
+            f"degraded, falling through to {new_primary!r}]"
+        ),
+        phase=rec.phase, mode=rec.mode, budget_tier=rec.budget_tier,
     )
 
 

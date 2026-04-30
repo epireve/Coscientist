@@ -34,7 +34,23 @@ DEFAULT_THRESHOLDS = {
     "drift_window": 5,              # v0.127: window size for drift check
     "min_thinking_coverage": 0.50,  # v0.170: per-table thinking-log coverage
     "thinking_min_rows": 5,         # v0.170: only alert when n_total > this
+    "mcp_degraded_rate": 0.50,      # v0.188: MCP error_rate > this = alert
+    "mcp_degraded_min_calls": 5,    # v0.188: only alert when n_calls >= this
+    "mcp_window_hours": 24,         # v0.188: rolling window for MCP rates
 }
+
+
+# v0.188 — MCP server name prefixes mapped to canonical source names
+# used by lib.source_selector. Tool-call span names look like
+# "mcp__<server>__<tool>" (e.g. "mcp__semantic-scholar__search_papers")
+# OR are emitted as bare server-prefixed names in some paths. We
+# match by substring on the canonical key.
+_MCP_SOURCE_KEYS = (
+    "consensus",
+    "openalex",
+    "semantic-scholar",
+    "paper-search",
+)
 
 
 def _config_path() -> Path:
@@ -204,6 +220,24 @@ def evaluate_alerts(
                 ),
                 "value": round(cov, 3),
                 "threshold": t["min_thinking_coverage"],
+            })
+
+    # v0.188: degraded-MCP alerts
+    mcp_health = report.get("mcp_health") or {}
+    for name, d in mcp_health.items():
+        n_calls = d.get("n_calls", 0) or 0
+        rate = d.get("error_rate", 0.0) or 0.0
+        if (n_calls >= t["mcp_degraded_min_calls"]
+                and rate > t["mcp_degraded_rate"]):
+            alerts.append({
+                "severity": "warn",
+                "code": "mcp_degraded",
+                "message": (
+                    f"{name} error rate {rate:.0%} "
+                    f"({d.get('n_errors', 0)}/{n_calls})"
+                ),
+                "value": round(rate, 3),
+                "threshold": t["mcp_degraded_rate"],
             })
 
     # v0.127: drift alerts
@@ -386,6 +420,67 @@ def thinking_coverage_across_runs(
     return {"by_table": by_table}
 
 
+def mcp_error_rates(
+    *,
+    window_hours: int = 24,
+    roots: list[Path] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """v0.188 — aggregate tool-call error rates per MCP server.
+
+    Walks every `run-*.db`, reads `spans` rows with kind='tool-call',
+    filters by `started_at >= now - window_hours`, groups by MCP
+    source key (substring match on `name` against `_MCP_SOURCE_KEYS`).
+
+    Returns: `{mcp_name: {n_calls, n_errors, error_rate}}`. Empty
+    dict on no data or missing tables.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from lib.cache import runs_dir
+    root = roots[0] if roots else runs_dir()
+    out: dict[str, dict[str, Any]] = {}
+    if not root.exists():
+        return out
+    cutoff = (
+        datetime.now(UTC) - timedelta(hours=window_hours)
+    ).isoformat()
+    for db in sorted(root.glob("run-*.db")):
+        try:
+            con = sqlite3.connect(db)
+            con.row_factory = sqlite3.Row
+        except Exception:
+            continue
+        try:
+            try:
+                rows = list(con.execute(
+                    "SELECT name, status, started_at FROM spans "
+                    "WHERE kind='tool-call' AND started_at >= ?",
+                    (cutoff,),
+                ))
+            except sqlite3.OperationalError:
+                continue
+            for r in rows:
+                name = (r["name"] or "").lower()
+                for key in _MCP_SOURCE_KEYS:
+                    if key in name:
+                        d = out.setdefault(key, {
+                            "n_calls": 0, "n_errors": 0,
+                            "error_rate": 0.0,
+                        })
+                        d["n_calls"] += 1
+                        if r["status"] == "error":
+                            d["n_errors"] += 1
+                        break
+        finally:
+            con.close()
+    for d in out.values():
+        n = d["n_calls"]
+        d["error_rate"] = (
+            round(d["n_errors"] / n, 4) if n else 0.0
+        )
+    return out
+
+
 def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
     """Walk every run-*.db and aggregate health signals."""
     from lib import agent_quality, trace_status
@@ -485,6 +580,11 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
         thinking = thinking_coverage_across_runs()
     except Exception:
         thinking = {"by_table": {}}
+    # v0.188 — MCP error-rate aggregation
+    try:
+        mcp_health = mcp_error_rates()
+    except Exception:
+        mcp_health = {}
 
     return {
         "n_runs": n_runs,
@@ -499,6 +599,7 @@ def collect(*, max_age_minutes: int = 30) -> dict[str, Any]:
         "drift": drift,
         "trees": trees,
         "thinking": thinking,
+        "mcp_health": mcp_health,
         "failed_spans_total": failed_total,
     }
 
@@ -645,6 +746,23 @@ def render_md(report: dict[str, Any],
             lines.append(
                 f"- **{tbl}** {d['n_with_trace']}/{d['n_total']} "
                 f"({d['coverage']:.0%})"
+            )
+        lines.append("")
+
+    # v0.188 — MCP source health (only if any source is degraded)
+    mcp_health = report.get("mcp_health") or {}
+    degraded = [
+        (n, d) for n, d in mcp_health.items()
+        if (d.get("n_calls", 0) >= 5
+            and d.get("error_rate", 0.0) > 0.5)
+    ]
+    if degraded:
+        lines.append("## MCP source health")
+        lines.append("")
+        for name, d in sorted(degraded, key=lambda kv: -kv[1]["error_rate"]):
+            lines.append(
+                f"- **{name}** error_rate={d['error_rate']:.0%} "
+                f"({d['n_errors']}/{d['n_calls']})"
             )
         lines.append("")
 

@@ -789,7 +789,54 @@ Applied to skills, sub-agents, and code. See `RESEARCHER.md` for the researcher-
 6. **Lego composition** — skills communicate through artifacts on disk, never direct invocation
 7. **Composable principle files** — project-level `CLAUDE.md` merges with `RESEARCHER.md` merges with user-level principles
 
-## Shipped: v0.51 → v0.187
+## Shipped: v0.51 → v0.191
+
+### v0.191 — db.py record-phase --output-json inline-vs-file heuristic ✅ (2026-04-30)
+
+Closes dogfood finding #4. `--output-json` (and `--quality-artifact`)
+now accept inline JSON literals OR file paths. Heuristic: leading `{`
+or `[` (after stripping whitespace) → parse as inline JSON; otherwise
+treat as file path. Garbage (neither valid JSON literal nor existing
+file) rejected with a clear `--output-json: not valid JSON literal
+and not a file path: <prefix>` error.
+
+Helpers: `_resolve_json_arg` (returns text content) and
+`_resolve_json_arg_path` (returns a Path; inline JSON materialized to
+a tempfile so schema-gate + rubric-scorer keep their file-path
+contract).
+
+`tests/test_v0_191_record_phase_json_inline.py` — 7 tests covering
+inline object, inline array, file path back-compat, leading
+whitespace, garbage rejection, empty-string rejection, and
+`--quality-artifact` parity.
+
+### v0.188 — degraded-source health flag ✅ (2026-04-30)
+
+Closes dogfood finding #1 (Semantic Scholar 403 / circuit-breaker).
+`lib.health.mcp_error_rates(window_hours=24)` walks every run DB,
+aggregates `tool-call` spans by MCP server prefix (consensus,
+openalex, semantic-scholar, paper-search) inside the rolling window,
+returns `{mcp_name: {n_calls, n_errors, error_rate}}`.
+
+Wired into `collect()` as `mcp_health` and into `evaluate_alerts()` as
+new `mcp_degraded` warn-level alert (fires when `error_rate > 0.5`
+AND `n_calls >= 5`). Thresholds tunable via
+`mcp_degraded_rate` / `mcp_degraded_min_calls` /
+`mcp_window_hours` keys in `health_thresholds.json`. `render_md`
+emits an "MCP source health" section when any source crosses the
+threshold.
+
+`lib.source_selector.is_source_degraded(source_name)` consults the
+same data; `select_source(skip_degraded=True)` falls through to the
+first healthy fallback in the chain. Default `skip_degraded=False`
+preserves v0.147 routing exactly.
+
+`tests/test_v0_188_degraded_source.py` — 11 tests covering
+aggregation, window filter, empty span table, alert fire/silence
+above + below threshold + below n_calls floor,
+`is_source_degraded` healthy + degraded + no-data fail-open,
+`select_source` skip_degraded=True falls through, and
+skip_degraded=False back-compat.
 
 ### v0.187 — dogfood deep-research run ✅ (2026-04-30)
 
