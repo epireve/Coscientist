@@ -11,6 +11,31 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.187 — dogfood deep-research run (2026-04-30)
+
+Path B executed: real `/deep-research` run on synthetic question
+"How does sub-agent context isolation in multi-agent LLM systems
+affect task completion reliability?". Run paused mid-Phase-1 after
+6 actionable bugs surfaced. **Path B vindicated** — 5 minutes of real
+run found bugs 28 versions of synthetic tests missed.
+
+`docs/DOGFOOD-RUN-86926630.md` — full triage report. Findings:
+1. Semantic Scholar MCP 403/circuit-breaker — degraded-source signal
+2. arXiv MCP relevance-ranking broken (returns date-sorted only)
+3. `papers_in_run.added_in_phase` writes legacy `'social'` not `'scout'`
+4. `db.py record-phase --output-json` treats arg as file path, rejects inline JSON
+5. Scout `thin_harvest` threshold ignores orchestrator intent
+6. Consensus 3-result cap without auth — 60% search budget wasted
+
+Triage queue: v0.188 (degraded-source flag) → v0.189 (arXiv relevance) →
+v0.191 (record-phase JSON heuristic) → v0.190 (phase-name canonicalization
++ migration v16) → v0.192 (scout thin-harvest semantics) → v0.193
+(consensus auth-aware budgeting).
+
+Run artifacts at `~/.cache/coscientist/runs/run-86926630*` for follow-up
+inspection. Status=`paused` so resume picks up at Phase 1 dispatch when
+v0.188-v0.193 land.
+
 ## v0.186 — sub-agent MCP-inheritance closure (2026-04-29)
 
 Closed the long-open `[ ]` from the smoke-test pause. Decision: **adopt
