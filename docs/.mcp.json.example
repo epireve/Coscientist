@@ -57,21 +57,8 @@
       }
     },
 
-    "playwright": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest"]
-    },
+    "_v0_205_note": "playwright + browser-use removed. institutional-access uses claude-in-chrome MCP instead — install via Chrome extension + see Anthropic docs.",
 
-    "browser-use": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": ["browser-use-mcp-server"],
-      "env": {
-        "_REQUIRED": "browser-use is LLM-driven; without OPENAI_API_KEY the MCP fails to start",
-        "OPENAI_API_KEY": "sk-xxxxxxxxxxxxxxxx"
-      }
-    },
 
     "zotero": {
       "type": "stdio",

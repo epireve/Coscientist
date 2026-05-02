@@ -109,8 +109,8 @@ For Claude Code plugin install (recommended for end users) see Install section b
 Full server inventory + tool reference: [MCP_SERVERS.md](./MCP_SERVERS.md).
 
 Coscientist also consumes several third-party MCPs (Consensus,
-paper-search, semantic-scholar, academic, zotero, playwright,
-browser-use). They're not republished here — see
+paper-search, semantic-scholar, academic, zotero, claude-in-chrome).
+They're not republished here — see
 [EXTERNAL_MCPS.md](./EXTERNAL_MCPS.md) for setup.
 
 ### Install troubleshooting
@@ -487,14 +487,13 @@ For per-MCP API-key requirements and where to obtain each (Semantic Scholar, Ope
 ## Setup
 
 ```bash
-# Python deps (Docling, Playwright, arxiv2markdown, etc.)
+# Python deps (Docling, arxiv2markdown, etc.)
 uv sync
 
-# One-time: bootstrap OpenAthens session for institutional-access
-uv run python .claude/skills/institutional-access/scripts/login.py
-
-# Playwright browsers
-uv run playwright install chromium
+# v0.205: institutional-access uses claude-in-chrome MCP.
+# Log into your institution (OpenAthens / SSO) once via normal Chrome
+# browsing. Cookies persist. Every fetch reuses session.
+# No Playwright, no storage_state, no per-publisher adapters.
 ```
 
 Then in Claude Code: `/deep-research "your research question"`.

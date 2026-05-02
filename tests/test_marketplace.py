@@ -268,7 +268,7 @@ class DocsPresenceTests(TestCase):
         text = path.read_text()
         # Must mention every external MCP we depend on.
         for name in ("consensus", "paper-search", "academic",
-                     "semantic-scholar", "playwright", "browser-use",
+                     "semantic-scholar", "claude-in-chrome",
                      "zotero"):
             self.assertIn(name, text,
                           f"EXTERNAL_MCPS.md missing reference to {name}")

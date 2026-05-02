@@ -27,8 +27,7 @@ KNOWN_TOOLS = {
 }
 ALLOWED_MCP_PREFIXES = (
     "mcp__consensus", "mcp__paper-search", "mcp__academic",
-    "mcp__semantic-scholar", "mcp__zotero", "mcp__playwright",
-    "mcp__browser-use",
+    "mcp__semantic-scholar", "mcp__zotero", "mcp__Claude_in_Chrome",
 )
 
 

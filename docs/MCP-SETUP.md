@@ -17,8 +17,7 @@ credentials.
 | `paper-search` | [openags/paper-search-mcp](https://github.com/openags/paper-search-mcp) | none | Unpaywall email, Semantic Scholar key, CORE key, DOAJ key, IEEE/ACM keys |
 | `academic` | [LinXueyuanStdio/academic-mcp](https://github.com/LinXueyuanStdio/academic-mcp) | none | IEEE / Scopus / Springer / ScienceDirect / CORE keys |
 | `semantic-scholar` | [hy20191108/semantic-scholar-mcp](https://github.com/hy20191108/semantic-scholar-mcp) | none (anonymous tier works) | `SEMANTIC_SCHOLAR_API_KEY` for higher rate limits |
-| `playwright` | [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) | none | — |
-| `browser-use` | [co-browser/browser-use-mcp-server](https://github.com/co-browser/browser-use-mcp-server) | `OPENAI_API_KEY` | — |
+| `claude-in-chrome` | Anthropic Chrome extension + MCP server | none — uses your authenticated Chrome session | — |
 | `zotero` | [kujenga/zotero-mcp](https://github.com/kujenga/zotero-mcp) | Zotero Desktop (local) **or** `ZOTERO_API_KEY` + `ZOTERO_LIBRARY_ID` (Web API) | — |
 
 ## Where to get each key
@@ -29,7 +28,7 @@ credentials.
 - **Unpaywall email** — no key needed; just an email address you own. Set as `PAPER_SEARCH_MCP_UNPAYWALL_EMAIL`. Without it, Unpaywall (the OA-PDF resolver) is silently skipped from `paper-acquire`'s OA chain.
 - **CORE API key** — https://core.ac.uk/services/api. Free tier, registration form. Set as `CORE_API_KEY` (academic) or `PAPER_SEARCH_MCP_CORE_API_KEY` (paper-search).
 - **DOAJ key** — https://doaj.org/account/register. Free; only needed to raise hourly rate limits. Set as `PAPER_SEARCH_MCP_DOAJ_API_KEY`.
-- **OpenAI API key** (for `browser-use`) — https://platform.openai.com/api-keys. Pay-as-you-go; the browser-use agent makes one or more LLM calls per browse step. Set as `OPENAI_API_KEY`.
+- v0.205: `browser-use` removed. `claude-in-chrome` MCP uses your existing Chrome session; no API key needed.
 
 ### Premium / institutional
 
@@ -159,8 +158,9 @@ the MCP started cleanly:
   obvious error rather than empty results.
 - For Zotero: ask the agent to list your Zotero collections. Empty result
   with no error usually means desktop-app communication isn't enabled.
-- For browser-use: ask the agent to navigate to a URL. It will loudly fail
-  if `OPENAI_API_KEY` is missing or invalid.
+- For claude-in-chrome: ask the agent to fetch a paywalled DOI. It will
+  fail with a login redirect if your Chrome session isn't authenticated;
+  fix by logging into your institution via normal Chrome browsing.
 
 ## What this project actually needs
 
@@ -171,16 +171,13 @@ The core deep-research pipeline only requires:
 - **paper-search** + **academic** (no keys needed for the free/OA sources
   that cover most of arXiv / PubMed / OpenAlex / Crossref)
 - **Consensus** (free tier OK for most usage)
-- **Playwright** (no key)
+- **claude-in-chrome** (v0.205+, no key) — for `institutional-access`
 
 Optional and adding later as needed:
 
 - **Zotero** — once you want bidirectional sync between the paper cache
   and your Zotero library
-- **browser-use** — only when an institutional-access publisher doesn't
-  have a per-publisher Playwright adapter and you fall back to LLM-driven
-  navigation
 - **IEEE/Springer/Elsevier keys** — only if you specifically want to
   *search* those premium databases. Most institutional users get the actual
-  PDFs through `institutional-access` + OpenAthens, which doesn't need any
-  publisher API keys.
+  PDFs through `institutional-access` (Chrome MCP) + OpenAthens, which
+  doesn't need any publisher API keys.

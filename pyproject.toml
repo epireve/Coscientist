@@ -17,8 +17,8 @@ dependencies = [
     # PDF extraction
     "docling>=2.0",
     "pymupdf>=1.24",
-    # Browser automation for institutional-access
-    "playwright>=1.48",
+    # v0.205: Playwright dropped. institutional-access uses
+    # claude-in-chrome MCP — delegates to user's Chrome.
     # Misc
     "rich>=13.7",
     "click>=8.1",

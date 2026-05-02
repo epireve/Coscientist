@@ -62,24 +62,19 @@ your API keys, then ensure the external MCPs are reachable.
 - **Used by**: `cartographer`, `chronicler`, `surveyor`,
   `architect`, `visionary` personas; `resolve-citation` skill.
 
-### `playwright`
+### `claude-in-chrome` (v0.205+)
 
-- **What**: Browser automation. Headful mode preferred for
-  institutional access flows.
-- **Type**: stdio. Install: `npx -y @playwright/mcp@latest`.
-- **API keys**: None.
-- **Used by**: `institutional-access` skill (Tier 1 publisher
-  adapters).
-- **Source**: [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp)
-
-### `browser-use`
-
-- **What**: Browser automation with built-in LLM agent — used as
-  Tier 2 fallback for publishers without a Playwright adapter.
-- **Type**: stdio. Install: `uvx --with browser-use==0.1.40 browser-use-mcp-server`.
-- **API keys**: Whatever LLM provider you give it.
-- **Used by**: `institutional-access` skill (Tier 2 fallback).
-- **Source**: [browser-use/browser-use](https://github.com/browser-use/browser-use)
+- **What**: Anthropic Chrome extension + MCP server. Drives the user's
+  authenticated Chrome browser. Cookies / OpenAthens / SSO / MFA all
+  live in Chrome profile — no infra to maintain on our side.
+- **Type**: Chrome extension + MCP. Install via Anthropic docs.
+- **API keys**: None — uses your existing Chrome session.
+- **Used by**: `institutional-access` skill (sole tier; replaces
+  v0.204 Playwright + adapters + browser-use stack).
+- **Source**: [Anthropic claude-in-chrome](https://docs.anthropic.com/en/docs/claude-in-chrome)
+- **v0.205 refactor**: removed `playwright` (was Tier 1) +
+  `browser-use` (was Tier 2 fallback). Real Chrome session handles
+  every paywall + anti-bot natively.
 
 ### `zotero`
 
@@ -115,10 +110,11 @@ we'd fork + rename rather than republish.
    the external MCPs you want to use.
 
 3. Ensure the external MCPs are reachable:
-   - `paper-search`, `academic`, `semantic-scholar`, `zotero`,
-     `browser-use` all install via `uvx <name>` on first call.
-   - `playwright` installs via `npx -y @playwright/mcp@latest`.
+   - `paper-search`, `academic`, `semantic-scholar`, `zotero` install
+     via `uvx <name>` on first call.
    - `consensus` is HTTP-hosted — nothing to install locally.
+   - `claude-in-chrome` — install Chrome extension + MCP per Anthropic
+     docs, log into your institution once via normal Chrome browsing.
 
 4. Verify with: `claude mcp list` — should show all configured
    servers as connected.

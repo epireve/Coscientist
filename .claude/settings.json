@@ -22,8 +22,7 @@
       "mcp__paper-search",
       "mcp__academic",
       "mcp__semantic-scholar",
-      "mcp__playwright",
-      "mcp__browser-use",
+      "mcp__Claude_in_Chrome",
       "mcp__zotero"
     ],
     "deny": [

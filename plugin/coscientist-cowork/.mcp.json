@@ -8,6 +8,7 @@
     "ZOTERO_API_KEY": "for reference-agent Zotero sync",
     "ZENODO_TOKEN": "for dataset deposit"
   },
+  "_v0_205_chrome_note": "claude-in-chrome MCP not wired here — install via Chrome extension + Anthropic docs. Used by institutional-access skill (replaces playwright/browser-use; user's Chrome session handles all auth).",
   "mcpServers": {
     "coscientist-graph": {
       "command": "uv",
