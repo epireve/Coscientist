@@ -1,122 +1,93 @@
 ---
 name: institutional-access
-description: Fetch a paper's PDF via your university's OpenAthens SSO using a headful Playwright session. Per-publisher adapters handle the "download PDF" click; browser-use MCP is the Tier 2 fallback for publishers without an adapter. Final tier of `paper-acquire`.
-when_to_use: Invoked by `paper-acquire` after all OA tiers fail. Not called directly by agents except for manual debugging.
+description: Fetch a paper's PDF via the user's authenticated Chrome browser using the claude-in-chrome MCP. Cookies live in Chrome profile — login once via normal browsing, every fetch reuses session. Final tier of `paper-acquire` for paywalled DOIs.
+when_to_use: Invoked by `paper-acquire` after all OA tiers (arxiv, OpenAlex oa_url, Unpaywall) fail. Not called directly by agents except for manual debugging.
 ---
 
 # institutional-access
 
-A local-browser adapter for entitled publisher access. Runs headful Chromium with a persistent storage state — so you log in through OpenAthens (including MFA) exactly once, and the session is reused until cookies expire.
+**v0.205 refactor**: replaced 837-line Playwright + 14 publisher adapters + storage-state cookie-jar with **claude-in-chrome MCP**.
 
-## Health check
+## Why Chrome MCP
 
-Before any real fetch, dry-run the harness:
+User already authenticated to OpenAthens / Shibboleth / EZproxy / publisher-direct sessions via normal Chrome browsing. Cookies persist in Chrome profile. We delegate:
 
-```bash
-uv run python .claude/skills/institutional-access/scripts/check.py check
+- **No infra to maintain** — no Playwright install, no per-publisher adapters, no Cloudflare bypass
+- **No anti-bot fight** — real browser, real user fingerprint, real cookies
+- **No credential storage on our side** — auth state lives in Chrome where it belongs
+- **Auto-refresh** — when cookie expires, user re-auths in normal Chrome browsing → all future fetches resume
+
+## Setup (one-time)
+
+1. **Install claude-in-chrome MCP** (Chrome extension + MCP server). See [Anthropic docs](https://docs.anthropic.com/en/docs/claude-in-chrome).
+2. **Log into your institution** via Chrome:
+   - Visit `https://my.openathens.net/?passiveLogin=false`
+   - Complete SSO + MFA
+   - Optionally visit one paywalled article (e.g., a Nature URL) to ensure publisher cookies set
+3. **That's it.** No Coscientist setup, no Playwright, no storage_state.json.
+
+Cookie expiry: OpenAthens ~12h, individual publisher cookies vary (1d–30d). When fetches start failing with login redirects, re-auth in Chrome.
+
+## Architecture
+
+```
+paper-acquire orchestrator
+  └── (calls) institutional-access/scripts/chrome_fetch.py plan
+        └── emits JSON plan describing Chrome MCP steps
+               ↓
+           orchestrator (parent w/ MCP access) executes:
+             1. mcp__Claude_in_Chrome__navigate   → doi.org/<doi>
+             2. mcp__Claude_in_Chrome__find       → "PDF download button"
+             3. mcp__Claude_in_Chrome__computer   → click; browser downloads
+             4. shell wait + locate newest PDF in ~/Downloads
+             5. chrome_fetch.py record → persist + audit
 ```
 
-JSON report covers:
+The script is a **plan-emitter**, not an MCP-caller. Same harvest pattern used everywhere in coscientist (orchestrator drives MCP, script reads result). Reason: sub-agents may not inherit MCP access (per v0.186 closure).
 
-- **Adapters**: each module imports OK, exposes async `fetch_pdf(context, doi, out_path)`, declares `DOMAIN`
-- **Playwright**: installed + importable
-- **storage_state.json**: present, valid JSON, cookie count, age in hours, stale (>14d) flag
-- **Registry**: DOI prefixes mapped to adapters
-
-Exit code 0 only when everything is ready for a real fetch. Run after upgrading Playwright, after rotating storage state, or before kicking off any paywalled-DOI batch.
-
-## One-time setup
+## CLI
 
 ```bash
-# 1. Install Chromium
-uv run playwright install chromium
+# Step 1: emit plan for orchestrator to execute
+uv run python .claude/skills/institutional-access/scripts/chrome_fetch.py \
+  plan --canonical-id <cid> [--doi 10.1234/x]
 
-# 2a. Generic bootstrap (manual SSO, any institution)
-uv run python .claude/skills/institutional-access/scripts/login.py \
-  --idp https://my.openathens.net/?passiveLogin=false
+# Step 2: after orchestrator drives Chrome MCP and downloads PDF
+uv run python .claude/skills/institutional-access/scripts/chrome_fetch.py \
+  record --canonical-id <cid> --pdf ~/Downloads/<file>.pdf
 ```
 
-Steps inside the bootstrap:
+`record` updates manifest.json (`state=acquired`, `acquired_via=chrome-claude`), copies PDF to `~/.cache/coscientist/papers/<cid>/raw/paper.pdf`, appends one line to `~/.cache/coscientist/audit.log`.
 
-1. Browser opens to the OpenAthens entry point
-2. You find your institution, sign in with SSO + MFA
-3. When you reach your OpenAthens dashboard, press `Enter` in the terminal
-4. The script saves `storage_state.json` (cookies + local storage) to `.claude/skills/institutional-access/state/`
+## Failure modes
 
-The state directory is gitignored. Never commit it.
+- **Login redirect** — Chrome session expired. User re-authenticates via normal browsing, retries.
+- **PDF link not found** — `find()` returned no results. Fall back to manual nav + screenshot for debugging.
+- **Publisher anti-bot** — extremely rare with real Chrome session. If it happens, Tier 2 = browser-use MCP (separate skill).
+- **Sci-Hub** — disabled by default. Enable only if institutionally-allowed and `COSCIENTIST_ALLOW_SCIHUB=1` set.
 
-### UM (University Malaya) auto-login
+## What was removed (v0.205 refactor)
 
-UM federates via OpenAthens (entityID `https://idp.um.edu.my/entity`).
-Credentials read from `.env` at repo root (gitignored). Copy `.env.example`
-and fill in `UM_USERNAME` + `UM_PASSWORD`.
+837 LOC + 14 publisher adapters dropped:
 
-```bash
-# Auto-fill UM Shibboleth/Microsoft IdP form, persist OpenAthens cookies.
-uv run python .claude/skills/institutional-access/scripts/idp_um.py login \
-  --interactive   # leave terminal open for MFA prompt
+- `scripts/login.py` — Playwright bootstrap
+- `scripts/idp_runner.py` — 383-line IdP automation
+- `scripts/import_cookies.py` — cookie import from browser
+- `scripts/check.py` — Playwright sanity check
+- `scripts/fetch.py` — Playwright fetch w/ adapter dispatch
+- `scripts/adapters/{acm,acs,elsevier,emerald,generic,ieee,jstor,nature,sage,springer,wiley}.py` — per-publisher click logic
+- `state/storage_state.json` — Playwright cookie jar
+- `state/chrome_profile/` — Playwright persistent context (local-only, gitignored)
+- `institutions/{_template,um}.json` — IdP configs
+
+Playwright dep can be dropped from `pyproject.toml` once no other skill needs it.
+
+## Audit trail
+
+Every fetch logs to `~/.cache/coscientist/audit.log`:
+
+```json
+{"at": "2026-04-30T...", "action": "fetch", "canonical_id": "...", "tier": "chrome-claude", "pdf_size": 1234567, "doi": "10.1234/x"}
 ```
 
-Per-publisher entry URLs:
-
-```bash
-# List known publishers + their UM-routed SSO entry URLs
-uv run python .claude/skills/institutional-access/scripts/idp_um.py publishers
-
-# Refresh cookies for one publisher (e.g. Elsevier/ScienceDirect)
-uv run python .claude/skills/institutional-access/scripts/idp_um.py login \
-  --publisher elsevier --interactive
-```
-
-The script auto-fills the Microsoft-style login form (MS Entra ID is what
-UM's IdP uses behind Shibboleth). MFA still requires a human — pass
-`--interactive` to wait for you to complete it before persisting cookies.
-
-## How `paper-acquire` invokes it
-
-```bash
-uv run python .claude/skills/institutional-access/scripts/fetch.py \
-  --canonical-id <cid>
-```
-
-The script:
-
-1. Loads `manifest.doi` from the paper artifact
-2. Determines the publisher from the DOI prefix (`10.1016` → Elsevier, `10.1007` → Springer, etc.)
-3. Calls the matching adapter in `scripts/adapters/`
-4. Adapter launches Chromium with the saved storage state, navigates, finds the PDF link, downloads to `raw/institutional.pdf`
-5. If no adapter matches, falls through to `browser-use` MCP (Tier 2)
-6. On success, prints the PDF path (for `paper-acquire/scripts/record.py` to ingest)
-
-## Per-publisher adapters
-
-Seeded adapters:
-
-| Prefix | Publisher | Adapter |
-|---|---|---|
-| 10.1016 | Elsevier / ScienceDirect | `adapters/elsevier.py` |
-| 10.1007 | Springer | `adapters/springer.py` |
-| 10.1002 | Wiley | `adapters/wiley.py` |
-| 10.1109 | IEEE | `adapters/ieee.py` |
-| 10.1038 | Nature / Springer Nature | `adapters/nature.py` |
-| 10.1021 | ACS | `adapters/acs.py` |
-
-Each adapter is ~30 lines and exports `async def fetch_pdf(context, doi, out_path) -> Path`. When a publisher's HTML changes, the failure mode is "fall through to Tier 2", not "skill is broken".
-
-## Rate-limit + guardrails
-
-- `lib.rate_limit.wait(<publisher_domain>)` runs before every navigation. Default 10s per domain.
-- Every fetch (success or failure) is appended to `~/.cache/coscientist/audit.log` with DOI + timestamp + tier.
-- **Triage gate**: `paper-acquire/scripts/gate.py` must pass before this skill is touched. No speculative fetches.
-- **Sci-Hub**: off by default. Set `COSCIENTIST_ALLOW_SCIHUB=1` to enable (still requires a separate adapter).
-- **Headful only**: persistent profile and real window match a human session and reduce bot-flag risk. Do not switch to `--headless`.
-
-## Session expiry
-
-When `fetch.py` detects a redirect back to the OpenAthens IdP (SSO expired), it exits with code 10 and a clear message: "re-run login.py". Don't try to re-auth programmatically.
-
-## Adding a new publisher
-
-1. Create `scripts/adapters/<publisher>.py` with `async def fetch_pdf(context, doi, out_path)`.
-2. Register the DOI prefix → module mapping in `scripts/adapters/__init__.py`.
-3. Keep the adapter tiny — publishers change their UI often. The `browser-use` fallback handles the long tail.
+Same format as v0.17 paper-acquire audit. `audit-query` skill aggregates across all tiers.

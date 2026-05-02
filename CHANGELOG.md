@@ -11,6 +11,68 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.205 — institutional-access Chrome MCP refactor (2026-04-30)
+
+Replaced 837-line Playwright + 14 publisher adapters + storage-state
+cookie-jar with single `chrome_fetch.py` plan-emitter that delegates
+to `mcp__Claude_in_Chrome__*` tools.
+
+**Why**: user's authenticated Chrome browser handles OpenAthens / SSO
+/ MFA / publisher cookies natively. We delegate. Zero infra to
+maintain. No anti-bot fight (real browser, real user fingerprint).
+Auth-reuse story: cookies persist in Chrome profile; user logs in
+once via normal browsing, every fetch reuses session until expiry;
+re-auth via normal Chrome browsing refreshes for all future fetches.
+
+**Removed**:
+- `scripts/login.py` (71 LOC)
+- `scripts/idp_runner.py` (383 LOC)
+- `scripts/import_cookies.py` (96 LOC)
+- `scripts/fetch.py` (123 LOC)
+- `scripts/check.py` (164 LOC)
+- `scripts/adapters/{acm,acs,elsevier,emerald,generic,ieee,jstor,nature,sage,springer,wiley}.py` + `__init__.py` + `_common.py`
+- `state/storage_state.json` + `state/chrome_profile/` (local-only, gitignored)
+- `institutions/{_template,um}.json`
+- `tests/test_institutional_check.py` (Playwright tests)
+- One method in `tests/test_v0_14_adoption.py::RetryAdoptionTests` (no fetch.py to assert against)
+
+**Added**:
+- `scripts/chrome_fetch.py` (~180 LOC) — plan-emitter + `record` subcommand for audit-log + manifest update
+- `SKILL.md` rewritten — Chrome MCP setup story, 3-step usage, failure modes
+
+Net: -650 LOC. Same functionality, less infra, better auth handling.
+
+## v0.204 — Cowork plugin scaffold (2026-04-30)
+
+`plugin/coscientist-cowork/` packages all 70 skills + 42 agents + 1
+slash command + 5 MCPs as a proper Cowork plugin per Anthropic spec
+(`https://github.com/anthropics/knowledge-work-plugins`).
+
+Layout:
+- `.claude-plugin/plugin.json` — Cowork manifest (name, version,
+  description, author)
+- `.mcp.json` — 5 MCP server wirings (coscientist-graph, openalex,
+  consensus, semantic-scholar, paper-search) with env-var pass-through
+- `skills/` → symlink to `.claude/skills/` (single source of truth)
+- `agents/` → symlink to `.claude/agents/`
+- `commands/` → symlink to `.claude/commands/`
+- `README.md` — install instructions (Cowork desktop + CLI)
+- `build-zip.sh` — materialises symlinks into real dirs and bundles
+  `lib/` into a 5.8MB zip ready for upload
+
+Install path:
+1. `bash plugin/coscientist-cowork/build-zip.sh` → produces
+   `coscientist-cowork.zip` (gitignored) at repo root
+2. Cowork desktop: Customize → Browse plugins → Upload custom →
+   select zip → Authorise
+3. OR CLI: `claude plugin marketplace add /path/to/coscientist`
+   then `claude plugin install coscientist`
+
+821 files in zip. Tests pin manifest exists, MCP config valid JSON,
+CHECKSUMS regenerate. Plugin auto-discovered by
+`lib.plugin_checksums.all_plugins()` (5 plugins now: existing 4 +
+new coscientist-cowork).
+
 ## v0.203 — auto-tournament wiring into deep-research pipeline (2026-04-30)
 
 Closes the architectural gap from dogfood run 86926630. Architect

@@ -145,11 +145,9 @@ class ArtifactLockAdoptionTests(TestCase):
 # ---------------- aretry wired in institutional-access ----------------
 
 class RetryAdoptionTests(TestCase):
-    def test_institutional_fetch_imports_aretry(self):
-        src = INSTITUTIONAL_FETCH.read_text()
-        self.assertIn("aretry_with_backoff", src,
-                      "institutional-access fetch.py must use the async retry")
-        self.assertIn("from lib.retry", src)
+    # v0.205 — test_institutional_fetch_imports_aretry removed: Playwright
+    # fetch.py replaced by Chrome MCP plan-emitter (chrome_fetch.py).
+    # No subprocess fetch path to patch with retries.
 
     def test_aretry_retries_and_succeeds(self):
         """Smoke-test the async retry primitive itself for institutional usage."""
