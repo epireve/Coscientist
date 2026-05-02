@@ -1,0 +1,11 @@
+{
+  "name": "coscientist",
+  "version": "0.204.0",
+  "description": "Academic research-agent toolkit. 70 skills + 40 sub-agent personas covering deep research (10-phase Expedition pipeline), manuscript audit/critique/draft, citation graph + reference agent, hypothesis tournaments with Elo + auto-prune, novelty + publishability + red-team gates, OpenAlex/Consensus/S2 paper discovery. Pure-stdlib SQLite-backed cache. Markdown-first manuscripts, pandoc export to LaTeX/docx.",
+  "author": {
+    "name": "epireve",
+    "url": "https://github.com/epireve/coscientist"
+  },
+  "homepage": "https://github.com/epireve/coscientist",
+  "license": "MIT"
+}

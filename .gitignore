@@ -59,3 +59,4 @@ tests/_tmp_dogfood_input.json
 
 # Persistent Chrome profile for institutional-access (cookies, history)
 .claude/skills/institutional-access/state/chrome_profile/
+coscientist-cowork.zip

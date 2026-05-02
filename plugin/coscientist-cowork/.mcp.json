@@ -1,0 +1,45 @@
+{
+  "_comment": "MCP servers for coscientist. Auth via env vars. Polite-pool defaults work without keys.",
+  "_env_examples": {
+    "OPENALEX_MAILTO": "your-email@example.com (polite-pool)",
+    "OPENALEX_API_KEY": "premium-tier; optional",
+    "CONSENSUS_API_KEY": "lifts 3-result cap (paid)",
+    "SEMANTIC_SCHOLAR_API_KEY": "lifts 1 req/s rate limit",
+    "ZOTERO_API_KEY": "for reference-agent Zotero sync",
+    "ZENODO_TOKEN": "for dataset deposit"
+  },
+  "mcpServers": {
+    "coscientist-graph": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "lib.graph_mcp_server"],
+      "cwd": "${PROJECT_ROOT}"
+    },
+    "openalex": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "lib.openalex_client", "--mcp-mode"],
+      "cwd": "${PROJECT_ROOT}",
+      "env": {
+        "OPENALEX_MAILTO": "${OPENALEX_MAILTO}",
+        "OPENALEX_API_KEY": "${OPENALEX_API_KEY}"
+      }
+    },
+    "consensus": {
+      "command": "npx",
+      "args": ["-y", "@consensus-app/mcp-server"],
+      "env": {
+        "CONSENSUS_API_KEY": "${CONSENSUS_API_KEY}"
+      }
+    },
+    "semantic-scholar": {
+      "command": "npx",
+      "args": ["-y", "@semantic-scholar/mcp-server"],
+      "env": {
+        "SEMANTIC_SCHOLAR_API_KEY": "${SEMANTIC_SCHOLAR_API_KEY}"
+      }
+    },
+    "paper-search": {
+      "command": "npx",
+      "args": ["-y", "@openags/paper-search-mcp"]
+    }
+  }
+}
