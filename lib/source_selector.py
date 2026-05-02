@@ -277,13 +277,26 @@ _CONSENSUS_RESULTS_UNAUTHED = 3  # v0.193 — Consensus caps free tier at 3
 
 
 def _consensus_authed_default() -> bool:
-    """v0.193 — auto-detect Consensus auth from env var.
+    """v0.193 — auto-detect Consensus auth.
 
-    Returns True iff `CONSENSUS_API_KEY` is set and non-empty.
-    Mirrors how OpenAlex/S2 detect auth elsewhere.
+    v0.213 — Consensus MCP at mcp.consensus.app/mcp uses OAuth, NOT
+    an API key. There's no env var the user gets when they connect a
+    Pro account — auth state lives inside Claude Desktop's MCP client.
+    So we expose two opt-in signals:
+
+    1. `CONSENSUS_API_KEY` set + non-empty (legacy / future-proof)
+    2. `COSCIENTIST_CONSENSUS_AUTHED=1` (explicit user assertion that
+       their Claude Desktop has connected to Consensus via OAuth)
+
+    Either one flips the budget to the authed (10 results/call) tier.
+    Default fail-closed at 3 results/call when neither is set.
     """
     import os
-    return bool(os.environ.get("CONSENSUS_API_KEY", "").strip())
+    if os.environ.get("CONSENSUS_API_KEY", "").strip():
+        return True
+    if os.environ.get("COSCIENTIST_CONSENSUS_AUTHED", "").strip() == "1":
+        return True
+    return False
 
 
 def call_budget(

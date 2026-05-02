@@ -16,13 +16,20 @@ class V0193ConsensusAuthBudgetTests(TestCase):
 
     def setUp(self):
         # Clear env to make defaults predictable.
-        self._prev = os.environ.pop("CONSENSUS_API_KEY", None)
+        self._prev_key = os.environ.pop("CONSENSUS_API_KEY", None)
+        self._prev_oauth = os.environ.pop(
+            "COSCIENTIST_CONSENSUS_AUTHED", None,
+        )
 
     def tearDown(self):
-        if self._prev is not None:
-            os.environ["CONSENSUS_API_KEY"] = self._prev
+        if self._prev_key is not None:
+            os.environ["CONSENSUS_API_KEY"] = self._prev_key
         else:
             os.environ.pop("CONSENSUS_API_KEY", None)
+        if self._prev_oauth is not None:
+            os.environ["COSCIENTIST_CONSENSUS_AUTHED"] = self._prev_oauth
+        else:
+            os.environ.pop("COSCIENTIST_CONSENSUS_AUTHED", None)
 
     def test_default_unauthed_consensus_is_3_results(self):
         b = call_budget(mode="deep", consensus_authed=False)
@@ -39,6 +46,24 @@ class V0193ConsensusAuthBudgetTests(TestCase):
         b = call_budget(mode="deep")  # consensus_authed=None → auto
         self.assertEqual(b["consensus_authed"], True)
         self.assertEqual(b["consensus_results_per_call"], 10)
+
+    def test_oauth_signal_via_coscientist_env_var(self):
+        """v0.213 — COSCIENTIST_CONSENSUS_AUTHED=1 flips to authed budget.
+
+        Consensus MCP at mcp.consensus.app/mcp uses OAuth (handled by
+        Claude Desktop's MCP client), NOT an API key. Operators with
+        Pro accounts assert auth state via this env var.
+        """
+        os.environ["COSCIENTIST_CONSENSUS_AUTHED"] = "1"
+        b = call_budget(mode="deep")
+        self.assertEqual(b["consensus_authed"], True)
+        self.assertEqual(b["consensus_results_per_call"], 10)
+
+    def test_oauth_signal_zero_value_treated_as_unauthed(self):
+        os.environ["COSCIENTIST_CONSENSUS_AUTHED"] = "0"
+        b = call_budget(mode="deep")
+        self.assertEqual(b["consensus_authed"], False)
+        self.assertEqual(b["consensus_results_per_call"], 3)
 
     def test_deep_mode_extra_consensus_call_when_unauthed(self):
         # Unauthed deep budget bumps consensus calls (3 vs 2) to partly
