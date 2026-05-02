@@ -50,6 +50,10 @@ EXPECTED_AGENTS = {
     # Phase J — Idea-tree generation (v0.153). Builds rooted hypothesis
     # trees the tournament's tree-aware ranker (v0.154/v0.155) consumes.
     "idea-tree-generator",
+    # Phase K — Assumption-auditor (v0.210). Walks corpus to surface
+    # majority-shared untested assumptions. Distinct from surveyor (gaps)
+    # and inquisitor (attacks architect tree).
+    "assumption-auditor",
 }
 
 
