@@ -138,3 +138,7 @@ If any fail, correct or report.
 - No phase advancement
 - No paper artifact writes
 - No claim insertion
+
+## CLI flag reference (drift coverage)
+
+- `gate.py`: `--force`, `--input`

@@ -58,3 +58,7 @@ negative_results/<result_id>/
 ## Linking
 
 With `--project-id`, registers in `artifact_index` (kind=`negative-result`) so cross-project-memory search finds it.
+
+## CLI flag reference (drift coverage)
+
+- `log.py`: `--force`

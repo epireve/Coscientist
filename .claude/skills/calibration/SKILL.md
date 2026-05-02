@@ -85,3 +85,7 @@ uv run python .claude/skills/calibration/scripts/manage.py anchors \
 - Doesn't fetch papers (use `paper-discovery` + `paper-acquire`)
 - Doesn't graph the calibration set (that's `graph-viz` once a venue
   has graph nodes for its calibration anchors)
+
+## CLI flag reference (drift coverage)
+
+- `manage.py`: `--cache-root`, `--doi`

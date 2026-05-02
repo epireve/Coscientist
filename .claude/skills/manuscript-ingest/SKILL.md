@@ -55,3 +55,7 @@ Deterministic: `<slug-of-title>_<6-char-blake2s>` where the hash is over the sou
 - Original source at `--source` is never modified
 - No network access; pure filesystem operation
 - Fails loudly if the source isn't a readable text file (catches common mistakes like pointing at a .pdf)
+
+## CLI flag reference (drift coverage)
+
+- `resolve_citations.py`: `--input`

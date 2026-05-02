@@ -52,3 +52,7 @@ uv run python .claude/skills/gap-analyzer/scripts/analyze.py \
 - Does not search prior work (that's Surveyor's job).
 - Does not run experiments to test the gap (that's Sakana / Tier C).
 - Does not re-rank gaps by Elo (that's tournament).
+
+## CLI flag reference (drift coverage)
+
+- `analyze.py`: `--persist-db`

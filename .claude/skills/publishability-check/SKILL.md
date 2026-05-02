@@ -63,3 +63,7 @@ The user can maintain a calibration set at `~/.cache/coscientist/calibration/ven
 ```
 
 When present, the gate will append a calibration-drift warning if the verdict's reasoning doesn't reference any case from the set. The warning does not block — it nudges.
+
+## CLI flag reference (drift coverage)
+
+- `gate.py`: `--allow-uncalibrated`

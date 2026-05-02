@@ -41,3 +41,7 @@ uv run python .claude/skills/contribution-mapper/scripts/map.py \
   typically pulled from `papers_in_run` or Zotero).
 - Does not run novelty-check (that's its own skill).
 - Does not produce publication recommendations (that's `venue-match`).
+
+## CLI flag reference (drift coverage)
+
+- `map.py`: `--persist-db`

@@ -48,3 +48,7 @@ Filtered preprint digest. Subscriptions stored per-project; digests written to d
 
 A paper matches if ANY topic appears (case-insensitive) in title OR abstract,
 OR ANY followed author appears in the author list.
+
+## CLI flag reference (drift coverage)
+
+- `subscribe.py`: `--replace`

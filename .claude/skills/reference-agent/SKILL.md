@@ -162,3 +162,11 @@ Persona file: `.claude/agents/reference-agent.md`. The agent wraps these scripts
 - Every artifact-state mutation goes through scripts (not direct DB writes)
 - Zotero stays the source of truth for manual reading — the agent pulls, it doesn't push blindly
 - No speculative fetches — only items the Zotero MCP already returned
+
+## CLI flag reference (drift coverage)
+
+- `enrich_authors.py`: `--author-nid`, `--source`
+- `export_bibtex.py`: `--context-run-id`
+- `populate_citations.py`: `--source`
+- `populate_concepts.py`: `--min-score`, `--source`
+- `reading_state.py`: `--list-all`

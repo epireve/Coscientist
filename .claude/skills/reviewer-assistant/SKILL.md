@@ -71,3 +71,7 @@ With `--project-id`, registers in `artifact_index` (kind=`review`).
 - Doesn't fetch the paper — bring your own PDF or markdown
 - Doesn't pass judgment for you — it's a scaffold; you fill in substance
 - Doesn't substitute for manuscript-audit (claim verification on YOUR manuscript)
+
+## CLI flag reference (drift coverage)
+
+- `review.py`: `--force`

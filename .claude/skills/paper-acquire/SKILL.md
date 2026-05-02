@@ -63,3 +63,7 @@ If Tier 2 returns a paywall landing page (HTML, not PDF), mark `record.py --fail
 - `raw/<source>.pdf` on success
 - Updates to `manifest.json`: `state=acquired`, `sources_tried[]` appended
 - Line appended to `~/.cache/coscientist/audit.log`
+
+## CLI flag reference (drift coverage)
+
+- `record.py`: `--detail`

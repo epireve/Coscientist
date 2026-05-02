@@ -112,3 +112,7 @@ Append-only at `~/.cache/coscientist/sandbox_audit.log` (JSONL). One line per ru
 - Doesn't write to user's `$HOME` — workspace is the only writable mount
 - Doesn't expose ports — network is fully isolated
 - Doesn't install the script's dependencies — caller's job (e.g. `pip install` inside the workspace before invoking)
+
+## CLI flag reference (drift coverage)
+
+- `sandbox.py`: `--lock-timeout`

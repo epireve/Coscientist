@@ -55,3 +55,7 @@ If all sections empty, output reads `_No data — instrumentation hasn't logged 
 
 `/health` shows zero stale spans AND no failed_spans_total spike vs.
 prior runs. Smoke test passes when health dump is boring.
+
+## CLI flag reference (drift coverage)
+
+- `health.py`: `--no-alerts`, `--show-thresholds`

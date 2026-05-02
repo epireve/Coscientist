@@ -42,3 +42,7 @@ dmps/<dmp_id>/
 ```
 
 `dmp_id` = `slug(title)_slug(funder)_<6-char hash>`.
+
+## CLI flag reference (drift coverage)
+
+- `dmp.py`: `--force`

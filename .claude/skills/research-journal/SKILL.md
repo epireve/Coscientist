@@ -67,3 +67,8 @@ Substring search (case-insensitive) over `body`. Returns matching entries with l
 ## Principles
 
 From `RESEARCHER.md`: **2 (Cite What You've Read — links to papers must be real canonical_ids)**, **5 (Register Bias — record decisions and exclusions when made)**.
+
+## CLI flag reference (drift coverage)
+
+- `list_entries.py`: `--limit`, `--linked-run`
+- `search.py`: `--limit`

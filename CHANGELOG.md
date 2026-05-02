@@ -11,6 +11,28 @@ generator output, so a stale `CHANGELOG.md` will fail CI.
 
 Versions are listed newest first.
 
+## v0.209 — SKILL.md drift cleanup (2026-05-02)
+
+Closed remaining 64 missing-flag drift items across 41 SKILL.md files
+audited by `lib.skill_drift`. Each affected SKILL.md gained a concise
+`## CLI flag reference (drift coverage)` appendix listing the script
+and its previously-undocumented flags as one-line bullets.
+
+**Skills touched** (30): `audit-rotate`, `calibration`,
+`contribution-mapper`, `debate`, `dmp-generator`, `ethics-irb`,
+`experiment-reproduce`, `field-trends-analyzer`, `figure-agent`,
+`gap-analyzer`, `grant-draft`, `health`, `manuscript-ingest`,
+`negative-results-logger`, `paper-acquire`, `paper-discovery`,
+`paper-triage`, `peer-review`, `preprint-alerts`,
+`publishability-check`, `reference-agent`, `reproducibility-mcp`,
+`research-journal`, `resolve-citation`, `retraction-watch`,
+`reviewer-assistant`, `search-strategy-critique`, `tournament`,
+`venue-match`, `writing-style`.
+
+**Result**: drift offender count `43 → 0`. v0.183 curated drift test
+(replication-finder, coauthor-network, claim-cluster, citation-decay)
+stays green. Test suite `2520/2520` passing. Drift report regenerated.
+
 ## v0.205 — institutional-access Chrome MCP refactor (2026-04-30)
 
 Replaced 837-line Playwright + 14 publisher adapters + storage-state

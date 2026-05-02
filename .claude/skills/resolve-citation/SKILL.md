@@ -128,3 +128,7 @@ The skill is done when:
 - The partial parses into a `PartialCitation` with at least one of `{authors, year, title_tokens}` populated.
 - If candidates are supplied: either a match ≥ 0.5 is reported with `canonical_id` + DOI, or the script clearly reports `matched: false`.
 - The orchestrator can take the `canonical_id` straight to `paper-discovery` / `paper-triage` / the project graph.
+
+## CLI flag reference (drift coverage)
+
+- `resolve.py`: `--threshold`

@@ -41,3 +41,7 @@ trends.py summary --project-id P
 - Graph must be populated. Run `reference-agent/scripts/populate_citations.py` and `populate_concepts.py` first.
 - "Trending" is computed within *this project's* graph, not global field trends. For global trends, use Semantic Scholar's recommendation/trend APIs.
 - Read-only by construction — verifies file mtime unchanged after queries.
+
+## CLI flag reference (drift coverage)
+
+- `trends.py`: `--buckets`, `--window-days`

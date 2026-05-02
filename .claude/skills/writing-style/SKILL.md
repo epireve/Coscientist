@@ -116,3 +116,9 @@ profile exists yet (e.g. submitting to a new venue without prior work).
 ## Principles enforced
 
 From `RESEARCHER.md`: **7 (Commit to a Number — every audit finding names a numeric deviation, not vibes)**.
+
+## CLI flag reference (drift coverage)
+
+- `apply.py`: `--text`
+- `audit.py`: `--out`
+- `fingerprint.py`: `--out`

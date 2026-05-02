@@ -115,3 +115,11 @@ Shows top-N hypotheses with Elo, win/loss/match counts, and parent lineage chain
 ## Principles
 
 From `RESEARCHER.md`: **6 (Name Five)**, **7 (Commit to a Number — Elo is the number)**, **8 (Steelman before attack — pairwise judge must steelman both before picking)**.
+
+## CLI flag reference (drift coverage)
+
+- `evolve_loop.py`: `--top-roots`
+- `pairwise.py`: `--exclude-played`
+- `record_hypothesis.py`: `--branch-index`, `--tree-root`
+- `record_match.py`: `--auto-prune`, `--prune-min-matches`, `--prune-threshold`
+- `tree_ranker.py`: `--min-matches`, `--run-db`, `--threshold`, `--tree-id`

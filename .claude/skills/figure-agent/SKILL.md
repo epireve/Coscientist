@@ -36,3 +36,8 @@ Protanopia matrix (linear RGB):
  [0.558, 0.442, 0.0 ],
  [0.0,   0.242, 0.758]]
 ```
+
+## CLI flag reference (drift coverage)
+
+- `check_palette.py`: `--colors`
+- `register.py`: `--overwrite`

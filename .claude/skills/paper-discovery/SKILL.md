@@ -94,3 +94,7 @@ Plus a caller-consumable ranked list at `--out`.
 - Does not download PDFs (→ `paper-acquire`)
 - Does not decide what to read in full (→ `paper-triage`)
 - Does not synthesize findings (→ `deep-research` sub-agents)
+
+## CLI flag reference (drift coverage)
+
+- `openalex_source.py`: `--filter`, `--page`

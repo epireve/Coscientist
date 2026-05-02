@@ -50,3 +50,7 @@ Atomic via `Path.rename` on the same filesystem.
 ## Principles
 
 From `RESEARCHER.md`: never silently lose data; rename, don't delete.
+
+## CLI flag reference (drift coverage)
+
+- `rotate.py`: `--confirm`, `--older-than-days`

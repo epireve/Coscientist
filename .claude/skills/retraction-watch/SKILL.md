@@ -58,3 +58,8 @@ Errors per-paper are isolated; one failure doesn't block the rest.
 ```sql
 canonical_id TEXT UNIQUE, retracted INTEGER, source TEXT, detail TEXT, checked_at TEXT
 ```
+
+## CLI flag reference (drift coverage)
+
+- `alert.py`: `--no-journal`
+- `scan.py`: `--input`

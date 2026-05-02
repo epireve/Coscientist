@@ -43,3 +43,7 @@ grants/<grant_id>/
 ```
 
 `grant_id` = `slug(title)_slug(funder)_<6-char blake2s hash>`
+
+## CLI flag reference (drift coverage)
+
+- `draft.py`: `--force`

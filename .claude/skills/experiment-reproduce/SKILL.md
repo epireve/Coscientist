@@ -76,3 +76,7 @@ experiments/<eid>/
 - Workspace is mounted read-write by sandbox — intermediate files survive.
 - Budget enforcement is strict: `protocol.budget.compute_seconds` is the hard timeout.
 - The sandbox uses `--network none` — your script cannot fetch packages mid-run. Pre-install everything in the workspace.
+
+## CLI flag reference (drift coverage)
+
+- `reproduce.py`: `--cpus`, `--image`

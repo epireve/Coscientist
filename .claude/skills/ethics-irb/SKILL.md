@@ -34,3 +34,7 @@ ethics.py coi-remove --project-id P --entry-id N
 `funding | consulting | stock | family | advisory | other`
 
 Each entry: `{id, entity, type, value, declared_at}`. Stored under `projects/<pid>/coi.json` as a list.
+
+## CLI flag reference (drift coverage)
+
+- `ethics.py`: `--force`

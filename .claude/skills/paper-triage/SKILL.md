@@ -66,3 +66,7 @@ Where `/tmp/triage.json` looks like:
 
 - The only way to mark a paper "approved to fetch" is via this skill. `paper-acquire` hard-checks `triage.sufficient == false` before touching any network.
 - If the metadata artifact is missing abstract + tldr + claims all together, the script refuses to record a "sufficient" verdict and errors out — forcing either acquisition or an explicit override.
+
+## CLI flag reference (drift coverage)
+
+- `record.py`: `--force`

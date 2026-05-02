@@ -57,3 +57,7 @@ manuscripts/<mid>/peer_review/
   "decision": "major_revision|minor_revision|accept|reject"
 }
 ```
+
+## CLI flag reference (drift coverage)
+
+- `decide.py`: `--decision`, `--rationale`

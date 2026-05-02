@@ -90,3 +90,7 @@ uv run python .claude/skills/debate/scripts/debate.py finalize \
   output is borderline)
 - Does not chain debates (one round of opening + one round of
   rebuttal — `n_rounds=2` default)
+
+## CLI flag reference (drift coverage)
+
+- `debate.py`: `--drift-threshold`, `--n-rounds`, `--persist-db`, `--valid-cids`

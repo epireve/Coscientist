@@ -49,3 +49,7 @@ uv run python .claude/skills/venue-match/scripts/recommend.py \
   manual edit).
 - Does not predict acceptance probability beyond the registry's
   typical rate.
+
+## CLI flag reference (drift coverage)
+
+- `recommend.py`: `--audience`, `--persist-db`
