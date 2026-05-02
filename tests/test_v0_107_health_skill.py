@@ -1,11 +1,18 @@
-"""v0.107 — health skill registration + runbook reference tests."""
+"""v0.107 — health skill registration + runbook reference tests.
+
+v0.207 — `test_wrapper_script_runs` now uses isolated_cache + passes
+COSCIENTIST_CACHE_DIR to subprocess. Previously it inherited the real
+~/.cache/coscientist where stale spans from dev work triggered v0.114
+alert exit-codes (>0). Test was effectively env-dependent.
+"""
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-from tests.harness import TestCase, run_tests
+from tests.harness import TestCase, isolated_cache, run_tests
 
 _REPO = Path(__file__).resolve().parents[1]
 _SKILL = _REPO / ".claude" / "skills" / "health" / "SKILL.md"
@@ -32,12 +39,17 @@ class HealthSkillTests(TestCase):
         self.assertTrue(_SCRIPT.exists())
 
     def test_wrapper_script_runs(self):
-        r = subprocess.run(
-            [sys.executable, str(_SCRIPT), "--format", "json"],
-            capture_output=True, text=True, cwd=str(_REPO),
-        )
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("n_runs", r.stdout)
+        # v0.207 — isolate from real cache so stale spans in dev cache
+        # don't trigger v0.114 alert exit-codes during this assertion.
+        with isolated_cache() as cache:
+            env = os.environ.copy()
+            env["COSCIENTIST_CACHE_DIR"] = str(cache)
+            r = subprocess.run(
+                [sys.executable, str(_SCRIPT), "--format", "json"],
+                capture_output=True, text=True, cwd=str(_REPO), env=env,
+            )
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("n_runs", r.stdout)
 
 
 class RunbookReferenceTests(TestCase):
