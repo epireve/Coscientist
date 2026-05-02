@@ -284,3 +284,149 @@ def render_run_recovery_doc(template: str, run_id: str) -> str:
     body (e.g. read from templates/run_recovery.md).
     """
     return template.replace("{{run_id}}", run_id)
+
+
+# ---------- v0.212 tensions table ----------
+
+_TENSIONS_TABLE_HEADER = (
+    "| # | Side A | Side B | Methodology / era | Confidence |\n"
+    "|---|---|---|---|---|"
+)
+
+
+def render_tensions_table(claim_rows: Iterable[dict]) -> str:
+    """v0.212 — render kind=tension claims as markdown table when >=3.
+
+    Claims with `paired_claim_id` (v0.198) render as joined Side A/B rows.
+    Unpaired tensions render with Side B = "—".
+
+    Returns empty string when fewer than 3 tension claims (caller falls
+    back to prose section).
+    """
+    tensions = [
+        r for r in claim_rows
+        if (r.get("kind") or "").lower() == "tension"
+    ]
+    if len(tensions) < 3:
+        return ""
+
+    # Pair Side A rows with their Side B counterparts.
+    by_id: dict = {r.get("claim_id"): r for r in tensions if r.get("claim_id")}
+    seen: set = set()
+    rendered_rows: list[str] = []
+    n = 0
+    for r in tensions:
+        cid = r.get("claim_id")
+        if cid in seen:
+            continue
+        side = (r.get("side") or "").lower()
+        paired_id = r.get("paired_claim_id")
+        side_a_text = side_b_text = ""
+        notes = ""
+        if side == "a" and paired_id and paired_id in by_id:
+            other = by_id[paired_id]
+            side_a_text = (r.get("text") or "").strip()
+            side_b_text = (other.get("text") or "").strip()
+            seen.add(cid)
+            seen.add(paired_id)
+        elif side == "b" and paired_id and paired_id in by_id:
+            # If we hit B before A, render A from the pair.
+            other = by_id[paired_id]
+            side_a_text = (other.get("text") or "").strip()
+            side_b_text = (r.get("text") or "").strip()
+            seen.add(cid)
+            seen.add(paired_id)
+        else:
+            side_a_text = (r.get("text") or "").strip()
+            side_b_text = "—"
+            seen.add(cid)
+        # Truncate per cell.
+        side_a_text = side_a_text[:140].replace("|", "\\|")
+        side_b_text = side_b_text[:140].replace("|", "\\|")
+        conf = r.get("confidence")
+        try:
+            conf_str = f"{float(conf):.2f}" if conf is not None else "—"
+        except (TypeError, ValueError):
+            conf_str = "—"
+        # Methodology hint: scrape (era / methodology / dataset) from text;
+        # fall back to placeholder when not detectable.
+        notes = "—"
+        for kw in ("era", "method", "dataset", "benchmark", "before", "after"):
+            blob = (side_a_text + " " + side_b_text).lower()
+            if kw in blob:
+                notes = kw
+                break
+        n += 1
+        rendered_rows.append(
+            f"| {n} | {side_a_text} | {side_b_text} | {notes} | {conf_str} |"
+        )
+
+    if not rendered_rows:
+        return ""
+    return _TENSIONS_TABLE_HEADER + "\n" + "\n".join(rendered_rows)
+
+
+# ---------- v0.211 audience-aware brief render ----------
+
+# Jargon → plain swap. Conservative; only swaps tokens that have a clean
+# 1:1 plain-English equivalent. Caller decides whether to apply.
+# Pairs ordered longest-first so "statistically significant" doesn't
+# leave half-matched residue when "significant" alone would also match.
+_AUDIENCE_NOVICE_SWAPS: tuple[tuple[str, str], ...] = (
+    ("statistically significant", "reliably non-random"),
+    ("inter-rater reliability", "agreement between raters"),
+    ("confidence interval", "range of likely values"),
+    ("meta-analysis", "combined-study analysis"),
+    ("null hypothesis", "no-effect baseline"),
+    ("cross-sectional", "single-snapshot"),
+    ("peer-reviewed", "expert-checked"),
+    ("frequentist", "classical-statistics"),
+    ("longitudinal", "over-time"),
+    ("effect size", "strength of the effect"),
+    ("p-hacking", "cherry-picking analyses"),
+    ("Bayesian", "probability-based"),
+    ("HARKing", "explaining results after the fact"),
+    ("RCTs", "randomized trials"),
+    ("RCT", "randomized trial"),
+)
+
+
+def strip_jargon_for_novice(text: str) -> str:
+    """v0.211 — apply conservative jargon→plain swaps for non-expert audience.
+
+    Word-boundary regex via str.replace + manual punctuation handling.
+    Idempotent. Run swaps longest-first so multi-word jargon wins over
+    its single-word substring.
+    """
+    out = text
+    for jargon, plain in _AUDIENCE_NOVICE_SWAPS:
+        out = out.replace(jargon, plain)
+    return out
+
+
+def render_executive_summary(
+    *,
+    question: str,
+    proven: str,
+    open_problem: str,
+    real_world_implication: str,
+    audience: str = "expert",
+) -> str:
+    """v0.211 — 5-min So-What summary (Prompt 5 from external playbook).
+
+    Three lines: what's proven, what's still unknown, why it matters.
+    No jargon when audience='novice'.
+    """
+    if audience == "novice":
+        proven = strip_jargon_for_novice(proven)
+        open_problem = strip_jargon_for_novice(open_problem)
+        real_world_implication = strip_jargon_for_novice(real_world_implication)
+
+    label = "Executive summary" if audience == "novice" else "TL;DR"
+    return (
+        f"## {label}\n\n"
+        f"**Question**: {question}\n\n"
+        f"**What's proven**: {proven}\n\n"
+        f"**What's still unknown**: {open_problem}\n\n"
+        f"**Why it matters**: {real_world_implication}\n"
+    )
