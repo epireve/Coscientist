@@ -148,3 +148,13 @@ Per sub-agent: `<workspace>/result.json` matching TaskSpec output_schema.
 Run-level: `runs/run-<wide-id>/wide-output.csv` + `wide-output.md` (synthesizer roll-up).
 
 Persisted across sessions. Read with `wide.py collect`.
+
+## CLI flag reference (v0.208 drift sweep)
+
+`wide.py` subcommands: init / dispatch / collect / synthesize / status
+
+- `init` — `--task-type triage|read|rank|compare|survey|screen`, `--items`, `--task-spec`, `--compare-schema` (compare type), `--parent-run-id` (handoff to Deep)
+- `dispatch` — `--max-parallel`, `--dry-run`, `--force-redispatch`, `--sub-agent-id`, `--guidance`
+- `collect` — `--list-results`, `--max-age-min`, `--preview-limit`, `--verbose`
+- `synthesize` — `--write-outputs`, `--top-k`, `--seed-mode abstract|full-text|cumulative`
+- `status` — common: `--flag-ids` (export CSV), `--user-input`, `--verdict`

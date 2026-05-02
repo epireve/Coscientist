@@ -1,14 +1,10 @@
 # SKILL.md drift report
 
-Audited: 121 (skill, script) pairs
-With drift: 50
+Audited: 117 (skill, script) pairs
+With drift: 43
 
 ## Top offenders
 
-- **deep-research** (`.claude/skills/deep-research/scripts/db.py`): 21 undocumented — --agent, --agent-name, --artifact-path, --complete, --confidence, --kind, --min-papers-per-term, --min-papers-per-year, --min-years-per-term, --output-json, --persist, --prompt, --quality-artifact, --resolve, --seed-from-wide, --seed-mode, --seed-top-k, --strategy-json, --supporting-ids, --text, --user-input
-- **statistics** (`.claude/skills/statistics/scripts/effect_size.py`): 14 undocumented — --chi2, --df-effect, --m1, --m2, --min-dim, --ms-error, --n1, --n2, --sd-control, --sd1, --sd2, --ss-effect, --ss-error, --ss-total
-- **wide-research** (`.claude/skills/wide-research/scripts/wide.py`): 13 undocumented — --compare-schema, --dry-run, --flag-ids, --force-redispatch, --guidance, --list-results, --max-age-min, --parent-run-id, --preview-limit, --sub-agent-id, --user-input, --verbose, --verdict
-- **deep-research** (`.claude/skills/deep-research/scripts/harvest.py`): 6 undocumented — --harvested-by, --input-file, --max-mcp-calls, --max-papers, --notes, --queries-sent
 - **debate** (`.claude/skills/debate/scripts/debate.py`): 4 undocumented — --drift-threshold, --n-rounds, --persist-db, --valid-cids
 - **tournament** (`.claude/skills/tournament/scripts/tree_ranker.py`): 4 undocumented — --min-matches, --run-db, --threshold, --tree-id
 - **tournament** (`.claude/skills/tournament/scripts/record_match.py`): 3 undocumented — --auto-prune, --prune-min-matches, --prune-threshold
@@ -17,8 +13,6 @@ With drift: 50
 - **experiment-reproduce** (`.claude/skills/experiment-reproduce/scripts/reproduce.py`): 2 undocumented — --cpus, --image
 - **field-trends-analyzer** (`.claude/skills/field-trends-analyzer/scripts/trends.py`): 2 undocumented — --buckets, --window-days
 - **health** (`.claude/skills/health/scripts/health.py`): 2 undocumented — --no-alerts, --show-thresholds
-- **institutional-access** (`.claude/skills/institutional-access/scripts/idp_runner.py`): 2 undocumented — --institution, --timeout
-- **institutional-access** (`.claude/skills/institutional-access/scripts/import_cookies.py`): 2 undocumented — --input, --output
 - **paper-discovery** (`.claude/skills/paper-discovery/scripts/openalex_source.py`): 2 undocumented — --filter, --page
 - **peer-review** (`.claude/skills/peer-review/scripts/decide.py`): 2 undocumented — --decision, --rationale
 - **reference-agent** (`.claude/skills/reference-agent/scripts/enrich_authors.py`): 2 undocumented — --author-nid, --source
@@ -28,7 +22,6 @@ With drift: 50
 - **tournament** (`.claude/skills/tournament/scripts/record_hypothesis.py`): 2 undocumented — --branch-index, --tree-root
 - **venue-match** (`.claude/skills/venue-match/scripts/recommend.py`): 2 undocumented — --audience, --persist-db
 - **contribution-mapper** (`.claude/skills/contribution-mapper/scripts/map.py`): 1 undocumented — --persist-db
-- **deep-research** (`.claude/skills/deep-research/scripts/overnight.py`): 1 undocumented — --prompt
 - **dmp-generator** (`.claude/skills/dmp-generator/scripts/dmp.py`): 1 undocumented — --force
 - **ethics-irb** (`.claude/skills/ethics-irb/scripts/ethics.py`): 1 undocumented — --force
 - **figure-agent** (`.claude/skills/figure-agent/scripts/check_palette.py`): 1 undocumented — --colors
@@ -78,12 +71,9 @@ With drift: 50
 - dataset-agent / register.py: OK
 - debate / debate.py: DRIFT (4)
     missing-in-md: --drift-threshold, --n-rounds, --persist-db, --valid-cids
-- deep-research / db.py: DRIFT (21)
-    missing-in-md: --agent, --agent-name, --artifact-path, --complete, --confidence, --kind, --min-papers-per-term, --min-papers-per-year, --min-years-per-term, --output-json, --persist, --prompt, --quality-artifact, --resolve, --seed-from-wide, --seed-mode, --seed-top-k, --strategy-json, --supporting-ids, --text, --user-input
-- deep-research / harvest.py: DRIFT (6)
-    missing-in-md: --harvested-by, --input-file, --max-mcp-calls, --max-papers, --notes, --queries-sent
-- deep-research / overnight.py: DRIFT (1)
-    missing-in-md: --prompt
+- deep-research / db.py: OK
+- deep-research / harvest.py: OK
+- deep-research / overnight.py: OK
 - dmp-generator / dmp.py: DRIFT (1)
     missing-in-md: --force
 - ethics-irb / ethics.py: DRIFT (1)
@@ -111,13 +101,7 @@ With drift: 50
 - health / health.py: DRIFT (2)
     missing-in-md: --no-alerts, --show-thresholds
 - idea-attacker / gate.py: OK
-- institutional-access / check.py: OK
-- institutional-access / fetch.py: OK
-- institutional-access / idp_runner.py: DRIFT (2)
-    missing-in-md: --institution, --timeout
-- institutional-access / import_cookies.py: DRIFT (2)
-    missing-in-md: --input, --output
-- institutional-access / login.py: OK
+- institutional-access / chrome_fetch.py: OK
 - manuscript-audit / gate.py: OK
 - manuscript-bibtex-import / import_bib.py: OK
 - manuscript-critique / gate.py: OK
@@ -201,8 +185,7 @@ With drift: 50
     missing-in-md: --force, --input
 - slide-draft / slide.py: OK
 - statistics / assumption_check.py: OK
-- statistics / effect_size.py: DRIFT (14)
-    missing-in-md: --chi2, --df-effect, --m1, --m2, --min-dim, --ms-error, --n1, --n2, --sd-control, --sd1, --sd2, --ss-effect, --ss-error, --ss-total
+- statistics / effect_size.py: OK
 - statistics / meta_analysis.py: OK
 - statistics / power.py: OK
 - statistics / test_select.py: OK
@@ -220,8 +203,7 @@ With drift: 50
     missing-in-md: --min-matches, --run-db, --threshold, --tree-id
 - venue-match / recommend.py: DRIFT (2)
     missing-in-md: --audience, --persist-db
-- wide-research / wide.py: DRIFT (13)
-    missing-in-md: --compare-schema, --dry-run, --flag-ids, --force-redispatch, --guidance, --list-results, --max-age-min, --parent-run-id, --preview-limit, --sub-agent-id, --user-input, --verbose, --verdict
+- wide-research / wide.py: OK
 - writing-style / apply.py: DRIFT (1)
     missing-in-md: --text
 - writing-style / audit.py: DRIFT (1)

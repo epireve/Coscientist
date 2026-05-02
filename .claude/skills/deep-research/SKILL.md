@@ -239,3 +239,25 @@ Written to `~/.cache/coscientist/runs/run-<run_id>/`:
 - Never skip a break. The human-in-the-loop review is the whole point of this pipeline.
 - Never bypass `paper-acquire`'s triage gate, even when a sub-agent asks for full text urgently.
 - Abort if `/research-eval` reports >30% unattributed claims — something went wrong upstream.
+
+## CLI flag reference (v0.208 drift sweep)
+
+Full flag set across `db.py`, `harvest.py`, `overnight.py`:
+
+**`db.py` subcommands**: init / record-phase / record-break / record-claim / next-phase / next-phase-batch / resume / suggest-strategy / get-strategy / set-strategy / detect-eras / compute-disagreement / compute-velocity / score-quality / record-subagent / record-note / list-papers / list-claims
+
+- `init` — `--question`, `--config`, `--overnight`, `--seed-from-wide`, `--seed-mode`, `--seed-top-k`
+- `record-phase` — `--phase`, `--start`, `--complete`, `--output-json` (inline JSON or file path; v0.191), `--quality-artifact`, `--auto-tournament` (v0.203)
+- `record-break` — `--break-number`, `--prompt`, `--resolve`, `--user-input`
+- `record-claim` — `--canonical-id`, `--agent-name`, `--text`, `--kind`, `--confidence`, `--supporting-ids`, `--references-claim-ids` (v0.200), `--targets-hyp-id` (v0.200), `--side a|b` + `--paired-claim-id` (v0.198 dual-side), `--strict-supporting-ids` (v0.196 gate), `--persist`
+- `record-note` (v0.197) — `--author`, `--text` (or `-` for stdin), `--phase-id`
+- `list-papers` (v0.195) — `--phase` filter, `--format json|text`
+- `list-claims` (v0.195) — same filters
+- `set-strategy` — `--strategy-json`
+- `detect-eras` — `--min-papers-per-year`, `--min-papers-per-term`, `--min-years-per-term`, `--min-dim`
+- `score-quality` — `--agent`, `--artifact-path`, `--prompt`
+- `record-subagent` — `--agent-name`, `--phase-id`
+
+**`harvest.py write`** — `--persona`, `--phase`, `--query`, `--input-file`, `--harvested-by`, `--max-mcp-calls`, `--max-papers`, `--queries-sent`, `--notes`
+
+**`overnight.py`** — `--prompt`, `--queue-break`, `--digest`

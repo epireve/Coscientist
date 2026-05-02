@@ -24,3 +24,14 @@ Pure-stdlib statistical primitives designed to run inside any sub-agent context.
 - `_norm_cdf(x)` — Abramowitz & Stegun 26.2.17 rational approximation
 - `_norm_ppf(p)` — Acklam 2003 rational approximation
 - `_chi2_cdf_wh(x, k)` — Wilson-Hilferty normal approximation
+
+## Effect-size flag reference (v0.208 drift sweep)
+
+`effect_size.py --kind <kind>` accepts these stat-input flags depending on kind:
+
+- **cohen_d / glass_delta / hedges_g** (continuous, two groups):
+  `--m1`, `--m2`, `--sd1`, `--sd2`, `--n1`, `--n2`, `--sd-control` (Glass)
+- **eta_squared / omega_squared** (ANOVA):
+  `--ss-effect`, `--ss-error`, `--ss-total`, `--df-effect`, `--ms-error`
+- **cramers_v** (chi-square):
+  `--chi2`, `--n` (total sample), `--min-dim` (min(rows,cols))
